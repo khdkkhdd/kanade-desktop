@@ -1,5 +1,6 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
+import { loadAllMainPlugins, unloadAllMainPlugins } from './loader/main.js';
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -16,6 +17,11 @@ function createWindow() {
   } else {
     win.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
+
+  const plugins = {};
+  loadAllMainPlugins(plugins, win, ipcMain);
+
+  return win;
 }
 
 app.whenReady().then(() => {
@@ -32,4 +38,8 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('before-quit', () => {
+  unloadAllMainPlugins();
 });
