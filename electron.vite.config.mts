@@ -26,6 +26,10 @@ export default defineConfig({
       },
       outDir: 'dist/renderer',
     },
-    plugins: [solid()],
+    plugins: [
+      solid({
+        extensions: ['.tsx', '.jsx'],
+      }),
+    ],
   },
 });
