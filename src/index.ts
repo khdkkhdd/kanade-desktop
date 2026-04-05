@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, session } from 'electron';
 import path from 'node:path';
 import { store } from './config/store.js';
 import { loadAllMainPlugins, unloadAllMainPlugins } from './loader/main.js';
+import { relationOverlay } from './plugins/relation-overlay/index.js';
 
 function removeCSP(): void {
   session.defaultSession.webRequest.onHeadersReceived(
@@ -83,7 +84,7 @@ function createWindow(): BrowserWindow {
   }
 
   // Plugins
-  const plugins = {};
+  const plugins = { 'relation-overlay': relationOverlay };
   loadAllMainPlugins(plugins, win, ipcMain);
 
   return win;
