@@ -16,11 +16,7 @@ export interface ArtistRef {
 export interface SongRelation {
   id: number;
   type: string;
-  song: {
-    id: number;
-    title: string;
-    originalTitle: string;
-  };
+  song: SongItem;
 }
 
 export interface SongItem {

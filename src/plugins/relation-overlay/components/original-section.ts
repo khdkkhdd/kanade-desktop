@@ -6,7 +6,7 @@ const INITIAL_SHOW = 5;
 export function createOriginalSection(
   songs: VideoResponse['songs'],
 ): HTMLElement | null {
-  // Collect all cover_of relations and resolve them against the songs array
+  // Collect all cover_of relations — relation.song now includes full data (videos, artists)
   const originals: SongItem[] = [];
   const seen = new Set<number>();
 
@@ -15,17 +15,7 @@ export function createOriginalSection(
       if (rel.type !== 'cover_of') continue;
       if (seen.has(rel.song.id)) continue;
       seen.add(rel.song.id);
-
-      // The relation's song only has { id, title, originalTitle } — no videos/artists.
-      // Try to find the full song in the songs array (the original might also appear
-      // as a song entry if it shares the same video).
-      const fullSong = songs.find((s) => s.id === rel.song.id);
-      if (fullSong) {
-        originals.push(fullSong);
-      }
-      // If the original song isn't in the songs array, we cannot render a video item
-      // because we lack video and artist data. This is a known limitation —
-      // the initial /video response doesn't include full original song details.
+      originals.push(rel.song);
     }
   }
 
