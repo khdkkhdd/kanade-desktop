@@ -1,0 +1,42 @@
+import type { BackendContext } from '../../types/plugins.js';
+import type {
+  FetchVideoRequest,
+  FetchSongGroupRequest,
+  FetchArtistRelationsRequest,
+  FetchArtistSongsRequest,
+} from './types.js';
+
+const API_BASE = 'https://kanade-server.vercel.app/api/v1/public';
+
+async function fetchApi<T>(path: string): Promise<T | null> {
+  try {
+    const res = await fetch(`${API_BASE}${path}`);
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.data ?? json;
+  } catch {
+    return null;
+  }
+}
+
+export function setupBackend(ctx: BackendContext): void {
+  ctx.ipc.handle('fetch-video', async (req: FetchVideoRequest) => {
+    return fetchApi(`/video/youtube/${req.videoId}?lang=${req.lang}`);
+  });
+
+  ctx.ipc.handle('fetch-song-group-covers', async (req: FetchSongGroupRequest) => {
+    return fetchApi(
+      `/song-group/${req.songGroupId}/covers?lang=${req.lang}&offset=${req.offset}&limit=${req.limit}`,
+    );
+  });
+
+  ctx.ipc.handle('fetch-artist-relations', async (req: FetchArtistRelationsRequest) => {
+    return fetchApi(`/artist/${req.artistId}/relations?lang=${req.lang}`);
+  });
+
+  ctx.ipc.handle('fetch-artist-songs', async (req: FetchArtistSongsRequest) => {
+    return fetchApi(
+      `/artist/${req.artistId}/songs?lang=${req.lang}&offset=${req.offset}&limit=${req.limit}`,
+    );
+  });
+}
