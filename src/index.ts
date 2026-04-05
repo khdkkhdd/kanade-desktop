@@ -50,7 +50,7 @@ function createWindow(): BrowserWindow {
     show: false,
     webPreferences: {
       contextIsolation: true,
-      preload: path.join(__dirname, '../preload/index.cjs'),
+      preload: path.join(__dirname, '../preload/preload.cjs'),
       sandbox: false,
     },
   });

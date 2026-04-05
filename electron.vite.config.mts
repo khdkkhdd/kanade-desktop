@@ -6,14 +6,19 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: 'src/index.ts',
+        external: ['electron', 'electron-store'],
       },
       outDir: 'dist/main',
     },
   },
   preload: {
     build: {
+      lib: {
+        entry: 'src/preload.ts',
+        formats: ['cjs'],
+      },
       rollupOptions: {
-        input: 'src/preload.ts',
+        external: ['electron'],
       },
       outDir: 'dist/preload',
     },

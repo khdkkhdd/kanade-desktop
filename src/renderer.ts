@@ -3,6 +3,8 @@ function extractVideoId(): string | null {
 }
 
 function onNavigate(): void {
+  if (!window.kanade) return;
+
   const videoId = extractVideoId();
   console.log('[kanade] navigated:', window.location.href, 'videoId:', videoId);
   window.kanade.ipc.send('navigation:changed', {

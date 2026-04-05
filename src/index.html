@@ -43,10 +43,14 @@
     </div>
     <script>
       document.getElementById('btn-youtube').addEventListener('click', () => {
-        window.kanade.ipc.send('select-start-url', 'https://www.youtube.com');
+        if (window.kanade) {
+          window.kanade.ipc.send('select-start-url', 'https://www.youtube.com');
+        }
       });
       document.getElementById('btn-music').addEventListener('click', () => {
-        window.kanade.ipc.send('select-start-url', 'https://music.youtube.com');
+        if (window.kanade) {
+          window.kanade.ipc.send('select-start-url', 'https://music.youtube.com');
+        }
       });
     </script>
     <script type="module" src="./renderer.ts"></script>
