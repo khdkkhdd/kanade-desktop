@@ -121,7 +121,7 @@ src/plugins/relation-overlay/
 ### DOM Injection
 
 - **위치**: 레이아웃에 따라 다름 (리사이즈 대응 섹션 참조)
-- **스타일**: `adoptedStyleSheets`로 YouTube 다크 테마에 맞춘 스타일 적용. kanade 브랜드 컬러(보라색 계열) 사용.
+- **스타일**: YouTube 네이티브 스타일과 동화. YouTube의 기존 색상, 폰트, 간격, 라운딩을 따른다. kanade 전용 브랜드 컬러는 사용하지 않고, 패널 헤더의 "kanade" 텍스트 정도로만 출처를 표시. 칩은 YouTube 추천 영상 칩과 동일한 스타일. 다크/라이트 테마 모두 대응.
 - **정리**: YouTube SPA 네비게이션 시 기존 패널 제거 후 새로 inject
 - **미등록 영상**: API 404 → 패널 inject 안 함
 
