@@ -20,21 +20,25 @@ async function fetchApi<T>(path: string): Promise<T | null> {
 }
 
 export function setupBackend(ctx: BackendContext): void {
-  ctx.ipc.handle('fetch-video', async (req: FetchVideoRequest) => {
+  ctx.ipc.handle('fetch-video', async (...args: unknown[]) => {
+    const req = args[0] as FetchVideoRequest;
     return fetchApi(`/video/youtube/${req.videoId}?lang=${req.lang}`);
   });
 
-  ctx.ipc.handle('fetch-song-group-covers', async (req: FetchSongGroupRequest) => {
+  ctx.ipc.handle('fetch-song-group-covers', async (...args: unknown[]) => {
+    const req = args[0] as FetchSongGroupRequest;
     return fetchApi(
       `/song-group/${req.songGroupId}/covers?lang=${req.lang}&offset=${req.offset}&limit=${req.limit}`,
     );
   });
 
-  ctx.ipc.handle('fetch-artist-relations', async (req: FetchArtistRelationsRequest) => {
+  ctx.ipc.handle('fetch-artist-relations', async (...args: unknown[]) => {
+    const req = args[0] as FetchArtistRelationsRequest;
     return fetchApi(`/artist/${req.artistId}/relations?lang=${req.lang}`);
   });
 
-  ctx.ipc.handle('fetch-artist-songs', async (req: FetchArtistSongsRequest) => {
+  ctx.ipc.handle('fetch-artist-songs', async (...args: unknown[]) => {
+    const req = args[0] as FetchArtistSongsRequest;
     return fetchApi(
       `/artist/${req.artistId}/songs?lang=${req.lang}&offset=${req.offset}&limit=${req.limit}`,
     );
