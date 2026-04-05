@@ -9,4 +9,7 @@ contextBridge.exposeInMainWorld('kanade', {
       ipcRenderer.on(channel, (_event, ...args) => listener(...args));
     },
   },
+  platform: {
+    isYouTubeMusic: () => location.hostname === 'music.youtube.com',
+  },
 });
