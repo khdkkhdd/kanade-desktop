@@ -102,7 +102,7 @@ export function createOtherVersionsSection(
   renderItems();
 
   // Expose setter for panel to provide pagination info
-  (section as HTMLElement & { setNextOffset: typeof setNextOffset }).setNextOffset = setNextOffset;
+  (section as unknown as { setNextOffset: typeof setNextOffset }).setNextOffset = setNextOffset;
 
   return section;
 }
