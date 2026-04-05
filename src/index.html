@@ -4,9 +4,51 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kanade</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        background: #0f0f0f;
+        color: #fff;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+      }
+      .container { text-align: center; }
+      h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+      p { color: #aaa; margin-bottom: 2rem; }
+      .buttons { display: flex; gap: 1rem; justify-content: center; }
+      button {
+        background: #272727;
+        color: #fff;
+        border: 1px solid #3a3a3a;
+        border-radius: 8px;
+        padding: 1rem 2rem;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      button:hover { background: #3a3a3a; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="./renderer.tsx"></script>
+    <div class="container">
+      <h1>Kanade (奏)</h1>
+      <p>시작할 서비스를 선택하세요</p>
+      <div class="buttons">
+        <button id="btn-youtube">YouTube</button>
+        <button id="btn-music">YouTube Music</button>
+      </div>
+    </div>
+    <script>
+      document.getElementById('btn-youtube').addEventListener('click', () => {
+        window.kanade.ipc.send('select-start-url', 'https://www.youtube.com');
+      });
+      document.getElementById('btn-music').addEventListener('click', () => {
+        window.kanade.ipc.send('select-start-url', 'https://music.youtube.com');
+      });
+    </script>
+    <script type="module" src="./renderer.ts"></script>
   </body>
 </html>
