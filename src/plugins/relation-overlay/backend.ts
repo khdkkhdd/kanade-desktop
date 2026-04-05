@@ -6,8 +6,7 @@ import type {
   FetchArtistSongsRequest,
 } from './types.js';
 
-// TODO: make configurable via electron-store
-const API_BASE = 'http://localhost:3000/api/v1/public';
+const API_BASE = process.env.KANADE_API_BASE ?? 'http://localhost:3000/api/v1/public';
 
 async function fetchApi<T>(path: string): Promise<T | null> {
   try {
