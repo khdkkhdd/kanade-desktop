@@ -9,4 +9,33 @@ contextBridge.exposeInMainWorld('kanade', {
       ipcRenderer.on(channel, (_event, ...args) => listener(...args));
     },
   },
+  platform: {
+    isYouTubeMusic: () => location.hostname === 'music.youtube.com',
+  },
 });
+
+// YouTube navigation detection (runs on every page load)
+function extractVideoId(): string | null {
+  // Standard: /watch?v=VIDEO_ID
+  const param = new URLSearchParams(window.location.search).get('v');
+  if (param) return param;
+
+  // Shorts: /shorts/VIDEO_ID
+  const shortsMatch = window.location.pathname.match(/^\/shorts\/([a-zA-Z0-9_-]+)/);
+  if (shortsMatch) return shortsMatch[1];
+
+  return null;
+}
+
+function onNavigate(): void {
+  const videoId = extractVideoId();
+  console.log('[kanade] navigated:', window.location.href, 'videoId:', videoId);
+  ipcRenderer.send('navigation:changed', {
+    url: window.location.href,
+    videoId,
+  });
+}
+
+document.addEventListener('yt-navigate-finish', onNavigate);
+window.addEventListener('load', onNavigate);
+window.addEventListener('popstate', onNavigate);
