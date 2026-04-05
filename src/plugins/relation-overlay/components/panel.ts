@@ -1,13 +1,18 @@
 import type { RendererContext } from '../../../types/plugins.js';
-import type { VideoResponse, SongListResponse } from '../types.js';
+import type { VideoResponse, SongItem, SongListResponse, ArtistRelationsResponse } from '../types.js';
 import { getStyles } from '../styles.js';
-import { createOriginalSection } from './original-section.js';
-import { createOtherVersionsSection } from './other-versions-section.js';
-import { createRelatedArtistsSection } from './related-artists-section.js';
+import { createVideoItem } from './video-item.js';
 
 const PANEL_ID = 'kanade-relation-panel';
 const STYLE_ID = 'kanade-relation-styles';
-const INITIAL_PAGE_LIMIT = 20;
+const INITIAL_SHOW = 5;
+const PAGE_LIMIT = 20;
+
+interface TopChipDef {
+  id: string;
+  label: string;
+  load: () => Promise<void>;
+}
 
 function injectStyles(): void {
   if (document.getElementById(STYLE_ID)) return;
@@ -29,70 +34,348 @@ export async function createPanel(
   panel.id = PANEL_ID;
   panel.className = 'kanade-panel';
 
-  // Header
-  const header = document.createElement('div');
-  header.className = 'kanade-header';
+  // Top-level chip bar
+  const topChipBar = document.createElement('div');
+  topChipBar.className = 'kanade-chip-bar';
+  panel.appendChild(topChipBar);
 
-  const headerTitle = document.createElement('span');
-  headerTitle.className = 'kanade-header-title';
-  headerTitle.textContent = 'kanade';
+  // Sub chip bar (for artist chips, hidden by default)
+  const subChipBar = document.createElement('div');
+  subChipBar.className = 'kanade-chip-bar kanade-sub-chip-bar';
+  subChipBar.style.display = 'none';
+  panel.appendChild(subChipBar);
 
-  const headerLine = document.createElement('div');
-  headerLine.className = 'kanade-header-line';
+  // Content area
+  const content = document.createElement('div');
+  content.className = 'kanade-content';
+  panel.appendChild(content);
 
-  header.appendChild(headerTitle);
-  header.appendChild(headerLine);
-  panel.appendChild(header);
+  // State
+  const topChips: TopChipDef[] = [];
+  const topChipElements = new Map<string, HTMLButtonElement>();
+  let activeTopChipId: string | null = null;
 
-  // Original section (if any song is a cover)
-  const originalSection = createOriginalSection(data.songs);
-  if (originalSection) {
-    panel.appendChild(originalSection);
+  // Song list state
+  let allSongs: SongItem[] = [];
+
+  let nextOffset: number | null = null;
+  let currentIpcChannel: string | null = null;
+  let currentFetchParams: Record<string, unknown> | null = null;
+  let loading = false;
+
+  // Artist sub-chip state
+  const artistChipElements = new Map<number, HTMLButtonElement>();
+  const discoveredArtistIds = new Set<number>();
+  let activeArtistId: number | null = null;
+  const artistSongsCache = new Map<number, { songs: SongItem[]; nextOffset: number | null }>();
+  const artistRelationsLoaded = new Set<number>();
+
+  const song = data.songs[0];
+  if (!song) return panel;
+
+  const songGroupId = song.songGroup?.id;
+
+  // --- Render functions ---
+
+  let scrollObserver: IntersectionObserver | null = null;
+
+  function renderContent(): void {
+    content.innerHTML = '';
+    scrollObserver?.disconnect();
+
+    for (const s of allSongs) {
+      const item = createVideoItem(s);
+      if (item) content.appendChild(item);
+    }
+
+    // Infinite scroll sentinel
+    if (nextOffset !== null && currentIpcChannel) {
+      const sentinel = document.createElement('div');
+      sentinel.className = 'kanade-scroll-sentinel';
+      content.appendChild(sentinel);
+
+      scrollObserver = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) void fetchMore();
+        },
+        { root: content, threshold: 0.1 },
+      );
+      scrollObserver.observe(sentinel);
+    }
   }
 
-  // Other versions section — find a song group and fetch covers
-  const songWithGroup = data.songs.find((s) => s.songGroup);
-  if (songWithGroup) {
-    const songGroupId = songWithGroup.songGroup.id;
+  async function fetchMore(): Promise<void> {
+    if (loading || nextOffset === null || !currentIpcChannel || !currentFetchParams) return;
 
-    // Fetch initial page of song group covers
-    const coversResult = (await ctx.ipc.invoke('fetch-song-group-covers', {
-      songGroupId,
-      lang,
-      offset: 0,
-      limit: INITIAL_PAGE_LIMIT,
-    })) as SongListResponse | null;
+    loading = true;
+    try {
+      const result = (await ctx.ipc.invoke(currentIpcChannel, {
+        ...currentFetchParams,
+        offset: nextOffset,
+        limit: PAGE_LIMIT,
+      })) as SongListResponse | null;
 
-    if (coversResult && coversResult.data.length > 0) {
-      const otherVersions = createOtherVersionsSection(
-        coversResult.data,
-        songGroupId,
+      if (result) {
+        const newSongs = result.data.filter(
+          (s) => !s.videos.some((v) => v.platform === 'youtube' && v.externalId === videoId),
+        );
+        // Append items without re-rendering everything
+        const sentinel = content.querySelector('.kanade-scroll-sentinel');
+        for (const s of newSongs) {
+          const item = createVideoItem(s);
+          if (item) content.insertBefore(item, sentinel);
+        }
+        allSongs = allSongs.concat(newSongs);
+        nextOffset = result.nextOffset;
+
+        // Remove sentinel if no more pages
+        if (nextOffset === null) {
+          scrollObserver?.disconnect();
+          sentinel?.remove();
+        }
+      } else {
+        nextOffset = null;
+        scrollObserver?.disconnect();
+        content.querySelector('.kanade-scroll-sentinel')?.remove();
+      }
+    } finally {
+      loading = false;
+    }
+  }
+
+  // --- Top chip management ---
+
+  function setChipActive(chipDiv: HTMLElement, active: boolean): void {
+    if (active) {
+      chipDiv.classList.remove('ytChipShapeInactive');
+      chipDiv.classList.add('ytChipShapeActive');
+    } else {
+      chipDiv.classList.remove('ytChipShapeActive');
+      chipDiv.classList.add('ytChipShapeInactive');
+    }
+  }
+
+  function selectTopChip(chipId: string): void {
+    if (activeTopChipId === chipId) return;
+
+    if (activeTopChipId) {
+      const prev = topChipElements.get(activeTopChipId);
+      if (prev) setChipActive(prev.querySelector('.ytChipShapeChip')!, false);
+    }
+
+    activeTopChipId = chipId;
+    const curr = topChipElements.get(chipId);
+    if (curr) setChipActive(curr.querySelector('.ytChipShapeChip')!, true);
+
+    // Hide sub chip bar for non-artist chips
+    if (chipId !== 'artists') {
+      subChipBar.style.display = 'none';
+      activeArtistId = null;
+      for (const el of artistChipElements.values()) {
+        setChipActive(el.querySelector('.ytChipShapeChip')!, false);
+      }
+    }
+
+    const chip = topChips.find((c) => c.id === chipId);
+    if (chip) void chip.load();
+  }
+
+  function createChipElement(label: string, onClick: () => void, inactive = true): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.className = 'ytChipShapeButtonReset';
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', inactive ? 'false' : 'true');
+
+    const chipDiv = document.createElement('div');
+    chipDiv.className = `ytChipShapeChip ${inactive ? 'ytChipShapeInactive' : 'ytChipShapeActive'} ytChipShapeOnlyTextPadding`;
+
+    const textDiv = document.createElement('div');
+    textDiv.textContent = label;
+    chipDiv.appendChild(textDiv);
+
+    btn.appendChild(chipDiv);
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+
+  function addTopChip(def: TopChipDef): void {
+    topChips.push(def);
+    const btn = createChipElement(def.label, () => selectTopChip(def.id));
+    topChipBar.appendChild(btn);
+    topChipElements.set(def.id, btn);
+  }
+
+  // --- Artist sub-chip management ---
+
+  function addArtistSubChip(artistId: number, name: string): void {
+    if (discoveredArtistIds.has(artistId)) return;
+    discoveredArtistIds.add(artistId);
+
+    const btn = createChipElement(name, () => void selectArtist(artistId));
+    subChipBar.appendChild(btn);
+    artistChipElements.set(artistId, btn);
+  }
+
+  async function selectArtist(artistId: number): Promise<void> {
+    if (activeArtistId === artistId) return;
+
+    if (activeArtistId !== null) {
+      const prev = artistChipElements.get(activeArtistId);
+      if (prev) setChipActive(prev.querySelector('.ytChipShapeChip')!, false);
+    }
+
+    activeArtistId = artistId;
+    const curr = artistChipElements.get(artistId);
+    if (curr) setChipActive(curr.querySelector('.ytChipShapeChip')!, true);
+
+    // Fetch songs if not cached
+    if (!artistSongsCache.has(artistId)) {
+      const result = (await ctx.ipc.invoke('fetch-artist-songs', {
+        artistId,
         lang,
-        videoId,
-        ctx,
-      );
+        offset: 0,
+        limit: PAGE_LIMIT,
+      })) as SongListResponse | null;
 
-      if (otherVersions) {
-        // Provide pagination offset from the fetch result
-        const withOffset = otherVersions as HTMLElement & {
-          setNextOffset?: (offset: number | null) => void;
-        };
-        withOffset.setNextOffset?.(coversResult.nextOffset);
-        panel.appendChild(otherVersions);
+      artistSongsCache.set(artistId, {
+        songs: result?.data ?? [],
+        nextOffset: result?.nextOffset ?? null,
+      });
+    }
+
+    const cache = artistSongsCache.get(artistId)!;
+    allSongs = cache.songs;
+    nextOffset = cache.nextOffset;
+    currentIpcChannel = 'fetch-artist-songs';
+    currentFetchParams = { artistId, lang };
+    renderContent();
+
+    // Discover related artists (one-time)
+    if (!artistRelationsLoaded.has(artistId)) {
+      artistRelationsLoaded.add(artistId);
+      const raw = (await ctx.ipc.invoke('fetch-artist-relations', {
+        artistId,
+        lang,
+      })) as { data: ArtistRelationsResponse } | null;
+
+      const relations = raw?.data;
+      if (relations) {
+        for (const rel of [...relations.from, ...relations.to]) {
+          addArtistSubChip(rel.artist.id, rel.artist.name);
+        }
       }
     }
   }
 
-  // Related artists section (always shown if there are artists)
-  const allArtists = data.songs.flatMap((s) => s.artists);
-  const uniqueArtists = allArtists.filter(
-    (a, i, arr) => arr.findIndex((b) => b.id === a.id) === i,
-  );
+  // --- Build top chips ---
 
-  if (uniqueArtists.length > 0) {
-    const artistSection = createRelatedArtistsSection(uniqueArtists, lang, ctx);
-    panel.appendChild(artistSection);
+  // 1. 원곡 (if cover)
+  const coverOfRelations = song.relations.filter((r) => r.type === 'cover_of');
+  if (coverOfRelations.length > 0) {
+    addTopChip({
+      id: 'originals',
+      label: '원곡',
+      load: async () => {
+        const originals = coverOfRelations.map((r) => r.song).filter(
+          (s) => !s.videos.some((v) => v.platform === 'youtube' && v.externalId === videoId),
+        );
+        allSongs = originals;
+
+        nextOffset = null;
+        currentIpcChannel = null;
+        currentFetchParams = null;
+        renderContent();
+      },
+    });
   }
+
+  // 2. 이 곡의 다른 영상 (other originals in song_group)
+  if (songGroupId) {
+    const originalsResult = (await ctx.ipc.invoke('fetch-song-group-originals', {
+      songGroupId,
+      lang,
+      offset: 0,
+      limit: PAGE_LIMIT,
+    })) as SongListResponse | null;
+
+    const otherOriginals = originalsResult?.data.filter(
+      (s) => !s.videos.some((v) => v.platform === 'youtube' && v.externalId === videoId),
+    ) ?? [];
+
+    if (otherOriginals.length > 0) {
+      addTopChip({
+        id: 'other-versions',
+        label: '이 곡의 다른 영상',
+        load: async () => {
+          allSongs = otherOriginals;
+  
+          nextOffset = originalsResult?.nextOffset ?? null;
+          currentIpcChannel = 'fetch-song-group-originals';
+          currentFetchParams = { songGroupId, lang };
+          renderContent();
+        },
+      });
+    }
+  }
+
+  // 3. 커버
+  if (songGroupId) {
+    const coversResult = (await ctx.ipc.invoke('fetch-song-group-covers', {
+      songGroupId,
+      lang,
+      offset: 0,
+      limit: PAGE_LIMIT,
+    })) as SongListResponse | null;
+
+    const covers = coversResult?.data.filter(
+      (s) => !s.videos.some((v) => v.platform === 'youtube' && v.externalId === videoId),
+    ) ?? [];
+
+    if (covers.length > 0) {
+      addTopChip({
+        id: 'covers',
+        label: '커버',
+        load: async () => {
+          allSongs = covers;
+  
+          nextOffset = coversResult?.nextOffset ?? null;
+          currentIpcChannel = 'fetch-song-group-covers';
+          currentFetchParams = { songGroupId, lang };
+          renderContent();
+        },
+      });
+    }
+  }
+
+  // 4. 아티스트의 다른 곡 (top chip that reveals sub-chips)
+  const currentArtists = song.artists.filter((a) => a.id);
+  if (currentArtists.length > 0) {
+    // Pre-populate sub chips
+    for (const artist of currentArtists) {
+      addArtistSubChip(artist.id, artist.name);
+    }
+
+    addTopChip({
+      id: 'artists',
+      label: '아티스트의 다른 곡',
+      load: async () => {
+        subChipBar.style.display = 'flex';
+        // Auto-select first artist if none selected
+        if (activeArtistId === null && currentArtists.length > 0) {
+          await selectArtist(currentArtists[0].id);
+        } else if (activeArtistId !== null) {
+          // Re-render current artist's songs
+          await selectArtist(activeArtistId);
+        }
+      },
+    });
+  }
+
+  // Don't render empty panel
+  if (topChips.length === 0) return panel;
+
+  // Auto-select first chip
+  selectTopChip(topChips[0].id);
 
   return panel;
 }

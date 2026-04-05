@@ -6,14 +6,14 @@ import type {
   FetchArtistSongsRequest,
 } from './types.js';
 
-const API_BASE = 'https://kanade-server.vercel.app/api/v1/public';
+// TODO: make configurable via electron-store
+const API_BASE = 'http://localhost:3000/api/v1/public';
 
 async function fetchApi<T>(path: string): Promise<T | null> {
   try {
     const res = await fetch(`${API_BASE}${path}`);
     if (!res.ok) return null;
-    const json = await res.json();
-    return json.data ?? json;
+    return await res.json();
   } catch {
     return null;
   }
@@ -29,6 +29,13 @@ export function setupBackend(ctx: BackendContext): void {
     const req = args[0] as FetchSongGroupRequest;
     return fetchApi(
       `/song-group/${req.songGroupId}/covers?lang=${req.lang}&offset=${req.offset}&limit=${req.limit}`,
+    );
+  });
+
+  ctx.ipc.handle('fetch-song-group-originals', async (...args: unknown[]) => {
+    const req = args[0] as FetchSongGroupRequest;
+    return fetchApi(
+      `/song-group/${req.songGroupId}/originals?lang=${req.lang}&offset=${req.offset}&limit=${req.limit}`,
     );
   });
 

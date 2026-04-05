@@ -16,8 +16,6 @@ export function createVideoItem(song: SongItem): HTMLAnchorElement | null {
   const thumb = document.createElement('img');
   thumb.className = 'kanade-video-thumb';
   thumb.src = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
-  thumb.width = 120;
-  thumb.height = 68;
   thumb.loading = 'lazy';
   thumb.alt = song.title;
 

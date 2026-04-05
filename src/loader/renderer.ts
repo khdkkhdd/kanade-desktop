@@ -1,3 +1,4 @@
+import { ipcRenderer } from 'electron';
 import type { PluginDef, RendererContext } from '../types/plugins.js';
 
 const loadedPlugins = new Map<string, PluginDef>();
@@ -5,9 +6,9 @@ const loadedPlugins = new Map<string, PluginDef>();
 function createRendererContext(id: string): RendererContext {
   return {
     ipc: {
-      send: (event, ...args) => window.kanade.ipc.send(`plugin:${id}:${event}`, ...args),
-      invoke: (event, ...args) => window.kanade.ipc.invoke(`plugin:${id}:${event}`, ...args),
-      on: (event, listener) => window.kanade.ipc.on(`plugin:${id}:${event}`, listener),
+      send: (event, ...args) => ipcRenderer.send(`plugin:${id}:${event}`, ...args),
+      invoke: (event, ...args) => ipcRenderer.invoke(`plugin:${id}:${event}`, ...args),
+      on: (event, listener) => ipcRenderer.on(`plugin:${id}:${event}`, (_e, ...args) => listener(...args)),
     },
   };
 }

@@ -37,52 +37,55 @@ function waitForElement(selector: string, timeout = 10_000): Promise<Element | n
 
 export function setupRenderer(ctx: RendererContext): void {
   let currentVideoId: string | null = null;
+  let requestId = 0; // Monotonic counter to cancel stale requests
 
-  async function onNavigate(): Promise<void> {
+  async function onNavigate(force = false): Promise<void> {
     const videoId = extractVideoId();
 
-    // Skip if same video or not a video page
-    if (!videoId || videoId === currentVideoId) return;
+    if (!videoId) {
+      removePanel();
+      currentVideoId = null;
+      return;
+    }
+
+    if (videoId === currentVideoId && !force) return;
     currentVideoId = videoId;
 
-    // Remove previous panel
+    // Cancel any in-flight request by bumping the ID
+    const myRequestId = ++requestId;
+
     removePanel();
 
     const lang = document.documentElement.lang || 'ko';
 
-    // Fetch video data
-    const data = (await ctx.ipc.invoke('fetch-video', {
+    const raw = (await ctx.ipc.invoke('fetch-video', {
       videoId,
       lang,
-    })) as VideoResponse | null;
+    })) as { data: VideoResponse } | null;
 
+    // Stale check
+    if (myRequestId !== requestId) return;
+
+    const data = raw?.data ?? null;
     if (!data || data.songs.length === 0) return;
 
-    // Bail if user navigated away while we were fetching
-    if (extractVideoId() !== videoId) return;
+    const metadata = await waitForElement('ytd-watch-metadata');
+    if (myRequestId !== requestId || !metadata) return;
 
-    // Wait for YouTube's #below element to appear
-    const below = await waitForElement('#below');
-    if (!below) return;
-
-    // Bail if user navigated away while waiting for DOM
-    if (extractVideoId() !== videoId) return;
+    removePanel();
 
     const panel = await createPanel(data, videoId, lang, ctx);
+    if (myRequestId !== requestId) return;
 
-    // Insert after #below
-    below.parentElement?.insertBefore(panel, below.nextSibling);
+    metadata.parentElement?.insertBefore(panel, metadata.nextSibling);
   }
 
-  // Listen for YouTube SPA navigation
+  // yt-navigate-finish is the primary event for YouTube SPA navigation
   document.addEventListener('yt-navigate-finish', () => {
-    currentVideoId = null; // Reset so we re-fetch on SPA nav
-    void onNavigate();
+    currentVideoId = null;
+    void onNavigate(true);
   });
 
+  // load as fallback for initial page load only
   window.addEventListener('load', () => void onNavigate());
-  window.addEventListener('popstate', () => {
-    currentVideoId = null;
-    void onNavigate();
-  });
 }

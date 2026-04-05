@@ -153,11 +153,12 @@ export function createRelatedArtistsSection(
   }
 
   async function fetchArtistRelations(artistId: number): Promise<void> {
-    const result = (await ctx.ipc.invoke('fetch-artist-relations', {
+    const raw = (await ctx.ipc.invoke('fetch-artist-relations', {
       artistId,
       lang,
-    })) as ArtistRelationsResponse | null;
+    })) as { data: ArtistRelationsResponse } | null;
 
+    const result = raw?.data ?? null;
     if (!result) return;
 
     // Add discovered related artists as new chips
@@ -188,6 +189,11 @@ export function createRelatedArtistsSection(
   // Initialize with current artists
   for (const artist of currentArtists) {
     addArtistChip(artist);
+  }
+
+  // Auto-select first artist
+  if (currentArtists.length > 0) {
+    void onChipClick(currentArtists[0].id);
   }
 
   return section;

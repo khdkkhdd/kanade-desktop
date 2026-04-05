@@ -11,6 +11,8 @@ export function createOtherVersionsSection(
   lang: string,
   currentVideoId: string,
   ctx: RendererContext,
+  sectionTitle = '이 곡의 다른 영상',
+  ipcChannel = 'fetch-song-group-originals',
 ): HTMLElement | null {
   // Filter out the current video
   const songs = initialSongs.filter(
@@ -24,7 +26,7 @@ export function createOtherVersionsSection(
 
   const title = document.createElement('div');
   title.className = 'kanade-section-title';
-  title.textContent = '이 곡의 다른 영상';
+  title.textContent = sectionTitle;
   section.appendChild(title);
 
   const list = document.createElement('div');
@@ -32,8 +34,7 @@ export function createOtherVersionsSection(
 
   let allSongs = [...songs];
   let showing = Math.min(INITIAL_SHOW, allSongs.length);
-  let nextOffset: number | null = null;
-  let hasInitializedPagination = false;
+  let nextOffset: number | null = initialSongs.length < PAGE_LIMIT ? null : initialSongs.length;
   let loading = false;
 
   function renderItems(): void {
@@ -43,7 +44,6 @@ export function createOtherVersionsSection(
       if (item) list.appendChild(item);
     }
 
-    // Show "더보기" if there are hidden local items or more pages to fetch
     if (showing < allSongs.length || nextOffset !== null) {
       const btn = document.createElement('button');
       btn.className = 'kanade-load-more';
@@ -56,19 +56,17 @@ export function createOtherVersionsSection(
   async function loadMore(): Promise<void> {
     if (loading) return;
 
-    // First, reveal any locally hidden items
     if (showing < allSongs.length) {
       showing = allSongs.length;
       renderItems();
       return;
     }
 
-    // Then fetch next page via IPC
     if (nextOffset === null) return;
 
     loading = true;
     try {
-      const result = (await ctx.ipc.invoke('fetch-song-group-covers', {
+      const result = (await ctx.ipc.invoke(ipcChannel, {
         songGroupId,
         lang,
         offset: nextOffset,
@@ -91,18 +89,6 @@ export function createOtherVersionsSection(
     renderItems();
   }
 
-  // Initialize pagination info from initial data set
-  // The initial songs come from the panel's IPC fetch; we store the offset for subsequent pages
-  function setNextOffset(offset: number | null): void {
-    nextOffset = offset;
-    hasInitializedPagination = true;
-    renderItems();
-  }
-
   renderItems();
-
-  // Expose setter for panel to provide pagination info
-  (section as unknown as { setNextOffset: typeof setNextOffset }).setNextOffset = setNextOffset;
-
   return section;
 }
