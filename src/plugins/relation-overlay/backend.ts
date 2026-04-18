@@ -6,12 +6,16 @@ import type {
   FetchArtistRecordingsRequest,
   FetchArtistRelationsRequest,
 } from './types.js';
+import { store } from '../../config/store.js';
 
-const API_BASE = process.env.KANADE_API_BASE ?? 'http://localhost:3000/api/v1/public';
+function getPublicBase(): string {
+  const base = process.env.KANADE_API_BASE ?? store.get('kanade').apiBase;
+  return `${base}/public`;
+}
 
 async function fetchApi<T>(path: string): Promise<T | null> {
   try {
-    const res = await fetch(`${API_BASE}${path}`);
+    const res = await fetch(`${getPublicBase()}${path}`);
     if (!res.ok) return null;
     return (await res.json()) as T;
   } catch {
