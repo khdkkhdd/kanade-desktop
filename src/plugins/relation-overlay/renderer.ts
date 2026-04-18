@@ -86,4 +86,17 @@ export function setupRenderer(ctx: RendererContext): void {
 
   // load as fallback for initial page load only
   window.addEventListener('load', () => void onNavigate());
+
+  // Subscribe to cross-plugin data change broadcasts.
+  // Uses raw ipcRenderer because ctx.ipc scopes to own plugin id.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { ipcRenderer } = require('electron');
+  ipcRenderer.on('admin-video:data-changed', () => {
+    currentVideoId = null;
+    void onNavigate(true);
+  });
+  ipcRenderer.on('settings:changed', () => {
+    currentVideoId = null;
+    void onNavigate(true);
+  });
 }

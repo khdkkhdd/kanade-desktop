@@ -2,8 +2,11 @@ import { defineConfig } from 'electron-vite';
 import solid from 'vite-plugin-solid';
 import { resolve } from 'node:path';
 
+const solidPlugin = solid({ extensions: ['.tsx', '.jsx'] });
+
 export default defineConfig({
   main: {
+    plugins: [solidPlugin],
     build: {
       rollupOptions: {
         input: 'src/index.ts',
@@ -13,6 +16,7 @@ export default defineConfig({
     },
   },
   preload: {
+    plugins: [solidPlugin],
     build: {
       lib: {
         entry: {
@@ -28,6 +32,7 @@ export default defineConfig({
     },
   },
   renderer: {
+    plugins: [solidPlugin],
     root: 'src',
     build: {
       rollupOptions: {
@@ -38,10 +43,5 @@ export default defineConfig({
       },
       outDir: 'dist/renderer',
     },
-    plugins: [
-      solid({
-        extensions: ['.tsx', '.jsx'],
-      }),
-    ],
   },
 });
