@@ -22,7 +22,7 @@ export function setupBackend(ctx: BackendContext): void {
     const { externalId, artistId } = args[0] as { externalId: string; artistId: number };
     const c = client();
     const upsert = await c.request('POST', '/admin/channels', { platform: 'youtube', externalId });
-    if (!upsert.ok && (upsert as any).error.code !== 'DUPLICATE') return upsert;
+    if (!upsert.ok && upsert.error.code !== 'DUPLICATE') return upsert;
     return c.request('POST', `/admin/channels/youtube/${encodeURIComponent(externalId)}/artists`, { artistId });
   });
 
@@ -32,7 +32,7 @@ export function setupBackend(ctx: BackendContext): void {
     const artistRes = await c.request<{ id: number }>('POST', '/admin/artists', newArtist);
     if (!artistRes.ok) return artistRes;
     const upsert = await c.request('POST', '/admin/channels', { platform: 'youtube', externalId });
-    if (!upsert.ok && (upsert as any).error.code !== 'DUPLICATE') return upsert;
+    if (!upsert.ok && upsert.error.code !== 'DUPLICATE') return upsert;
     return c.request('POST', `/admin/channels/youtube/${encodeURIComponent(externalId)}/artists`, { artistId: artistRes.data.id });
   });
 

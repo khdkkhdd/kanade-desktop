@@ -3,8 +3,8 @@ import path from 'node:path';
 import { store } from './config/store.js';
 import { loadAllMainPlugins, unloadAllMainPlugins } from './loader/main.js';
 import { relationOverlay } from './plugins/relation-overlay/index.js';
-import { adminVideo } from './plugins/admin-video/index.js';
-import { adminChannel } from './plugins/admin-channel/index.js';
+import { adminVideoMain } from './plugins/admin-video/main.js';
+import { adminChannelMain } from './plugins/admin-channel/main.js';
 
 function removeCSP(): void {
   session.defaultSession.webRequest.onHeadersReceived(
@@ -88,8 +88,8 @@ function createWindow(): BrowserWindow {
   // Plugins
   const plugins = {
     'relation-overlay': relationOverlay,
-    'admin-video': adminVideo,
-    'admin-channel': adminChannel,
+    'admin-video': adminVideoMain,
+    'admin-channel': adminChannelMain,
   };
   loadAllMainPlugins(plugins, win, ipcMain);
 

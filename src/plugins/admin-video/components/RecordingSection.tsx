@@ -39,36 +39,35 @@ export function RecordingSection(props: RecordingSectionProps) {
     props.onChange({ kind: 'existing', id: r.id });
   }
 
-  function enterCreate() {
-    setMode('create');
-    setTitles([]);
-    setIsOrigin(true);
-    setArtists([]);
-    emitNew();
-  }
-
-  function emitNew() {
+  // Auto-emit when in create mode and state changes
+  createEffect(() => {
+    if (mode() !== 'create') return;
     props.onChange({
       kind: 'new',
       isOrigin: isOrigin(),
       titles: titles(),
       artists: artists(),
     });
+  });
+
+  function enterCreate() {
+    setMode('create');
+    setTitles([]);
+    setIsOrigin(true);
+    setArtists([]);
+    // createEffect picks this up automatically
   }
 
   function updateArtists(next: ArtistCreditEntry[]) {
     setArtists(next);
-    emitNew();
   }
 
   function updateTitles(t: TitleInput[]) {
     setTitles(t);
-    emitNew();
   }
 
   function updateIsOrigin(v: boolean) {
     setIsOrigin(v);
-    emitNew();
   }
 
   return (

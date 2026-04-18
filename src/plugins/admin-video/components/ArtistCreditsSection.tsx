@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from 'solid-js';
+import { createSignal, createEffect, For, Show } from 'solid-js';
 import type { RendererContext } from '../../../types/plugins.js';
 import type { ArtistCreditInput, NewArtistInput } from '../../../admin/types.js';
 import { EntityPicker, type EntitySearchResult } from '../../../admin/components/EntityPicker.js';
@@ -37,29 +37,26 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
     }));
   }
 
-  function emit() {
+  createEffect(() => {
     const credits: Credit[] = rows().map((r) => {
       if (r.newArtist) return { newArtist: r.newArtist, role: r.role, isPublic: r.isPublic };
       if (r.picked) return { artistId: r.picked.id, role: r.role, isPublic: r.isPublic };
       return { artistId: 0, role: r.role, isPublic: r.isPublic };
     }).filter((c) => ('newArtist' in c) || (c.artistId > 0));
     props.onChange(credits);
-  }
+  });
 
   function addRow(preset?: Partial<Row>) {
     const r: Row = { picked: null, creating: false, role: null, isPublic: rows().length === 0, ...preset };
     setRows([...rows(), r]);
-    emit();
   }
 
   function updateRow(i: number, patch: Partial<Row>) {
     setRows(rows().map((r, idx) => idx === i ? { ...r, ...patch } : r));
-    emit();
   }
 
   function removeRow(i: number) {
     setRows(rows().filter((_, idx) => idx !== i));
-    emit();
   }
 
   function acceptHint(artist: { id: number; displayName: string }) {
