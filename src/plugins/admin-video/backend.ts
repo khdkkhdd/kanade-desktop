@@ -2,6 +2,8 @@ import type { BackendContext } from '../../types/plugins.js';
 import { store } from '../../config/store.js';
 import { createAdminApiClient } from '../../admin/api-client.js';
 import type { AdminApiClient } from '../../admin/api-client.js';
+import { BrowserWindow } from 'electron';
+import { performRegister } from './register.js';
 
 function client(): AdminApiClient {
   const k = store.get('kanade');
@@ -57,5 +59,31 @@ export function setupBackend(ctx: BackendContext): void {
     } catch (e) {
       return { ok: false, error: { code: 'NETWORK', message: (e as Error).message } };
     }
+  });
+
+  ctx.ipc.handle('register', async (...args) => {
+    const payload = args[0] as import('../../admin/types.js').RegisterVideoPayload;
+    const result = await performRegister(client(), payload);
+    if (result.ok) {
+      for (const w of BrowserWindow.getAllWindows()) {
+        w.webContents.send('admin-video:data-changed', { videoId: payload.videoId });
+      }
+    }
+    return result;
+  });
+
+  ctx.ipc.handle('delete-video', async (...args) => {
+    const { videoId, recordingId, externalVideoId } = args[0] as {
+      videoId: string;
+      recordingId: number;
+      externalVideoId: number;
+    };
+    const r = await client().request('DELETE', `/admin/recordings/${recordingId}/videos/${externalVideoId}`);
+    if (r.ok) {
+      for (const w of BrowserWindow.getAllWindows()) {
+        w.webContents.send('admin-video:data-changed', { videoId });
+      }
+    }
+    return r;
   });
 }
