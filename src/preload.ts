@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { loadAllRendererPlugins } from './loader/renderer.js';
 import { relationOverlay } from './plugins/relation-overlay/index.js';
 import { adminVideo } from './plugins/admin-video/index.js';
+import { adminChannel } from './plugins/admin-channel/index.js';
 
 contextBridge.exposeInMainWorld('kanade', {
   version: '0.0.1',
@@ -47,5 +48,6 @@ window.addEventListener('popstate', onNavigate);
 const plugins = {
   'relation-overlay': relationOverlay,
   'admin-video': adminVideo,
+  'admin-channel': adminChannel,
 };
 loadAllRendererPlugins(plugins);
