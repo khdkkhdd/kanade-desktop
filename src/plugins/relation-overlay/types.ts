@@ -13,13 +13,15 @@ export interface ArtistRef {
   role?: string;
 }
 
-export interface SongRelation {
+export interface RecordingRelation {
   id: number;
   type: string;
-  song: SongItem;
+  // Field name `song` preserved to match the server's /video response wire shape
+  // (server preserves old field names even after the 3-layer rename for PR 1).
+  song: RecordingItem;
 }
 
-export interface SongItem {
+export interface RecordingItem {
   id: number;
   title: string;
   originalTitle: string;
@@ -29,10 +31,12 @@ export interface SongItem {
 }
 
 export interface VideoResponse {
+  // Field names `songs` / `songGroup` preserved to match the server's /video
+  // response wire shape (unchanged by PR 1).
   songs: Array<
-    SongItem & {
+    RecordingItem & {
       songGroup: { id: number; title: string; originalTitle: string };
-      relations: SongRelation[];
+      relations: RecordingRelation[];
     }
   >;
 }
@@ -43,8 +47,8 @@ export interface ArtistRelationsResponse {
   to: Array<{ id: number; type: string; artist: ArtistRef }>;
 }
 
-export interface SongListResponse {
-  data: SongItem[];
+export interface RecordingListResponse {
+  data: RecordingItem[];
   nextOffset: number | null;
 }
 
@@ -55,8 +59,8 @@ export interface FetchVideoRequest {
   lang: string;
 }
 
-export interface FetchSongGroupRequest {
-  songGroupId: number;
+export interface FetchWorkRequest {
+  workId: number;
   lang: string;
   offset: number;
   limit: number;
@@ -67,7 +71,7 @@ export interface FetchArtistRelationsRequest {
   lang: string;
 }
 
-export interface FetchArtistSongsRequest {
+export interface FetchArtistRecordingsRequest {
   artistId: number;
   lang: string;
   offset: number;

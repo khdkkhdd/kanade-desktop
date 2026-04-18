@@ -1,12 +1,12 @@
-import type { SongItem } from '../types.js';
+import type { RecordingItem } from '../types.js';
 
-function findYouTubeVideoId(song: SongItem): string | null {
-  const yt = song.videos.find((v) => v.platform === 'youtube');
+function findYouTubeVideoId(recording: RecordingItem): string | null {
+  const yt = recording.videos.find((v) => v.platform === 'youtube');
   return yt?.externalId ?? null;
 }
 
-export function createVideoItem(song: SongItem): HTMLAnchorElement | null {
-  const videoId = findYouTubeVideoId(song);
+export function createVideoItem(recording: RecordingItem): HTMLAnchorElement | null {
+  const videoId = findYouTubeVideoId(recording);
   if (!videoId) return null;
 
   const link = document.createElement('a');
@@ -17,18 +17,18 @@ export function createVideoItem(song: SongItem): HTMLAnchorElement | null {
   thumb.className = 'kanade-video-thumb';
   thumb.src = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
   thumb.loading = 'lazy';
-  thumb.alt = song.title;
+  thumb.alt = recording.title;
 
   const info = document.createElement('div');
   info.className = 'kanade-video-info';
 
   const title = document.createElement('div');
   title.className = 'kanade-video-title';
-  title.textContent = song.title;
+  title.textContent = recording.title;
 
   const artist = document.createElement('div');
   artist.className = 'kanade-video-artist';
-  artist.textContent = song.artists.map((a) => a.name).join(', ');
+  artist.textContent = recording.artists.map((a) => a.name).join(', ');
 
   info.appendChild(title);
   info.appendChild(artist);

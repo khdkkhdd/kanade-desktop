@@ -1,9 +1,9 @@
 import type { BackendContext } from '../../types/plugins.js';
 import type {
   FetchVideoRequest,
-  FetchSongGroupRequest,
+  FetchWorkRequest,
   FetchArtistRelationsRequest,
-  FetchArtistSongsRequest,
+  FetchArtistRecordingsRequest,
 } from './types.js';
 
 const API_BASE = process.env.KANADE_API_BASE ?? 'http://localhost:3000/api/v1/public';
@@ -24,17 +24,17 @@ export function setupBackend(ctx: BackendContext): void {
     return fetchApi(`/video/youtube/${req.videoId}?lang=${req.lang}`);
   });
 
-  ctx.ipc.handle('fetch-song-group-covers', async (...args: unknown[]) => {
-    const req = args[0] as FetchSongGroupRequest;
+  ctx.ipc.handle('fetch-work-covers', async (...args: unknown[]) => {
+    const req = args[0] as FetchWorkRequest;
     return fetchApi(
-      `/song-group/${req.songGroupId}/covers?lang=${req.lang}&offset=${req.offset}&limit=${req.limit}`,
+      `/work/${req.workId}/covers?lang=${req.lang}&offset=${req.offset}&limit=${req.limit}`,
     );
   });
 
-  ctx.ipc.handle('fetch-song-group-originals', async (...args: unknown[]) => {
-    const req = args[0] as FetchSongGroupRequest;
+  ctx.ipc.handle('fetch-work-originals', async (...args: unknown[]) => {
+    const req = args[0] as FetchWorkRequest;
     return fetchApi(
-      `/song-group/${req.songGroupId}/originals?lang=${req.lang}&offset=${req.offset}&limit=${req.limit}`,
+      `/work/${req.workId}/originals?lang=${req.lang}&offset=${req.offset}&limit=${req.limit}`,
     );
   });
 
@@ -43,10 +43,10 @@ export function setupBackend(ctx: BackendContext): void {
     return fetchApi(`/artist/${req.artistId}/relations?lang=${req.lang}`);
   });
 
-  ctx.ipc.handle('fetch-artist-songs', async (...args: unknown[]) => {
-    const req = args[0] as FetchArtistSongsRequest;
+  ctx.ipc.handle('fetch-artist-recordings', async (...args: unknown[]) => {
+    const req = args[0] as FetchArtistRecordingsRequest;
     return fetchApi(
-      `/artist/${req.artistId}/songs?lang=${req.lang}&offset=${req.offset}&limit=${req.limit}`,
+      `/artist/${req.artistId}/recordings?lang=${req.lang}&offset=${req.offset}&limit=${req.limit}`,
     );
   });
 }

@@ -1,17 +1,19 @@
-import type { VideoResponse, SongItem } from '../types.js';
+import type { VideoResponse, RecordingItem } from '../types.js';
 import { createVideoItem } from './video-item.js';
 
 const INITIAL_SHOW = 5;
 
 export function createOriginalSection(
-  songs: VideoResponse['songs'],
+  // Field name `songs` preserved to match the server's /video response wire shape.
+  recordings: VideoResponse['songs'],
 ): HTMLElement | null {
-  // Collect all cover_of relations — relation.song now includes full data (videos, artists)
-  const originals: SongItem[] = [];
+  // Collect all cover_of relations — relation.song now includes full data (videos, artists).
+  // Note: `rel.song` field name preserved to match the server's /video response wire shape.
+  const originals: RecordingItem[] = [];
   const seen = new Set<number>();
 
-  for (const song of songs) {
-    for (const rel of song.relations) {
+  for (const recording of recordings) {
+    for (const rel of recording.relations) {
       if (rel.type !== 'cover_of') continue;
       if (seen.has(rel.song.id)) continue;
       seen.add(rel.song.id);

@@ -1,5 +1,5 @@
 import type { RendererContext } from '../../../types/plugins.js';
-import type { VideoResponse, SongItem, SongListResponse, ArtistRelationsResponse } from '../types.js';
+import type { VideoResponse, RecordingItem, RecordingListResponse, ArtistRelationsResponse } from '../types.js';
 import { getStyles } from '../styles.js';
 import { createVideoItem } from './video-item.js';
 
@@ -55,8 +55,8 @@ export async function createPanel(
   const topChipElements = new Map<string, HTMLButtonElement>();
   let activeTopChipId: string | null = null;
 
-  // Song list state
-  let allSongs: SongItem[] = [];
+  // Recording list state
+  let allRecordings: RecordingItem[] = [];
 
   let nextOffset: number | null = null;
   let currentIpcChannel: string | null = null;
@@ -67,13 +67,19 @@ export async function createPanel(
   const artistChipElements = new Map<number, HTMLButtonElement>();
   const discoveredArtistIds = new Set<number>();
   let activeArtistId: number | null = null;
-  const artistSongsCache = new Map<number, { songs: SongItem[]; nextOffset: number | null }>();
+  const artistRecordingsCache = new Map<
+    number,
+    { recordings: RecordingItem[]; nextOffset: number | null }
+  >();
   const artistRelationsLoaded = new Set<number>();
 
-  const song = data.songs[0];
-  if (!song) return panel;
+  // Field names `songs` / `songGroup` on the /video response are preserved by
+  // the server (PR 1 kept the wire shape), so we still access them by those
+  // names even though our local types use Recording/Work naming.
+  const recording = data.songs[0];
+  if (!recording) return panel;
 
-  const songGroupId = song.songGroup?.id;
+  const workId = recording.songGroup?.id;
 
   // --- Render functions ---
 
@@ -83,8 +89,8 @@ export async function createPanel(
     content.innerHTML = '';
     scrollObserver?.disconnect();
 
-    for (const s of allSongs) {
-      const item = createVideoItem(s);
+    for (const r of allRecordings) {
+      const item = createVideoItem(r);
       if (item) content.appendChild(item);
     }
 
@@ -113,19 +119,19 @@ export async function createPanel(
         ...currentFetchParams,
         offset: nextOffset,
         limit: PAGE_LIMIT,
-      })) as SongListResponse | null;
+      })) as RecordingListResponse | null;
 
       if (result) {
-        const newSongs = result.data.filter(
+        const newRecordings = result.data.filter(
           (s) => !s.videos.some((v) => v.platform === 'youtube' && v.externalId === videoId),
         );
         // Append items without re-rendering everything
         const sentinel = content.querySelector('.kanade-scroll-sentinel');
-        for (const s of newSongs) {
-          const item = createVideoItem(s);
+        for (const r of newRecordings) {
+          const item = createVideoItem(r);
           if (item) content.insertBefore(item, sentinel);
         }
-        allSongs = allSongs.concat(newSongs);
+        allRecordings = allRecordings.concat(newRecordings);
         nextOffset = result.nextOffset;
 
         // Remove sentinel if no more pages
@@ -228,25 +234,25 @@ export async function createPanel(
     const curr = artistChipElements.get(artistId);
     if (curr) setChipActive(curr.querySelector('.ytChipShapeChip')!, true);
 
-    // Fetch songs if not cached
-    if (!artistSongsCache.has(artistId)) {
-      const result = (await ctx.ipc.invoke('fetch-artist-songs', {
+    // Fetch recordings if not cached
+    if (!artistRecordingsCache.has(artistId)) {
+      const result = (await ctx.ipc.invoke('fetch-artist-recordings', {
         artistId,
         lang,
         offset: 0,
         limit: PAGE_LIMIT,
-      })) as SongListResponse | null;
+      })) as RecordingListResponse | null;
 
-      artistSongsCache.set(artistId, {
-        songs: result?.data ?? [],
+      artistRecordingsCache.set(artistId, {
+        recordings: result?.data ?? [],
         nextOffset: result?.nextOffset ?? null,
       });
     }
 
-    const cache = artistSongsCache.get(artistId)!;
-    allSongs = cache.songs;
+    const cache = artistRecordingsCache.get(artistId)!;
+    allRecordings = cache.recordings;
     nextOffset = cache.nextOffset;
-    currentIpcChannel = 'fetch-artist-songs';
+    currentIpcChannel = 'fetch-artist-recordings';
     currentFetchParams = { artistId, lang };
     renderContent();
 
@@ -270,7 +276,9 @@ export async function createPanel(
   // --- Build top chips ---
 
   // 1. 원곡 (if cover)
-  const coverOfRelations = song.relations.filter((r) => r.type === 'cover_of');
+  // Note: `song.relations` / `rel.song` field names preserved to match the
+  // server's /video response wire shape.
+  const coverOfRelations = recording.relations.filter((r) => r.type === 'cover_of');
   if (coverOfRelations.length > 0) {
     addTopChip({
       id: 'originals',
@@ -279,7 +287,7 @@ export async function createPanel(
         const originals = coverOfRelations.map((r) => r.song).filter(
           (s) => !s.videos.some((v) => v.platform === 'youtube' && v.externalId === videoId),
         );
-        allSongs = originals;
+        allRecordings = originals;
 
         nextOffset = null;
         currentIpcChannel = null;
@@ -289,14 +297,14 @@ export async function createPanel(
     });
   }
 
-  // 2. 이 곡의 다른 영상 (other originals in song_group)
-  if (songGroupId) {
-    const originalsResult = (await ctx.ipc.invoke('fetch-song-group-originals', {
-      songGroupId,
+  // 2. 이 곡의 다른 영상 (other originals in work)
+  if (workId) {
+    const originalsResult = (await ctx.ipc.invoke('fetch-work-originals', {
+      workId,
       lang,
       offset: 0,
       limit: PAGE_LIMIT,
-    })) as SongListResponse | null;
+    })) as RecordingListResponse | null;
 
     const otherOriginals = originalsResult?.data.filter(
       (s) => !s.videos.some((v) => v.platform === 'youtube' && v.externalId === videoId),
@@ -307,11 +315,11 @@ export async function createPanel(
         id: 'other-versions',
         label: '이 곡의 다른 영상',
         load: async () => {
-          allSongs = otherOriginals;
-  
+          allRecordings = otherOriginals;
+
           nextOffset = originalsResult?.nextOffset ?? null;
-          currentIpcChannel = 'fetch-song-group-originals';
-          currentFetchParams = { songGroupId, lang };
+          currentIpcChannel = 'fetch-work-originals';
+          currentFetchParams = { workId, lang };
           renderContent();
         },
       });
@@ -319,13 +327,13 @@ export async function createPanel(
   }
 
   // 3. 커버
-  if (songGroupId) {
-    const coversResult = (await ctx.ipc.invoke('fetch-song-group-covers', {
-      songGroupId,
+  if (workId) {
+    const coversResult = (await ctx.ipc.invoke('fetch-work-covers', {
+      workId,
       lang,
       offset: 0,
       limit: PAGE_LIMIT,
-    })) as SongListResponse | null;
+    })) as RecordingListResponse | null;
 
     const covers = coversResult?.data.filter(
       (s) => !s.videos.some((v) => v.platform === 'youtube' && v.externalId === videoId),
@@ -336,11 +344,11 @@ export async function createPanel(
         id: 'covers',
         label: '커버',
         load: async () => {
-          allSongs = covers;
-  
+          allRecordings = covers;
+
           nextOffset = coversResult?.nextOffset ?? null;
-          currentIpcChannel = 'fetch-song-group-covers';
-          currentFetchParams = { songGroupId, lang };
+          currentIpcChannel = 'fetch-work-covers';
+          currentFetchParams = { workId, lang };
           renderContent();
         },
       });
@@ -348,7 +356,9 @@ export async function createPanel(
   }
 
   // 4. 아티스트의 다른 곡 (top chip that reveals sub-chips)
-  const currentArtists = song.artists.filter((a) => a.id);
+  // Note: `recording.artists` — `artists` field preserved to match the
+  // server's /video response wire shape.
+  const currentArtists = recording.artists.filter((a) => a.id);
   if (currentArtists.length > 0) {
     // Pre-populate sub chips
     for (const artist of currentArtists) {
@@ -364,7 +374,7 @@ export async function createPanel(
         if (activeArtistId === null && currentArtists.length > 0) {
           await selectArtist(currentArtists[0].id);
         } else if (activeArtistId !== null) {
-          // Re-render current artist's songs
+          // Re-render current artist's recordings
           await selectArtist(activeArtistId);
         }
       },
