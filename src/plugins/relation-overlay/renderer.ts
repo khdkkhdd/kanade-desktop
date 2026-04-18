@@ -51,7 +51,6 @@ export function setupRenderer(ctx: RendererContext): void {
     if (videoId === currentVideoId && !force) return;
     currentVideoId = videoId;
 
-    // Cancel any in-flight request by bumping the ID
     const myRequestId = ++requestId;
 
     removePanel();
@@ -63,11 +62,10 @@ export function setupRenderer(ctx: RendererContext): void {
       lang,
     })) as { data: VideoResponse } | null;
 
-    // Stale check
     if (myRequestId !== requestId) return;
 
     const data = raw?.data ?? null;
-    if (!data || data.songs.length === 0) return;
+    if (!data || data.recordings.length === 0) return;
 
     const metadata = await waitForElement('ytd-watch-metadata');
     if (myRequestId !== requestId || !metadata) return;

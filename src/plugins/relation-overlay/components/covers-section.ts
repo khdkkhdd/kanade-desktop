@@ -1,15 +1,14 @@
 import type { RendererContext } from '../../../types/plugins.js';
-import type { RecordingListItem, RecordingListResponse } from '../types.js';
+import type { RecordingListResponse } from '../types.js';
 import { createListSection } from './list-section.js';
 
 const PAGE_LIMIT = 20;
 
 /**
- * Original recordings of the current work, excluding the current recording.
- * /works/:workId/recordings?isOrigin=true&exclude=<currentRecordingId>
- * Empty results → returns null so the chip stays hidden.
+ * Cover recordings of the current work.
+ * /works/:workId/recordings?isOrigin=false&exclude=<currentRecordingId>
  */
-export async function createOriginalSection(
+export async function createCoversSection(
   workId: number,
   currentRecordingId: number,
   lang: string,
@@ -18,7 +17,7 @@ export async function createOriginalSection(
   const first = (await ctx.ipc.invoke('fetch-work-recordings', {
     workId,
     lang,
-    isOrigin: true,
+    isOrigin: false,
     exclude: currentRecordingId,
     offset: 0,
     limit: PAGE_LIMIT,
@@ -37,7 +36,7 @@ export async function createOriginalSection(
       const more = (await ctx.ipc.invoke('fetch-work-recordings', {
         workId,
         lang,
-        isOrigin: true,
+        isOrigin: false,
         exclude: currentRecordingId,
         seed,
         offset: nextOffset,
@@ -54,18 +53,10 @@ export async function createOriginalSection(
     } finally {
       loading = false;
     }
-  }, { showTitle: false });
+  });
 
   list.appendItems(first.data);
   if (nextOffset === null) list.setNoMore();
 
-  return list.root;
-}
-
-// Synchronous variant for cases where the caller already has initial data.
-export function createOriginalSectionFromData(items: RecordingListItem[]): HTMLElement {
-  const list = createListSection(async () => {});
-  list.appendItems(items);
-  list.setNoMore();
   return list.root;
 }

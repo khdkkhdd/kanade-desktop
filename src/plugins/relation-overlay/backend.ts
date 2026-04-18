@@ -1,9 +1,10 @@
 import type { BackendContext } from '../../types/plugins.js';
 import type {
   FetchVideoRequest,
-  FetchWorkRequest,
-  FetchArtistRelationsRequest,
+  FetchWorkRecordingsRequest,
+  FetchRecordingVideosRequest,
   FetchArtistRecordingsRequest,
+  FetchArtistRelationsRequest,
 } from './types.js';
 
 const API_BASE = process.env.KANADE_API_BASE ?? 'http://localhost:3000/api/v1/public';
@@ -12,41 +13,59 @@ async function fetchApi<T>(path: string): Promise<T | null> {
   try {
     const res = await fetch(`${API_BASE}${path}`);
     if (!res.ok) return null;
-    return await res.json();
+    return (await res.json()) as T;
   } catch {
     return null;
   }
 }
 
+function queryString(params: Record<string, unknown>): string {
+  const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== null);
+  if (entries.length === 0) return '';
+  const qs = new URLSearchParams();
+  for (const [k, v] of entries) qs.set(k, String(v));
+  return `?${qs.toString()}`;
+}
+
 export function setupBackend(ctx: BackendContext): void {
   ctx.ipc.handle('fetch-video', async (...args: unknown[]) => {
     const req = args[0] as FetchVideoRequest;
-    return fetchApi(`/video/youtube/${req.videoId}?lang=${req.lang}`);
+    return fetchApi(`/videos/youtube/${req.videoId}${queryString({ lang: req.lang })}`);
   });
 
-  ctx.ipc.handle('fetch-work-covers', async (...args: unknown[]) => {
-    const req = args[0] as FetchWorkRequest;
+  ctx.ipc.handle('fetch-work-recordings', async (...args: unknown[]) => {
+    const req = args[0] as FetchWorkRecordingsRequest;
     return fetchApi(
-      `/work/${req.workId}/covers?lang=${req.lang}&offset=${req.offset}&limit=${req.limit}`,
+      `/works/${req.workId}/recordings${queryString({
+        lang: req.lang,
+        isOrigin: req.isOrigin,
+        exclude: req.exclude,
+        seed: req.seed,
+        offset: req.offset,
+        limit: req.limit,
+      })}`,
     );
   });
 
-  ctx.ipc.handle('fetch-work-originals', async (...args: unknown[]) => {
-    const req = args[0] as FetchWorkRequest;
-    return fetchApi(
-      `/work/${req.workId}/originals?lang=${req.lang}&offset=${req.offset}&limit=${req.limit}`,
-    );
-  });
-
-  ctx.ipc.handle('fetch-artist-relations', async (...args: unknown[]) => {
-    const req = args[0] as FetchArtistRelationsRequest;
-    return fetchApi(`/artist/${req.artistId}/relations?lang=${req.lang}`);
+  ctx.ipc.handle('fetch-recording-videos', async (...args: unknown[]) => {
+    const req = args[0] as FetchRecordingVideosRequest;
+    return fetchApi(`/recordings/${req.recordingId}/videos`);
   });
 
   ctx.ipc.handle('fetch-artist-recordings', async (...args: unknown[]) => {
     const req = args[0] as FetchArtistRecordingsRequest;
     return fetchApi(
-      `/artist/${req.artistId}/recordings?lang=${req.lang}&offset=${req.offset}&limit=${req.limit}`,
+      `/artists/${req.artistId}/recordings${queryString({
+        lang: req.lang,
+        seed: req.seed,
+        offset: req.offset,
+        limit: req.limit,
+      })}`,
     );
+  });
+
+  ctx.ipc.handle('fetch-artist-relations', async (...args: unknown[]) => {
+    const req = args[0] as FetchArtistRelationsRequest;
+    return fetchApi(`/artists/${req.artistId}/relations${queryString({ lang: req.lang })}`);
   });
 }
