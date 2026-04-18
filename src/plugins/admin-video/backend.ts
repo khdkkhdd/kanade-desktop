@@ -1,0 +1,61 @@
+import type { BackendContext } from '../../types/plugins.js';
+import { store } from '../../config/store.js';
+import { createAdminApiClient } from '../../admin/api-client.js';
+import type { AdminApiClient } from '../../admin/api-client.js';
+
+function client(): AdminApiClient {
+  const k = store.get('kanade');
+  return createAdminApiClient({ adminApiKey: k.adminApiKey, apiBase: k.apiBase });
+}
+
+export function setupBackend(ctx: BackendContext): void {
+  ctx.ipc.handle('search-works', async (...args) => {
+    const { q } = args[0] as { q: string };
+    return client().request('GET', `/admin/search/works${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+  });
+
+  ctx.ipc.handle('search-recordings', async (...args) => {
+    const { q } = args[0] as { q: string };
+    return client().request('GET', `/admin/search/recordings${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+  });
+
+  ctx.ipc.handle('search-artists', async (...args) => {
+    const { q } = args[0] as { q: string };
+    return client().request('GET', `/admin/search/artists${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+  });
+
+  ctx.ipc.handle('get-work', async (...args) => {
+    const { id } = args[0] as { id: number };
+    return client().request('GET', `/admin/works/${id}`);
+  });
+
+  ctx.ipc.handle('get-recording', async (...args) => {
+    const { id } = args[0] as { id: number };
+    return client().request('GET', `/admin/recordings/${id}`);
+  });
+
+  ctx.ipc.handle('list-work-recordings', async (...args) => {
+    const { workId } = args[0] as { workId: number };
+    return client().request('GET', `/admin/works/${workId}`);
+  });
+
+  ctx.ipc.handle('get-channel-hint', async (...args) => {
+    const { externalId } = args[0] as { externalId: string };
+    return client().request('GET', `/admin/channels/youtube/${encodeURIComponent(externalId)}`);
+  });
+
+  ctx.ipc.handle('get-video-state', async (...args) => {
+    const { videoId } = args[0] as { videoId: string };
+    const base = store.get('kanade').apiBase;
+    try {
+      const res = await fetch(`${base}/public/videos/youtube/${encodeURIComponent(videoId)}`);
+      if (!res.ok) return { ok: true, data: { registered: false } };
+      const body = await res.json();
+      const data = body?.data ?? body;
+      const recordings = data?.recordings ?? [];
+      return { ok: true, data: { registered: recordings.length > 0, video: data } };
+    } catch (e) {
+      return { ok: false, error: { code: 'NETWORK', message: (e as Error).message } };
+    }
+  });
+}
