@@ -1,3 +1,4 @@
+import { ipcRenderer } from 'electron';
 import type { RendererContext } from '../../types/plugins.js';
 import type { VideoResponse } from './types.js';
 import { createPanel, removePanel } from './components/panel.js';
@@ -89,8 +90,6 @@ export function setupRenderer(ctx: RendererContext): void {
 
   // Subscribe to cross-plugin data change broadcasts.
   // Uses raw ipcRenderer because ctx.ipc scopes to own plugin id.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { ipcRenderer } = require('electron');
   ipcRenderer.on('admin-video:data-changed', () => {
     currentVideoId = null;
     void onNavigate(true);
