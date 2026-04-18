@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, Menu, session } from 'electron';
 import path from 'node:path';
 import { store } from './config/store.js';
 import { loadAllMainPlugins, unloadAllMainPlugins } from './loader/main.js';
-import { relationOverlay } from './plugins/relation-overlay/index.js';
+import { relationOverlayMain } from './plugins/relation-overlay/main.js';
 import { adminVideoMain } from './plugins/admin-video/main.js';
 import { adminChannelMain } from './plugins/admin-channel/main.js';
 
@@ -87,7 +87,7 @@ function createWindow(): BrowserWindow {
 
   // Plugins
   const plugins = {
-    'relation-overlay': relationOverlay,
+    'relation-overlay': relationOverlayMain,
     'admin-video': adminVideoMain,
     'admin-channel': adminChannelMain,
   };
