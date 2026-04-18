@@ -1,4 +1,4 @@
-import { JSX, createEffect, createSignal, onCleanup } from 'solid-js';
+import { JSX, createEffect, createSignal } from 'solid-js';
 import { injectAdminStyles } from './styles.js';
 
 export interface DrawerProps {
@@ -27,30 +27,14 @@ export function Drawer(props: DrawerProps) {
     props.onClose();
   }
 
-  // Swallow keyboard events so YouTube's global shortcut handlers
-  // (k=play/pause, f=fullscreen, digits=seek, …) don't fire while the
-  // drawer is focused. Uses capture-phase so we stop propagation before
-  // YouTube's document-level listeners see the event.
-  let drawerEl: HTMLDivElement | undefined;
-  const swallowKey = (e: KeyboardEvent) => { e.stopPropagation(); };
-
-  createEffect(() => {
-    const el = drawerEl;
-    if (!el) return;
-    el.addEventListener('keydown', swallowKey, true);
-    el.addEventListener('keyup', swallowKey, true);
-    el.addEventListener('keypress', swallowKey, true);
-    onCleanup(() => {
-      el.removeEventListener('keydown', swallowKey, true);
-      el.removeEventListener('keyup', swallowKey, true);
-      el.removeEventListener('keypress', swallowKey, true);
-    });
-  });
+  // Keyboard events are intercepted globally in preload.ts (capture-phase
+  // window listener) so YouTube shortcuts don't fire while typing in the
+  // drawer. Keep this component focused on the visual shell.
 
   return (
     <>
       <div class={`kanade-admin-overlay ${visible() ? 'is-open' : ''}`} onClick={handleClose} />
-      <div ref={drawerEl} class={`kanade-admin-drawer ${visible() ? 'is-open' : ''}`}>
+      <div class={`kanade-admin-drawer ${visible() ? 'is-open' : ''}`}>
         <div class="kanade-admin-drawer__header">
           <div class="kanade-admin-drawer__title">{props.title}</div>
           <button class="kanade-admin-drawer__close" onClick={handleClose} aria-label="Close">×</button>
