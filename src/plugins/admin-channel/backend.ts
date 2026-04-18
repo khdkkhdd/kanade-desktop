@@ -1,6 +1,7 @@
 import type { BackendContext } from '../../types/plugins.js';
 import { store } from '../../config/store.js';
 import { createAdminApiClient } from '../../admin/api-client.js';
+import { isAdminKeyValid } from '../../admin/auth-check.js';
 
 function client() {
   const k = store.get('kanade');
@@ -8,6 +9,10 @@ function client() {
 }
 
 export function setupBackend(ctx: BackendContext): void {
+  ctx.ipc.handle('check-auth', async () => {
+    return { valid: await isAdminKeyValid(client()) };
+  });
+
   ctx.ipc.handle('get-channel', async (...args) => {
     const { externalId } = args[0] as { externalId: string };
     return client().request('GET', `/admin/channels/youtube/${encodeURIComponent(externalId)}`);

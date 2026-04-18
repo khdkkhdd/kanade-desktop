@@ -1,3 +1,4 @@
+import { ipcRenderer } from 'electron';
 import { render } from 'solid-js/web';
 import type { RendererContext } from '../../types/plugins.js';
 import { injectAdminStyles } from '../../admin/components/styles.js';
@@ -37,6 +38,11 @@ export function setupRenderer(ctx: RendererContext): void {
     currentVideoId = videoId;
     if (!videoId) return;
     const myRequest = ++requestId;
+
+    // Gate: hide admin UI entirely unless the API key is valid.
+    const authResp = (await ctx.ipc.invoke('check-auth')) as { valid?: boolean } | null;
+    if (myRequest !== requestId) return;
+    if (!authResp?.valid) return;
 
     const stateResp = (await ctx.ipc.invoke('get-video-state', { videoId })) as
       | { ok: true; data: { registered: boolean; video?: unknown } }
@@ -94,4 +100,7 @@ export function setupRenderer(ctx: RendererContext): void {
     void onNavigate();
   });
   window.addEventListener('load', () => void onNavigate());
+
+  // Re-check auth and re-mount (or unmount) whenever settings change.
+  ipcRenderer.on('settings:changed', () => void onNavigate());
 }

@@ -1,3 +1,4 @@
+import { ipcRenderer } from 'electron';
 import { render } from 'solid-js/web';
 import type { RendererContext } from '../../types/plugins.js';
 import { injectAdminStyles } from '../../admin/components/styles.js';
@@ -40,6 +41,10 @@ export function setupRenderer(ctx: RendererContext): void {
     const externalId = extractChannelExternalId();
     if (!externalId) return;
 
+    // Gate: hide admin UI entirely unless the API key is valid.
+    const authResp = (await ctx.ipc.invoke('check-auth')) as { valid?: boolean } | null;
+    if (!authResp?.valid) return;
+
     const anchor = await waitForElement('ytd-channel-name, #channel-header-container');
     if (!anchor) return;
 
@@ -64,4 +69,7 @@ export function setupRenderer(ctx: RendererContext): void {
 
   document.addEventListener('yt-navigate-finish', () => void onNavigate());
   window.addEventListener('load', () => void onNavigate());
+
+  // Re-check auth and re-mount (or unmount) whenever settings change.
+  ipcRenderer.on('settings:changed', () => void onNavigate());
 }

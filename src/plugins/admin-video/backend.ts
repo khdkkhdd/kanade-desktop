@@ -2,6 +2,7 @@ import type { BackendContext } from '../../types/plugins.js';
 import { store } from '../../config/store.js';
 import { createAdminApiClient } from '../../admin/api-client.js';
 import type { AdminApiClient } from '../../admin/api-client.js';
+import { isAdminKeyValid } from '../../admin/auth-check.js';
 import { BrowserWindow } from 'electron';
 import { performRegister } from './register.js';
 
@@ -11,6 +12,10 @@ function client(): AdminApiClient {
 }
 
 export function setupBackend(ctx: BackendContext): void {
+  ctx.ipc.handle('check-auth', async () => {
+    return { valid: await isAdminKeyValid(client()) };
+  });
+
   ctx.ipc.handle('search-works', async (...args) => {
     const { q } = args[0] as { q: string };
     return client().request('GET', `/admin/search/works${q ? `?q=${encodeURIComponent(q)}` : ''}`);
