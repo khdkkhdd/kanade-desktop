@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, session } from 'electron';
 import path from 'node:path';
 import { store } from './config/store.js';
 import { loadAllMainPlugins, unloadAllMainPlugins } from './loader/main.js';
@@ -104,12 +104,83 @@ function setupIPC(win: BrowserWindow): void {
   });
 }
 
+let settingsWin: BrowserWindow | null = null;
+
+function openSettingsWindow(parent: BrowserWindow): void {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.focus();
+    return;
+  }
+  settingsWin = new BrowserWindow({
+    width: 480,
+    height: 320,
+    parent,
+    modal: false,
+    title: 'Kanade Settings',
+    backgroundColor: '#0f0f0f',
+    webPreferences: {
+      contextIsolation: true,
+      preload: path.join(__dirname, '../preload/settings-preload.cjs'),
+      sandbox: false,
+    },
+  });
+  if (process.env.ELECTRON_RENDERER_URL) {
+    settingsWin.loadURL(`${process.env.ELECTRON_RENDERER_URL}/settings-window/index.html`);
+  } else {
+    settingsWin.loadFile(path.join(__dirname, '../renderer/settings-window/index.html'));
+  }
+  settingsWin.on('closed', () => { settingsWin = null; });
+}
+
+function installAppMenu(getMainWin: () => BrowserWindow | null): void {
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: 'Kanade',
+      submenu: [
+        {
+          label: 'Settings...',
+          accelerator: process.platform === 'darwin' ? 'Cmd+,' : 'Ctrl+,',
+          click: () => {
+            const main = getMainWin();
+            if (main) openSettingsWindow(main);
+          },
+        },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    },
+    { role: 'editMenu' },
+    { role: 'viewMenu' },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+function setupSettingsIPC(): void {
+  ipcMain.handle('settings:get', () => {
+    const k = store.get('kanade');
+    return { adminApiKey: k.adminApiKey, apiBase: k.apiBase };
+  });
+  ipcMain.handle('settings:save', (_e, v: { adminApiKey: string; apiBase: string }) => {
+    store.set('kanade', v);
+    for (const w of BrowserWindow.getAllWindows()) {
+      w.webContents.send('settings:changed', v);
+    }
+    return { ok: true };
+  });
+  ipcMain.on('settings:open', (e) => {
+    const sender = BrowserWindow.fromWebContents(e.sender);
+    if (sender) openSettingsWindow(sender);
+  });
+}
+
 // App lifecycle
 app.whenReady().then(() => {
   removeCSP();
 
   const win = createWindow();
   setupIPC(win);
+  setupSettingsIPC();
+  installAppMenu(() => win);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
