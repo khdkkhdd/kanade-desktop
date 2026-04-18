@@ -1,5 +1,6 @@
 import { defineConfig } from 'electron-vite';
 import solid from 'vite-plugin-solid';
+import { resolve } from 'node:path';
 
 export default defineConfig({
   main: {
@@ -14,7 +15,10 @@ export default defineConfig({
   preload: {
     build: {
       lib: {
-        entry: 'src/preload.ts',
+        entry: {
+          preload: 'src/preload.ts',
+          'settings-preload': 'src/settings-window/preload.ts',
+        },
         formats: ['cjs'],
       },
       rollupOptions: {
@@ -27,7 +31,10 @@ export default defineConfig({
     root: 'src',
     build: {
       rollupOptions: {
-        input: 'src/index.html',
+        input: {
+          index: resolve(__dirname, 'src/index.html'),
+          settings: resolve(__dirname, 'src/settings-window/index.html'),
+        },
       },
       outDir: 'dist/renderer',
     },
