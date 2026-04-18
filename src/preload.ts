@@ -4,22 +4,6 @@ import { relationOverlay } from './plugins/relation-overlay/index.js';
 import { adminVideo } from './plugins/admin-video/index.js';
 import { adminChannel } from './plugins/admin-channel/index.js';
 
-// Swallow keyboard events that originate inside any kanade-admin UI so
-// YouTube's global shortcut handlers (k=play/pause, f=fullscreen,
-// digits=seek, '/'=search, etc.) don't fire while the user is typing.
-// Registered at preload-time with capture=true so it runs before any
-// YouTube-registered listener on window/document.
-const ADMIN_KEYBOARD_SELECTOR = '.kanade-admin-drawer, #kanade-admin-channel-widget';
-function swallowAdminKey(e: KeyboardEvent): void {
-  const target = e.target as Element | null;
-  if (target?.closest?.(ADMIN_KEYBOARD_SELECTOR)) {
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-  }
-}
-window.addEventListener('keydown', swallowAdminKey, true);
-window.addEventListener('keyup', swallowAdminKey, true);
-window.addEventListener('keypress', swallowAdminKey, true);
 
 contextBridge.exposeInMainWorld('kanade', {
   version: '0.0.1',

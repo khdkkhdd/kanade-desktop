@@ -1,4 +1,4 @@
-import { createSignal, createEffect, For, Show } from 'solid-js';
+import { createSignal, createEffect, Index, Show } from 'solid-js';
 import type { RendererContext } from '../../../types/plugins.js';
 import type { ArtistCreditInput, NewArtistInput } from '../../../admin/types.js';
 import { EntityPicker, type EntitySearchResult } from '../../../admin/components/EntityPicker.js';
@@ -93,55 +93,55 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
           </button>
         </div>
       </Show>
-      <For each={rows()}>
+      <Index each={rows()}>
         {(row, i) => (
           <div style="background: #262626; padding: 8px; border-radius: 4px; margin-bottom: 6px;">
-            <Show when={!row.creating}>
+            <Show when={!row().creating}>
               <EntityPicker
                 entityType="artist"
-                value={row.picked}
+                value={row().picked}
                 onSelect={(item) => {
-                  if (item) updateRow(i(), { picked: item, newArtist: undefined });
-                  else updateRow(i(), { picked: null });
+                  if (item) updateRow(i, { picked: item, newArtist: undefined });
+                  else updateRow(i, { picked: null });
                 }}
-                onCreateRequested={() => updateRow(i(), { creating: true })}
+                onCreateRequested={() => updateRow(i, { creating: true })}
                 allowCreate={true}
                 search={search}
               />
             </Show>
-            <Show when={row.creating}>
+            <Show when={row().creating}>
               <ArtistQuickAdd
                 onSubmit={(artist) => {
-                  updateRow(i(), {
+                  updateRow(i, {
                     newArtist: artist,
                     creating: false,
                     picked: { id: -1, displayLabel: artist.names.find((n) => n.isMain)?.name ?? '(new)' },
                   });
                 }}
-                onCancel={() => updateRow(i(), { creating: false })}
+                onCancel={() => updateRow(i, { creating: false })}
               />
             </Show>
             <div style="display: flex; gap: 6px; margin-top: 6px; align-items: center;">
               <div style="flex: 1;">
                 <RoleAutocomplete
                   context={props.context}
-                  value={row.role}
-                  onChange={(v) => updateRow(i(), { role: v })}
+                  value={row().role}
+                  onChange={(v) => updateRow(i, { role: v })}
                 />
               </div>
               <label style="font-size: 12px; display: flex; gap: 4px; align-items: center;">
                 <input
                   type="checkbox"
-                  checked={row.isPublic}
-                  onChange={(e) => updateRow(i(), { isPublic: e.currentTarget.checked })}
+                  checked={row().isPublic}
+                  onChange={(e) => updateRow(i, { isPublic: e.currentTarget.checked })}
                 />
                 public
               </label>
-              <button type="button" class="kanade-admin-btn" onClick={() => removeRow(i())}>×</button>
+              <button type="button" class="kanade-admin-btn" onClick={() => removeRow(i)}>×</button>
             </div>
           </div>
         )}
-      </For>
+      </Index>
       <button type="button" class="kanade-admin-btn" onClick={() => addRow()}>
         + 아티스트 추가
       </button>

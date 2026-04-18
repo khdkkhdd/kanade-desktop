@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from 'solid-js';
+import { createSignal, createEffect, For, Index, Show } from 'solid-js';
 import type { TitleInput } from '../types.js';
 import { detectLanguage } from '../lang-detect.js';
 
@@ -19,11 +19,21 @@ export function TitleI18nInput(props: TitleI18nInputProps) {
   const [opened, setOpened] = createSignal(!props.optional || props.titles.length > 0);
   const [expanded, setExpanded] = createSignal(props.titles.length > 1);
 
+  // Seed a default empty title so the <Index>-keyed row always exists,
+  // preventing DOM unmount (and focus loss) on first character.
+  createEffect(() => {
+    if (opened() && props.titles.length === 0) {
+      props.onChange([{ title: '', language: 'ja', isMain: true }]);
+    }
+  });
+
   function updateMain(idx: number, title: string) {
-    const next = props.titles.length === 0
-      ? [{ title, language: detectLanguage(title), isMain: true }]
-      : props.titles.map((t, i) => (i === idx ? { ...t, title } : t));
-    props.onChange(next);
+    props.onChange(props.titles.map((t, i) => {
+      if (i !== idx) return t;
+      // Auto-detect language when going from empty to non-empty.
+      const language = t.title === '' && title !== '' ? detectLanguage(title) : t.language;
+      return { ...t, title, language };
+    }));
   }
 
   function updateLang(idx: number, language: string) {
@@ -54,34 +64,28 @@ export function TitleI18nInput(props: TitleI18nInputProps) {
         <button
           class="kanade-admin-btn"
           type="button"
-          onClick={() => { setOpened(true); addSecondary(detectLanguage('')); }}
+          onClick={() => setOpened(true)}
         >
           + Recording 전용 제목 추가
         </button>
         <div style="font-size: 12px; color: #888; margin-top: 4px;">현재 Work 제목 사용 중</div>
       </Show>
       <Show when={opened()}>
-        <Show when={props.titles.length === 0}>
-          <input
-            class="kanade-admin-input"
-            placeholder={props.entity === 'work' ? '주 제목 (예: 千本桜)' : '녹음 전용 제목'}
-            onInput={(e) => updateMain(0, e.currentTarget.value)}
-          />
-        </Show>
-        <For each={props.titles}>
+        <Index each={props.titles}>
           {(t, i) => (
             <div style="display: flex; gap: 6px; margin-bottom: 6px; align-items: center;">
               <input
                 class="kanade-admin-input"
                 style="flex: 1;"
-                value={t.title}
-                onInput={(e) => updateMain(i(), e.currentTarget.value)}
+                placeholder={i === 0 ? (props.entity === 'work' ? '주 제목 (예: 千本桜)' : '녹음 전용 제목') : ''}
+                value={t().title}
+                onInput={(e) => updateMain(i, e.currentTarget.value)}
               />
               <select
                 class="kanade-admin-input"
                 style="width: 90px;"
-                value={t.language}
-                onChange={(e) => updateLang(i(), e.currentTarget.value)}
+                value={t().language}
+                onChange={(e) => updateLang(i, e.currentTarget.value)}
               >
                 <For each={LANG_OPTIONS}>
                   {(l) => <option value={l.code}>{l.label}</option>}
@@ -91,17 +95,17 @@ export function TitleI18nInput(props: TitleI18nInputProps) {
                 type="button"
                 class="kanade-admin-btn"
                 title="대표 제목"
-                style={t.isMain ? 'background: #3a7aff; border-color: #3a7aff;' : ''}
-                onClick={() => setIsMain(i())}
+                style={t().isMain ? 'background: #3a7aff; border-color: #3a7aff;' : ''}
+                onClick={() => setIsMain(i)}
               >
                 ★
               </button>
               <Show when={props.titles.length > 1 || props.optional}>
-                <button type="button" class="kanade-admin-btn" onClick={() => remove(i())}>×</button>
+                <button type="button" class="kanade-admin-btn" onClick={() => remove(i)}>×</button>
               </Show>
             </div>
           )}
-        </For>
+        </Index>
         <Show when={expanded() && availableLangs().length > 0}>
           <div style="display: flex; gap: 6px; margin-top: 6px;">
             <For each={availableLangs()}>

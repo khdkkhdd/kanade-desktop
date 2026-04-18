@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from 'solid-js';
+import { createSignal, For, Index, Show } from 'solid-js';
 import type { NewArtistInput, ArtistNameInput } from '../types.js';
 import { detectLanguage } from '../lang-detect.js';
 
@@ -85,20 +85,20 @@ export function ArtistQuickAdd(props: ArtistQuickAddProps) {
         </label>
       </div>
       <Show when={expanded()}>
-        <For each={secondaries()}>
+        <Index each={secondaries()}>
           {(s, i) => (
             <div style="display: flex; gap: 6px; margin-bottom: 6px;">
               <input
                 class="kanade-admin-input"
                 style="flex: 1;"
-                placeholder={`다른 언어 이름 (${s.language})`}
-                value={s.name}
-                onInput={(e) => updateSecondary(i(), e.currentTarget.value)}
+                placeholder={`다른 언어 이름 (${s().language})`}
+                value={s().name}
+                onInput={(e) => updateSecondary(i, e.currentTarget.value)}
               />
-              <button type="button" class="kanade-admin-btn" onClick={() => removeSecondary(i())}>×</button>
+              <button type="button" class="kanade-admin-btn" onClick={() => removeSecondary(i)}>×</button>
             </div>
           )}
-        </For>
+        </Index>
         <Show when={availableLangs().length > 0}>
           <div style="display: flex; gap: 6px; margin-top: 6px;">
             <For each={availableLangs()}>
