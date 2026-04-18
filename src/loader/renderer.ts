@@ -19,12 +19,18 @@ export async function loadAllRendererPlugins(
   for (const [id, def] of Object.entries(plugins)) {
     if (def.config?.enabled === false) continue;
 
+    console.log('[kanade-loader] starting renderer plugin:', id);
     const ctx = createRendererContext(id);
 
-    if (typeof def.renderer === 'function') {
-      await def.renderer(ctx);
-    } else if (def.renderer?.start) {
-      await def.renderer.start(ctx);
+    try {
+      if (typeof def.renderer === 'function') {
+        await def.renderer(ctx);
+      } else if (def.renderer?.start) {
+        await def.renderer.start(ctx);
+      }
+      console.log('[kanade-loader] loaded renderer plugin:', id);
+    } catch (err) {
+      console.error('[kanade-loader] FAILED renderer plugin:', id, err);
     }
 
     loadedPlugins.set(id, def);

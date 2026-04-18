@@ -105,8 +105,15 @@ export function getAdminStyles(): string {
 
 export function injectAdminStyles(): void {
   if (document.getElementById(ADMIN_STYLE_ID)) return;
+  // Preload runs before <head> is parsed on some pages, so fall back to
+  // documentElement and defer to DOMContentLoaded if neither is ready yet.
+  const target = document.head ?? document.documentElement;
+  if (!target) {
+    document.addEventListener('DOMContentLoaded', () => injectAdminStyles(), { once: true });
+    return;
+  }
   const s = document.createElement('style');
   s.id = ADMIN_STYLE_ID;
   s.textContent = getAdminStyles();
-  document.head.appendChild(s);
+  target.appendChild(s);
 }
