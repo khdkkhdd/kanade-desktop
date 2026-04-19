@@ -4,19 +4,16 @@ import { RENDERER_TIMEUPDATE_MIN_MS } from './constants.js';
 import { extractDomTitle, extractDomChannel, getPlayerVideoId } from './dom-fallback.js';
 
 /**
- * Prefer YouTube player's internal state (currently loaded video) over the URL's
- * `v=` parameter. During Mix transitions URL can briefly show the outgoing
- * video's id while DOM title has already switched to the incoming one — using
- * player.getVideoData() avoids that mismatch.
+ * Use URL's `v=` parameter as primary source — matches what overlay and API
+ * keys off. player.getVideoData() can diverge (ads, queue preview, player
+ * internal state) so we only use it as a last-resort fallback.
  */
 function extractVideoId(): string | null {
-  const playerId = getPlayerVideoId();
-  if (playerId) return playerId;
   const param = new URLSearchParams(window.location.search).get('v');
   if (param) return param;
   const shortsMatch = window.location.pathname.match(/^\/shorts\/([a-zA-Z0-9_-]+)/);
   if (shortsMatch) return shortsMatch[1];
-  return null;
+  return getPlayerVideoId();
 }
 
 function waitForElement(selector: string, timeout = 5_000): Promise<Element | null> {
