@@ -1,15 +1,16 @@
 import type { RendererContext } from '../../../types/plugins.js';
 import type { RecordingListItem, RecordingListResponse } from '../types.js';
+import { isSupportedPlatform } from '../utils.js';
 import { createListSection } from './list-section.js';
 
 const PAGE_LIMIT = 20;
 
-// Recordings without a playable YouTube main video can't be rendered as cards,
-// so they shouldn't count toward "does this section have anything to show".
-// Without this filter a chip with zero cards can still render when every
-// returned recording lacks a mainVideo link.
+// Recordings whose mainVideo is on an unsupported platform can't be rendered
+// as cards, so they shouldn't count toward "does this section have anything to
+// show". Without this filter a chip with zero cards can still render when
+// every returned recording lacks a renderable mainVideo link.
 function playable(items: RecordingListItem[]): RecordingListItem[] {
-  return items.filter((r) => r.mainVideo && r.mainVideo.platform === 'youtube');
+  return items.filter((r) => r.mainVideo && isSupportedPlatform(r.mainVideo.platform));
 }
 
 /**

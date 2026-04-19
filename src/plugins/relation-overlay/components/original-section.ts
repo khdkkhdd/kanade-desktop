@@ -1,12 +1,13 @@
 import type { RendererContext } from '../../../types/plugins.js';
 import type { RecordingListItem, RecordingListResponse } from '../types.js';
+import { isSupportedPlatform } from '../utils.js';
 import { createListSection } from './list-section.js';
 
 const PAGE_LIMIT = 20;
 
 // See covers-section.ts — identical rationale.
 function playable(items: RecordingListItem[]): RecordingListItem[] {
-  return items.filter((r) => r.mainVideo && r.mainVideo.platform === 'youtube');
+  return items.filter((r) => r.mainVideo && isSupportedPlatform(r.mainVideo.platform));
 }
 
 /**

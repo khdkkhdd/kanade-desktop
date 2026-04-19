@@ -156,7 +156,7 @@ export function getStyles(): string {
     }
 
     .kanade-video-thumb-placeholder {
-      background: var(--yt-spec-10-percent-layer, #333);
+      background: var(--yt-spec-20-percent-layer, #4a4a4a);
       border-radius: 8px;
       display: flex;
       align-items: center;

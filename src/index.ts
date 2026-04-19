@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, session } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, session, shell } from 'electron';
 import path from 'node:path';
 import { store, getPresenceConfig } from './config/store.js';
 import type { PresenceConfig } from './config/store.js';
@@ -64,6 +64,16 @@ function createWindow(): BrowserWindow {
   if (windowState.isMaximized) {
     win.maximize();
   }
+
+  // Route `target="_blank"` / window.open() clicks to the OS default browser
+  // instead of spawning a new Electron window. Lets overlay niconico links
+  // open in the user's browser where they're already signed in.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      void shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
 
   // Window state persistence
   win.on('resize', () => saveWindowState(win));

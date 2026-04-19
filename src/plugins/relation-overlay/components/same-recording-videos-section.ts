@@ -1,6 +1,6 @@
 import type { RendererContext } from '../../../types/plugins.js';
 import type { ArtistCredit, RecordingVideo, VideoRecording } from '../types.js';
-import { pickTitle, renderArtists } from '../utils.js';
+import { pickTitle, renderArtists, externalUrlFor, isSupportedPlatform } from '../utils.js';
 
 // Merge performers + work creators for origin recordings — mirrors the logic
 // in video-item.ts so "empty recording_artists on an origin" still shows the
@@ -102,11 +102,14 @@ function createPlatformVideoCard(
   }
 
   // Non-YouTube platforms (niconico, etc.) — external link out.
+  if (!isSupportedPlatform(video.platform)) return null;
+  const externalUrl = externalUrlFor(video);
+  if (!externalUrl) return null;
   const link = document.createElement('a');
   link.className = 'kanade-video-item';
   link.target = '_blank';
   link.rel = 'noopener noreferrer';
-  link.href = externalUrlFor(video);
+  link.href = externalUrl;
 
   const thumbWrap = document.createElement('div');
   thumbWrap.className = 'kanade-video-thumb-wrap kanade-video-thumb-placeholder';
@@ -129,9 +132,4 @@ function createPlatformVideoCard(
   link.appendChild(thumbWrap);
   link.appendChild(info);
   return link;
-}
-
-function externalUrlFor(video: RecordingVideo): string {
-  if (video.platform === 'niconico') return `https://www.nicovideo.jp/watch/${video.externalId}`;
-  return '#';
 }
