@@ -1,5 +1,5 @@
 import type { BackendContext } from '../../types/plugins.js';
-import { store } from '../../config/store.js';
+import { store, getPresenceConfig } from '../../config/store.js';
 import { DiscordService } from './discord-service.js';
 import { TimerManager } from './timer-manager.js';
 import { PresenceController } from './presence-controller.js';
@@ -8,25 +8,13 @@ import type { PlayerStateUpdate, PresenceConfig } from './types.js';
 let controller: PresenceController | null = null;
 let discord: DiscordService | null = null;
 
-const DEFAULT_PRESENCE_CONFIG: PresenceConfig = {
-  enabled: false,
-  autoReconnect: true,
-  activityTimeoutMinutes: 10,
-};
-
-function readPresenceConfig(): PresenceConfig {
-  // store schema hasn't been extended yet (T13 will do that). Safe fallback.
-  const k = store.get('kanade') as { presence?: PresenceConfig };
-  return k.presence ?? DEFAULT_PRESENCE_CONFIG;
-}
-
 export function setupBackend(ctx: BackendContext): void {
   const getApiBase = (): string => store.get('kanade').apiBase;
   const timerManager = new TimerManager();
 
-  const initialConfig = readPresenceConfig();
+  const initialConfig = getPresenceConfig();
   discord = new DiscordService(initialConfig);
-  controller = new PresenceController(discord, timerManager, getApiBase, readPresenceConfig);
+  controller = new PresenceController(discord, timerManager, getApiBase, getPresenceConfig);
 
   if (initialConfig.enabled) discord.connect();
 

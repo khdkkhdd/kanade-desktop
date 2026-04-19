@@ -1,10 +1,12 @@
 import { app, BrowserWindow, ipcMain, Menu, session } from 'electron';
 import path from 'node:path';
-import { store } from './config/store.js';
+import { store, getPresenceConfig } from './config/store.js';
+import type { PresenceConfig } from './config/store.js';
 import { loadAllMainPlugins, unloadAllMainPlugins } from './loader/main.js';
 import { relationOverlayMain } from './plugins/relation-overlay/main.js';
 import { adminVideoMain } from './plugins/admin-video/main.js';
 import { adminChannelMain } from './plugins/admin-channel/main.js';
+import { applyPresenceConfigChange } from './plugins/discord-presence/backend.js';
 
 function removeCSP(): void {
   session.defaultSession.webRequest.onHeadersReceived(
@@ -164,13 +166,19 @@ function installAppMenu(getMainWin: () => BrowserWindow | null): void {
 function setupSettingsIPC(): void {
   ipcMain.handle('settings:get', () => {
     const k = store.get('kanade');
-    return { adminApiKey: k.adminApiKey, apiBase: k.apiBase };
+    return {
+      adminApiKey: k.adminApiKey,
+      apiBase: k.apiBase,
+      presence: getPresenceConfig(),
+    };
   });
-  ipcMain.handle('settings:save', (_e, v: { adminApiKey: string; apiBase: string }) => {
+  ipcMain.handle('settings:save', (_e, v: { adminApiKey: string; apiBase: string; presence: PresenceConfig }) => {
     store.set('kanade', v);
     for (const w of BrowserWindow.getAllWindows()) {
       w.webContents.send('settings:changed', v);
     }
+    // Main 쪽 플러그인에 config 변경 전파 (settings:changed는 Main→Renderer라 Main이 수신 불가)
+    applyPresenceConfigChange(v.presence);
     return { ok: true };
   });
   ipcMain.on('settings:open', (e) => {
