@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeActivityText, padHangul } from '../utils.js';
+import { sanitizeActivityText, padHangul, dedupeByArtistId, isSeek } from '../utils.js';
 
 describe('sanitizeActivityText', () => {
   it('returns text as-is when within 128 chars', () => {
@@ -40,5 +40,46 @@ describe('padHangul', () => {
 
   it('returns empty string unchanged', () => {
     expect(padHangul('')).toBe('');
+  });
+});
+
+describe('dedupeByArtistId', () => {
+  it('merges duplicate artistIds keeping first position', () => {
+    const input = [
+      { artistId: 1, name: 'A', isPublic: true },
+      { artistId: 2, name: 'B', isPublic: false },
+      { artistId: 1, name: 'A', isPublic: false },
+    ];
+    const result = dedupeByArtistId(input);
+    expect(result).toEqual([
+      { artistId: 1, name: 'A', isPublic: true },
+      { artistId: 2, name: 'B', isPublic: false },
+    ]);
+  });
+
+  it('ORs isPublic across duplicate occurrences', () => {
+    const input = [
+      { artistId: 1, name: 'A', isPublic: false },
+      { artistId: 1, name: 'A', isPublic: true },
+    ];
+    const result = dedupeByArtistId(input);
+    expect(result[0].isPublic).toBe(true);
+  });
+
+  it('handles empty input', () => {
+    expect(dedupeByArtistId([])).toEqual([]);
+  });
+});
+
+describe('isSeek', () => {
+  it('returns true when |Δ| > 2s', () => {
+    expect(isSeek(10, 20)).toBe(true);
+    expect(isSeek(20, 10)).toBe(true);
+  });
+
+  it('returns false when |Δ| ≤ 2s', () => {
+    expect(isSeek(10, 12)).toBe(false);
+    expect(isSeek(10, 10)).toBe(false);
+    expect(isSeek(10, 8)).toBe(false);
   });
 });
