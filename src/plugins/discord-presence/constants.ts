@@ -22,6 +22,5 @@ export const RECONNECT_BACKOFF_MS = 5_000;
 
 export enum TimerKey {
   ClearActivity = 'clearActivity',
-  UpdateTimeout = 'updateTimeout',
   DiscordConnectRetry = 'discordConnectRetry',
 }

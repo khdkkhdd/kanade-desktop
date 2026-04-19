@@ -10,7 +10,7 @@ export function buildActivity(song: SongInfo): SetActivity {
     details: sanitizeActivityText(song.title, 'YouTube'),
     state: sanitizeActivityText(song.artists, 'YouTube'),
     largeImageKey: song.thumbnailUrl,
-    largeImageText: 'Kanade · Listening on YouTube',
+    largeImageText: 'Listening on YouTube',
     buttons: buildButtons(song),
   };
 

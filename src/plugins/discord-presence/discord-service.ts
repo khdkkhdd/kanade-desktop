@@ -16,7 +16,7 @@ export class DiscordService {
 
   private lastActivity: SetActivity | null = null;
 
-  constructor(private config: PresenceConfig) {
+  constructor(config: PresenceConfig) {
     this.autoReconnect = config.autoReconnect;
     this.initializeRpc();
   }
@@ -51,6 +51,10 @@ export class DiscordService {
 
   connect(): void {
     if (this.rpc.isConnected) return;
+    if (clientId.startsWith('0000')) {
+      console.warn('[discord-presence] clientId is placeholder — skipping connect (register Discord app first)');
+      return;
+    }
     this.timerManager.clear(TimerKey.DiscordConnectRetry);
     this.rpc.login().catch((err) => {
       console.warn('[discord-presence] login failed:', err?.message ?? err);
@@ -63,14 +67,19 @@ export class DiscordService {
   }
 
   disconnect(): void {
-    this.autoReconnect = false;
     this.timerManager.clearAll();
     try {
+      // Best-effort clear presence in Discord before tearing down the socket.
+      if (this.rpc.isConnected && this.ready) {
+        void this.rpc.user?.clearActivity().catch(() => { /* ignored */ });
+      }
       this.rpc.removeAllListeners();
       this.rpc.destroy();
     } catch { /* ignored */ }
     this.ready = false;
     this.lastActivity = null;
+    // Recreate client so next connect() call starts fresh.
+    this.initializeRpc();
   }
 
   private scheduleReconnect(): void {
@@ -109,7 +118,6 @@ export class DiscordService {
   }
 
   applyConfig(newConfig: PresenceConfig): void {
-    this.config = newConfig;
     this.autoReconnect = newConfig.autoReconnect;
   }
 }

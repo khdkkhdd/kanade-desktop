@@ -64,7 +64,8 @@ export function setupRenderer(ctx: RendererContext): void {
     if (!el) return;
     if (el === videoEl) return;
     cleanup?.();
-    videoEl = el as HTMLVideoElement;
+    const boundEl = el as HTMLVideoElement;
+    videoEl = boundEl;
     const handlers: Array<[keyof HTMLMediaElementEventMap, () => void]> = [
       ['play', dispatch],
       ['pause', dispatch],
@@ -73,9 +74,9 @@ export function setupRenderer(ctx: RendererContext): void {
       ['ended', () => ctx.ipc.send('clear-player')],
       ['timeupdate', dispatchThrottled],
     ];
-    for (const [ev, h] of handlers) videoEl.addEventListener(ev, h);
+    for (const [ev, h] of handlers) boundEl.addEventListener(ev, h);
     cleanup = () => {
-      for (const [ev, h] of handlers) videoEl?.removeEventListener(ev, h);
+      for (const [ev, h] of handlers) boundEl.removeEventListener(ev, h);
     };
     dispatch(); // initial
   }
