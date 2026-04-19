@@ -2,7 +2,11 @@ import { ipcRenderer } from 'electron';
 import { render } from 'solid-js/web';
 import type { RendererContext } from '../../types/plugins.js';
 import { injectAdminStyles } from '../../admin/components/styles.js';
-import { VideoDrawer } from './components/VideoDrawer.js';
+import { VideoDrawer, type DraftData } from './components/VideoDrawer.js';
+
+// In-memory drafts keyed by videoId. Survives drawer open/close within the
+// session so users don't lose in-progress form data; cleared on commit.
+const drafts = new Map<string, DraftData>();
 
 const BUTTON_ID = 'kanade-admin-video-btn';
 const DRAWER_ID = 'kanade-admin-video-drawer';
@@ -82,8 +86,15 @@ export function setupRenderer(ctx: RendererContext): void {
           mode={mode}
           initialData={initialData}
           ctx={ctx}
+          initialDraft={drafts.get(videoId) ?? null}
+          onDraftChange={(d) => drafts.set(videoId, d)}
+          onDraftDiscard={() => drafts.delete(videoId)}
           onClose={() => { dispose(); container?.remove(); }}
-          onCommitted={() => { dispose(); container?.remove(); void onNavigate(); }}
+          onCommitted={() => {
+            drafts.delete(videoId);
+            dispose(); container?.remove();
+            void onNavigate();
+          }}
         />
       ),
       container!,

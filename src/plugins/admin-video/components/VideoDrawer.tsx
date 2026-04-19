@@ -1,10 +1,23 @@
-import { createSignal, createResource, Show } from 'solid-js';
+import { createSignal, createResource, createEffect, Show } from 'solid-js';
 import type { RendererContext } from '../../../types/plugins.js';
-import type { WorkSelection, RecordingSelection, RegisterVideoPayload } from '../../../admin/types.js';
+import type { WorkSelection, RecordingSelection, RegisterVideoPayload, ArtistCreditInput, NewArtistInput } from '../../../admin/types.js';
 import { Drawer } from '../../../admin/components/Drawer.js';
 import { WorkSection } from './WorkSection.js';
 import { RecordingSection } from './RecordingSection.js';
 import { VideoLinkSection } from './VideoLinkSection.js';
+import type { ArtistCreditInitial } from './ArtistCreditsSection.js';
+import { computeArtistDiff, type ArtistCreditSnapshot } from '../diff.js';
+import type { UpdateVideoPayload, ReassignVideoPayload } from '../update.js';
+
+type Credit = ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
+
+export interface DraftData {
+  work: WorkSelection | null;
+  recording: RecordingSelection | null;
+  isMainVideo: boolean;
+  workArtistsAfter: Credit[];
+  recordingArtistsAfter: Credit[];
+}
 
 export interface VideoDrawerProps {
   videoId: string;
@@ -13,6 +26,12 @@ export interface VideoDrawerProps {
   ctx: RendererContext;
   onClose: () => void;
   onCommitted: () => void;
+  /** Previously-saved in-progress state for this video (same session). */
+  initialDraft?: DraftData | null;
+  /** Fires on every state mutation; caller persists the latest draft. */
+  onDraftChange?: (draft: DraftData) => void;
+  /** Fires when the user clicks "새로 시작" to discard the draft. */
+  onDraftDiscard?: () => void;
 }
 
 function pickDisplayTitle(titles: Array<{ language: string; title: string; isMain: boolean }> | undefined, fallback: string): string {
@@ -28,27 +47,165 @@ export function VideoDrawer(props: VideoDrawerProps) {
   // video with multiple recordings is rare and detailed per-recording edit
   // lives in the web admin.
   const editSeed = props.mode === 'edit' ? props.initialData?.recordings?.[0] : null;
+  const draft = props.initialDraft ?? null;
 
   const [work, setWork] = createSignal<WorkSelection | null>(
-    editSeed ? { kind: 'existing', id: editSeed.work.id } : null,
+    draft
+      ? draft.work
+      : editSeed ? { kind: 'existing', id: editSeed.work.id } : null,
   );
   const [recording, setRecording] = createSignal<RecordingSelection | null>(
-    editSeed ? { kind: 'existing', id: editSeed.id } : null,
+    draft
+      ? draft.recording
+      : editSeed ? { kind: 'existing', id: editSeed.id } : null,
   );
   const [isMainVideo, setIsMainVideo] = createSignal(
-    editSeed ? !!editSeed.isMainVideo : true,
+    draft
+      ? draft.isMainVideo
+      : editSeed ? !!editSeed.isMainVideo : true,
   );
   const [submitting, setSubmitting] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+
+  // Edit-mode artist editing snapshots + current state.
+  const workArtistsBefore: ArtistCreditSnapshot[] = editSeed
+    ? (editSeed.work.creators ?? []).map((c: any) => ({
+        artistId: c.artistId,
+        role: c.role ?? null,
+        isPublic: !!c.isPublic,
+      }))
+    : [];
+  const workArtistsInitial: ArtistCreditInitial[] = editSeed
+    ? (editSeed.work.creators ?? []).map((c: any) => ({
+        artistId: c.artistId,
+        displayName: c.name,
+        role: c.role ?? null,
+        isPublic: !!c.isPublic,
+      }))
+    : [];
+  const recordingArtistsBefore: ArtistCreditSnapshot[] = editSeed
+    ? (editSeed.artists ?? []).map((c: any) => ({
+        artistId: c.artistId,
+        role: c.role ?? null,
+        isPublic: !!c.isPublic,
+      }))
+    : [];
+  const recordingArtistsInitial: ArtistCreditInitial[] = editSeed
+    ? (editSeed.artists ?? []).map((c: any) => ({
+        artistId: c.artistId,
+        displayName: c.name,
+        role: c.role ?? null,
+        isPublic: !!c.isPublic,
+      }))
+    : [];
+
+  const [workArtistsAfter, setWorkArtistsAfter] = createSignal<Credit[]>(
+    draft?.workArtistsAfter
+      ?? workArtistsBefore.map((c) => ({ artistId: c.artistId, role: c.role, isPublic: c.isPublic })),
+  );
+  const [recordingArtistsAfter, setRecordingArtistsAfter] = createSignal<Credit[]>(
+    draft?.recordingArtistsAfter
+      ?? recordingArtistsBefore.map((c) => ({ artistId: c.artistId, role: c.role, isPublic: c.isPublic })),
+  );
+
+  // When the user reassigns to a different work, clear the recording selection.
+  // Without this reset, recording() keeps pointing at the OLD recording (which
+  // belongs to the OLD work); submit then goes down the reassign path but ends
+  // up re-linking the video to the same old recording — a silent no-op.
+  let prevWorkKey: string | undefined;
+  createEffect(() => {
+    const w = work();
+    const key = w ? (w.kind === 'existing' ? `e:${w.id}` : 'new') : 'null';
+    if (prevWorkKey === undefined) {
+      prevWorkKey = key;
+      return;
+    }
+    if (prevWorkKey !== key) {
+      prevWorkKey = key;
+      setRecording(null);
+    }
+  });
+
+  // Auto-save draft on any state change so reopen restores in-progress work.
+  // Skip the first render pass — on mount the signals merely echo the server
+  // data (or an existing draft), so there's nothing worth persisting yet and
+  // we'd otherwise create a synthetic draft for a drawer the user never
+  // touched.
+  let draftInitialized = false;
+  createEffect(() => {
+    // Read every dependency before the guard so Solid tracks them on future runs.
+    const snapshot = {
+      work: work(),
+      recording: recording(),
+      isMainVideo: isMainVideo(),
+      workArtistsAfter: workArtistsAfter(),
+      recordingArtistsAfter: recordingArtistsAfter(),
+    };
+    if (!draftInitialized) {
+      draftInitialized = true;
+      return;
+    }
+    props.onDraftChange?.(snapshot);
+  });
+
+  // In edit mode, the ArtistCreditsSection reflects the CURRENT (draft-aware)
+  // artist state, not the untouched server data. We enrich each credit with
+  // a displayName when we know it (from editSeed); unknown ids (e.g. user
+  // added them in a previous session) fall back to "Artist #id" in the UI.
+  const workArtistsNameMap: Record<number, string | undefined> = Object.fromEntries(
+    workArtistsInitial.flatMap((e) => ('artistId' in e ? [[e.artistId, e.displayName]] : [])),
+  );
+  const recordingArtistsNameMap: Record<number, string | undefined> = Object.fromEntries(
+    recordingArtistsInitial.flatMap((e) => ('artistId' in e ? [[e.artistId, e.displayName]] : [])),
+  );
+  const workArtistsForDisplay = (): ArtistCreditInitial[] =>
+    workArtistsAfter().map((c) =>
+      'newArtist' in c
+        ? c
+        : { artistId: c.artistId, displayName: workArtistsNameMap[c.artistId], role: c.role, isPublic: c.isPublic },
+    );
+  const recordingArtistsForDisplay = (): ArtistCreditInitial[] =>
+    recordingArtistsAfter().map((c) =>
+      'newArtist' in c
+        ? c
+        : { artistId: c.artistId, displayName: recordingArtistsNameMap[c.artistId], role: c.role, isPublic: c.isPublic },
+    );
 
   const initialWorkLabel = editSeed ? pickDisplayTitle(editSeed.work.titles, `Work #${editSeed.work.id}`) : undefined;
   const initialRecordingLabel = editSeed
     ? pickDisplayTitle(editSeed.titles, initialWorkLabel ?? `Recording #${editSeed.id}`)
     : undefined;
 
+  // YouTube exposes the current video's channel id through several paths, and
+  // the meta tag we used to rely on is no longer present on modern watch pages.
+  // Probe the ones that survive SPA navigation in priority order.
   const channelExternalId = () => {
+    const ucRe = /^UC[\w-]{22}$/;
+    const pickUc = (href: string | null | undefined): string | null => {
+      if (!href) return null;
+      const m = href.match(/\/channel\/(UC[\w-]{22})/);
+      return m ? m[1] : null;
+    };
+
+    // 1. ytInitialPlayerResponse — populated on every SPA nav for watch pages.
+    const ypr = (window as any).ytInitialPlayerResponse?.videoDetails?.channelId;
+    if (typeof ypr === 'string' && ucRe.test(ypr)) return ypr;
+
+    // 2. ytd-video-owner-renderer anchor — present once the owner chip renders.
+    const owner = document.querySelector('ytd-video-owner-renderer a[href*="/channel/"]') as HTMLAnchorElement | null;
+    const fromOwner = pickUc(owner?.href ?? owner?.getAttribute('href'));
+    if (fromOwner) return fromOwner;
+
+    // 3. Generic #owner fallback.
+    const alt = document.querySelector('#owner a[href*="/channel/"]') as HTMLAnchorElement | null;
+    const fromAlt = pickUc(alt?.href ?? alt?.getAttribute('href'));
+    if (fromAlt) return fromAlt;
+
+    // 4. Legacy <meta itemprop="channelId"> (still present on some page types).
     const meta = document.querySelector('meta[itemprop="channelId"]') as HTMLMetaElement | null;
-    return meta?.content ?? '';
+    if (meta?.content && ucRe.test(meta.content)) return meta.content;
+
+    return '';
   };
 
   const [channelHint] = createResource(
@@ -64,29 +221,112 @@ export function VideoDrawer(props: VideoDrawerProps) {
     },
   );
 
+  // A new work needs at least one title (and exactly one flagged isMain) —
+  // without this guard the server rejects the create with "Exactly one title
+  // must be isMain=true" and the user sees a raw backend error.
+  const newWorkHasMainTitle = () => {
+    const w = work();
+    if (!w || w.kind !== 'new') return true;
+    if (w.titles.length === 0) return false;
+    return w.titles.filter((t) => t.isMain).length === 1;
+  };
+
   const canSubmit = () =>
     !submitting() &&
     work() !== null &&
+    newWorkHasMainTitle() &&
     recording() !== null &&
     (recording()!.kind === 'existing' ||
       (recording()!.kind === 'new' && (recording() as any).artists.length > 0));
 
-  async function submit() {
-    if (!canSubmit()) return;
-    setSubmitting(true);
-    setError(null);
+  // Edit-mode: did the user keep the original work/recording (so artist edits apply)?
+  const workUntouched = () =>
+    editSeed && work()?.kind === 'existing' && (work() as { id: number }).id === editSeed.work.id;
+  const recordingUntouched = () =>
+    editSeed && recording()?.kind === 'existing' && (recording() as { id: number }).id === editSeed.id;
+
+  // Has the user changed anything from the fresh initial state? Drives the
+  // "초기화" button's visibility.
+  const hasChanges = () => {
+    if (props.mode === 'create') {
+      return (
+        work() !== null ||
+        recording() !== null ||
+        workArtistsAfter().length > 0 ||
+        recordingArtistsAfter().length > 0
+      );
+    }
+    if (!editSeed) return false;
+    const w = work();
+    const r = recording();
+    if (!w || w.kind !== 'existing' || w.id !== editSeed.work.id) return true;
+    if (!r || r.kind !== 'existing' || r.id !== editSeed.id) return true;
+    if (isMainVideo() !== !!editSeed.isMainVideo) return true;
+    if (computeArtistDiff(workArtistsBefore, workArtistsAfter()).length > 0) return true;
+    if (computeArtistDiff(recordingArtistsBefore, recordingArtistsAfter()).length > 0) return true;
+    return false;
+  };
+
+  async function submitCreate() {
     const payload: RegisterVideoPayload = {
       videoId: props.videoId,
       work: work()!,
       recording: recording()!,
       isMainVideo: recording()!.kind === 'new' ? true : isMainVideo(),
     };
-    const r = (await props.ctx.ipc.invoke('register', payload)) as any;
+    return (await props.ctx.ipc.invoke('register', payload)) as any;
+  }
+
+  async function submitEdit() {
+    const externalVideoId = props.initialData?.video?.id;
+
+    // Path A: user reassigned to a different work and/or recording. Unlink
+    // the video from the original recording and re-link via the register flow.
+    if (!recordingUntouched() || !workUntouched()) {
+      if (externalVideoId == null) {
+        return { ok: false, error: { code: 'MISSING', message: 'externalVideoId unknown' } };
+      }
+      const payload: ReassignVideoPayload = {
+        videoId: props.videoId,
+        oldRecordingId: editSeed.id,
+        oldExternalVideoId: externalVideoId,
+        register: {
+          videoId: props.videoId,
+          work: work()!,
+          recording: recording()!,
+          isMainVideo: recording()!.kind === 'new' ? true : isMainVideo(),
+        },
+      };
+      return (await props.ctx.ipc.invoke('reassign', payload)) as any;
+    }
+
+    // Path B: in-place edit. Artist diffs + optional promote-to-main.
+    const update: UpdateVideoPayload = { videoId: props.videoId };
+    const workOps = computeArtistDiff(workArtistsBefore, workArtistsAfter());
+    if (workOps.length > 0) update.workArtistDiff = { workId: editSeed.work.id, ops: workOps };
+    const recOps = computeArtistDiff(recordingArtistsBefore, recordingArtistsAfter());
+    if (recOps.length > 0) update.recordingArtistDiff = { recordingId: editSeed.id, ops: recOps };
+    if (!editSeed.isMainVideo && isMainVideo() && externalVideoId != null) {
+      update.promoteMain = { recordingId: editSeed.id, externalVideoId };
+    }
+
+    // Nothing to update — treat as success.
+    if (!update.workArtistDiff && !update.recordingArtistDiff && !update.promoteMain) {
+      return { ok: true, data: null };
+    }
+    return (await props.ctx.ipc.invoke('update', update)) as any;
+  }
+
+  async function submit() {
+    if (!canSubmit()) return;
+    setSubmitting(true);
+    setError(null);
+    const r = props.mode === 'create' ? await submitCreate() : await submitEdit();
     setSubmitting(false);
     if (r?.ok) {
       props.onCommitted();
     } else {
-      setError(r?.error?.message ?? 'Register failed');
+      setError(r?.error?.message ?? (props.mode === 'create' ? 'Register failed' : 'Update failed'));
     }
   }
 
@@ -102,6 +342,15 @@ export function VideoDrawer(props: VideoDrawerProps) {
 
   const footer = (
     <>
+      <Show when={hasChanges()}>
+        <button
+          class="kanade-admin-btn"
+          style="margin-right: auto;"
+          onClick={() => { props.onDraftDiscard?.(); props.onClose(); }}
+        >
+          초기화
+        </button>
+      </Show>
       <button class="kanade-admin-btn" onClick={props.onClose}>취소</button>
       <button
         class="kanade-admin-btn kanade-admin-btn--primary"
@@ -127,7 +376,11 @@ export function VideoDrawer(props: VideoDrawerProps) {
         ctx={props.ctx}
         value={work()}
         onChange={setWork}
+        channelHint={channelHint() ?? undefined}
         initialLabel={initialWorkLabel}
+        originalWorkId={editSeed ? editSeed.work.id : undefined}
+        originalArtists={workArtistsForDisplay()}
+        onExistingArtistsChange={props.mode === 'edit' ? setWorkArtistsAfter : undefined}
       />
       <Show when={work()}>
         <RecordingSection
@@ -137,6 +390,9 @@ export function VideoDrawer(props: VideoDrawerProps) {
           onChange={setRecording}
           channelHint={channelHint() ?? undefined}
           initialLabel={initialRecordingLabel}
+          originalRecordingId={editSeed ? editSeed.id : undefined}
+          originalArtists={recordingArtistsForDisplay()}
+          onExistingArtistsChange={props.mode === 'edit' ? setRecordingArtistsAfter : undefined}
         />
       </Show>
       <Show when={recording()}>
@@ -145,10 +401,11 @@ export function VideoDrawer(props: VideoDrawerProps) {
           recording={recording()}
           isMainVideo={isMainVideo()}
           onChange={setIsMainVideo}
+          lockedAsMain={props.mode === 'edit' && !!editSeed?.isMainVideo}
         />
       </Show>
       <Show when={props.mode === 'edit'}>
-        <div class="kanade-admin-section" style="margin-top: 24px; padding-top: 12px; border-top: 1px solid #3a3a3a;">
+        <div class="kanade-admin-section" style="margin-top: 24px; border-color: #5a2a2a; background: rgba(192,48,48,0.04);">
           <div class="kanade-admin-section__title" style="color: #ff8080;">⚠ 위험 영역</div>
           <button class="kanade-admin-btn kanade-admin-btn--danger" onClick={deleteVideo}>
             이 영상을 DB에서 제거

@@ -5,6 +5,7 @@ import type { AdminApiClient } from '../../admin/api-client.js';
 import { isAdminKeyValid } from '../../admin/auth-check.js';
 import { BrowserWindow } from 'electron';
 import { performRegister } from './register.js';
+import { performUpdate, performReassign, type UpdateVideoPayload, type ReassignVideoPayload } from './update.js';
 
 function client(): AdminApiClient {
   const k = store.get('kanade');
@@ -69,6 +70,28 @@ export function setupBackend(ctx: BackendContext): void {
   ctx.ipc.handle('register', async (...args) => {
     const payload = args[0] as import('../../admin/types.js').RegisterVideoPayload;
     const result = await performRegister(client(), payload);
+    if (result.ok) {
+      for (const w of BrowserWindow.getAllWindows()) {
+        w.webContents.send('admin-video:data-changed', { videoId: payload.videoId });
+      }
+    }
+    return result;
+  });
+
+  ctx.ipc.handle('update', async (...args) => {
+    const payload = args[0] as UpdateVideoPayload;
+    const result = await performUpdate(client(), payload);
+    if (result.ok) {
+      for (const w of BrowserWindow.getAllWindows()) {
+        w.webContents.send('admin-video:data-changed', { videoId: payload.videoId });
+      }
+    }
+    return result;
+  });
+
+  ctx.ipc.handle('reassign', async (...args) => {
+    const payload = args[0] as ReassignVideoPayload;
+    const result = await performReassign(client(), payload);
     if (result.ok) {
       for (const w of BrowserWindow.getAllWindows()) {
         w.webContents.send('admin-video:data-changed', { videoId: payload.videoId });

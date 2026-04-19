@@ -13,12 +13,23 @@ export async function performRegister(
   if (payload.work.kind === 'existing') {
     workId = payload.work.id;
   } else {
+    // Resolve any inline new artists up front so work_artists POSTs can use real ids.
+    const resolvedWorkArtists: ArtistCreditInput[] = [];
+    for (const a of payload.work.artists) {
+      if ('newArtist' in a) {
+        const newRes = await client.request<{ id: number }>('POST', '/admin/artists', a.newArtist as NewArtistInput);
+        if (!newRes.ok) return newRes;
+        resolvedWorkArtists.push({ artistId: newRes.data.id, role: a.role, isPublic: a.isPublic });
+      } else {
+        resolvedWorkArtists.push(a);
+      }
+    }
     const r = await client.request<{ id: number }>('POST', '/admin/works', {
       titles: payload.work.titles,
     });
     if (!r.ok) return r;
     workId = r.data.id;
-    for (const a of payload.work.artists) {
+    for (const a of resolvedWorkArtists) {
       const rr = await client.request('POST', `/admin/works/${workId}/artists`, a);
       if (!rr.ok) return rr;
     }

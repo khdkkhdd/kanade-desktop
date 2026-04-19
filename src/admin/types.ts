@@ -51,7 +51,11 @@ export interface ArtistSearchResult {
 
 export type WorkSelection =
   | { kind: 'existing'; id: number }
-  | { kind: 'new'; titles: TitleInput[]; artists: ArtistCreditInput[] };
+  | {
+      kind: 'new';
+      titles: TitleInput[];
+      artists: Array<ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean }>;
+    };
 
 export type RecordingSelection =
   | { kind: 'existing'; id: number }

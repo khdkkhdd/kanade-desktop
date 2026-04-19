@@ -7,12 +7,22 @@ import { RoleAutocomplete } from '../../../admin/components/RoleAutocomplete.js'
 
 type Credit = ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
 
+/** Initial row state for the picker. Supports three cases:
+ *   - existing artist with known name (edit mode server data)
+ *   - existing artist with no name (draft restore — falls back to "Artist #id")
+ *   - inline new artist (draft restore mid-creation) */
+export type ArtistCreditInitial =
+  | { artistId: number; displayName?: string; role: string | null; isPublic: boolean }
+  | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
+
 export interface ArtistCreditsSectionProps {
   ctx: RendererContext;
   context: 'work' | 'recording';
   credits: Credit[];
   onChange: (next: Credit[]) => void;
   channelHint?: { channelExternalId: string; artists: Array<{ id: number; displayName: string }> };
+  /** If provided, prefill rows with these existing credits (used in edit mode). */
+  initial?: ArtistCreditInitial[];
 }
 
 interface Row {
@@ -24,7 +34,25 @@ interface Row {
 }
 
 export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
-  const [rows, setRows] = createSignal<Row[]>([]);
+  const initialRows: Row[] = (props.initial ?? []).map((e) => {
+    if ('newArtist' in e) {
+      const displayLabel = e.newArtist.names.find((n) => n.isMain)?.name ?? '(new)';
+      return {
+        picked: { id: -1, displayLabel },
+        creating: false,
+        role: e.role,
+        isPublic: e.isPublic,
+        newArtist: e.newArtist,
+      };
+    }
+    return {
+      picked: { id: e.artistId, displayLabel: e.displayName ?? `Artist #${e.artistId}` },
+      creating: false,
+      role: e.role,
+      isPublic: e.isPublic,
+    };
+  });
+  const [rows, setRows] = createSignal<Row[]>(initialRows);
   const [hintDismissed, setHintDismissed] = createSignal(false);
 
   async function search(q: string): Promise<EntitySearchResult[]> {
@@ -60,9 +88,13 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
   }
 
   function acceptHint(artist: { id: number; displayName: string }) {
+    // Channel ↔ artist linkage carries no role information, so we can't
+    // assume the hinted artist is a vocalist (a channel may belong to a
+    // composer or a group with mixed roles). Leave role blank and let the
+    // admin pick it — matches the manual-add default.
     addRow({
       picked: { id: artist.id, displayLabel: artist.displayName },
-      role: props.context === 'recording' ? 'vocal' : null,
+      role: null,
       isPublic: true,
     });
     setHintDismissed(true);
@@ -70,7 +102,7 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
 
   return (
     <div>
-      <div class="kanade-admin-section__title">
+      <div class="kanade-admin-subsection__title">
         {props.context === 'recording' ? '참여 아티스트' : '창작자'}
       </div>
       <Show when={props.channelHint && !hintDismissed() && (props.channelHint.artists?.length ?? 0) > 0}>
