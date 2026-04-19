@@ -68,9 +68,16 @@ export function setupRenderer(ctx: RendererContext): void {
     videoEl = boundEl;
     const handlers: Array<[keyof HTMLMediaElementEventMap, () => void]> = [
       ['play', dispatch],
+      ['playing', dispatch],
       ['pause', dispatch],
       ['seeked', dispatch],
       ['durationchange', dispatch],
+      // YouTube uses MSE — loadstart / loadedmetadata / loadeddata are the most
+      // reliable signals that a NEW video has started loading into the reused
+      // <video> element after SPA navigation.
+      ['loadstart', dispatch],
+      ['loadedmetadata', dispatch],
+      ['loadeddata', dispatch],
       ['ended', () => ctx.ipc.send('clear-player')],
       ['timeupdate', dispatchThrottled],
     ];
@@ -83,11 +90,14 @@ export function setupRenderer(ctx: RendererContext): void {
 
   document.addEventListener('yt-navigate-finish', () => {
     void rebindVideo();
-    // YouTube reuses the same <video> element across SPA navigations, so
-    // rebindVideo returns early (no dispatch) and we'd miss the videoId change
-    // until the next timeupdate/play fires. Dispatch immediately with the new
-    // URL so Main can re-resolve; subsequent events refresh fallback DOM text.
+    // Multi-shot dispatch: at yt-navigate-finish time the URL has usually
+    // updated but the <video> element may still be on the OLD video's state.
+    // Fire once immediately, then again after short delays so we catch the
+    // moment YouTube swaps in the new video. Main dedupes repeat videoIds.
     dispatch();
+    setTimeout(dispatch, 150);
+    setTimeout(dispatch, 500);
+    setTimeout(dispatch, 1200);
   });
   window.addEventListener('load', () => { void rebindVideo(); });
 }
