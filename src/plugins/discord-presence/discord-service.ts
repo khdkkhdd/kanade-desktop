@@ -1,0 +1,115 @@
+import { Client as DiscordClient } from '@xhayper/discord-rpc';
+import type { SetActivity } from '@xhayper/discord-rpc/dist/structures/ClientUser';
+import { clientId, RECONNECT_BACKOFF_MS, TimerKey } from './constants.js';
+import { TimerManager } from './timer-manager.js';
+import type { PresenceConfig } from './types.js';
+
+/**
+ * Discord RPC client lifecycle 관리.
+ * Ported patterns from ~/repo/pear-desktop/src/plugins/discord/discord-service.ts.
+ */
+export class DiscordService {
+  private rpc!: DiscordClient;
+  private ready = false;
+  private autoReconnect: boolean;
+  private timerManager = new TimerManager();
+
+  private lastActivity: SetActivity | null = null;
+
+  constructor(private config: PresenceConfig) {
+    this.autoReconnect = config.autoReconnect;
+    this.initializeRpc();
+  }
+
+  private initializeRpc(): void {
+    if (this.rpc) {
+      try { this.rpc.destroy(); } catch { /* ignored */ }
+      this.rpc.removeAllListeners();
+    }
+    this.rpc = new DiscordClient({ clientId });
+
+    this.rpc.on('connected', () => {
+      console.log('[discord-presence] connected');
+    });
+
+    this.rpc.on('ready', () => {
+      this.ready = true;
+      console.log('[discord-presence] ready');
+      if (this.lastActivity) {
+        void this.rpc.user?.setActivity(this.lastActivity).catch((err) => {
+          console.error('[discord-presence] re-apply activity failed:', err);
+        });
+      }
+    });
+
+    this.rpc.on('disconnected', () => {
+      this.ready = false;
+      console.log('[discord-presence] disconnected');
+      if (this.autoReconnect) this.scheduleReconnect();
+    });
+  }
+
+  connect(): void {
+    if (this.rpc.isConnected) return;
+    this.timerManager.clear(TimerKey.DiscordConnectRetry);
+    this.rpc.login().catch((err) => {
+      console.warn('[discord-presence] login failed:', err?.message ?? err);
+      this.ready = false;
+      if (this.autoReconnect) {
+        this.initializeRpc();
+        this.scheduleReconnect();
+      }
+    });
+  }
+
+  disconnect(): void {
+    this.autoReconnect = false;
+    this.timerManager.clearAll();
+    try {
+      this.rpc.removeAllListeners();
+      this.rpc.destroy();
+    } catch { /* ignored */ }
+    this.ready = false;
+    this.lastActivity = null;
+  }
+
+  private scheduleReconnect(): void {
+    if (!this.autoReconnect) return;
+    this.timerManager.set(
+      TimerKey.DiscordConnectRetry,
+      () => {
+        if (!this.autoReconnect || this.rpc.isConnected) return;
+        this.rpc.login().catch(() => {
+          this.initializeRpc();
+          this.scheduleReconnect();
+        });
+      },
+      RECONNECT_BACKOFF_MS,
+    );
+  }
+
+  setActivity(activity: SetActivity): void {
+    this.lastActivity = activity;
+    if (!this.rpc.isConnected || !this.ready) return;
+    this.rpc.user?.setActivity(activity).catch((err) => {
+      console.error('[discord-presence] setActivity failed:', err);
+    });
+  }
+
+  clearActivity(): void {
+    this.lastActivity = null;
+    if (!this.rpc.isConnected || !this.ready) return;
+    this.rpc.user?.clearActivity().catch((err) => {
+      console.error('[discord-presence] clearActivity failed:', err);
+    });
+  }
+
+  isConnectedAndReady(): boolean {
+    return this.rpc.isConnected && this.ready;
+  }
+
+  applyConfig(newConfig: PresenceConfig): void {
+    this.config = newConfig;
+    this.autoReconnect = newConfig.autoReconnect;
+  }
+}
