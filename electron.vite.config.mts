@@ -34,7 +34,6 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'src/index.html'),
           settings: resolve(__dirname, 'src/settings-window/index.html'),
         },
       },
