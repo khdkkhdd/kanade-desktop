@@ -6,6 +6,7 @@ import { loadAllMainPlugins, unloadAllMainPlugins } from './loader/main.js';
 import { relationOverlayMain } from './plugins/relation-overlay/main.js';
 import { adminVideoMain } from './plugins/admin-video/main.js';
 import { adminChannelMain } from './plugins/admin-channel/main.js';
+import { discordPresenceMain } from './plugins/discord-presence/index.js';
 import { applyPresenceConfigChange } from './plugins/discord-presence/backend.js';
 
 function removeCSP(): void {
@@ -73,25 +74,16 @@ function createWindow(): BrowserWindow {
   win.once('ready-to-show', () => win.show());
 
   // URL loading logic
-  const startUrl = store.get('startUrl');
-  if (!startUrl) {
-    // First run: show selection page
-    if (process.env.ELECTRON_RENDERER_URL) {
-      win.loadURL(process.env.ELECTRON_RENDERER_URL);
-    } else {
-      win.loadFile(path.join(__dirname, '../renderer/index.html'));
-    }
-  } else {
-    // Subsequent runs: load last URL or start URL
-    const lastUrl = store.get('lastUrl');
-    win.loadURL(lastUrl || startUrl);
-  }
+  const startUrl = store.get('startUrl') || 'https://www.youtube.com';
+  const lastUrl = store.get('lastUrl');
+  win.loadURL(lastUrl || startUrl);
 
   // Plugins
   const plugins = {
     'relation-overlay': relationOverlayMain,
     'admin-video': adminVideoMain,
     'admin-channel': adminChannelMain,
+    'discord-presence': discordPresenceMain,
   };
   loadAllMainPlugins(plugins, win, ipcMain);
 
@@ -99,13 +91,6 @@ function createWindow(): BrowserWindow {
 }
 
 function setupIPC(win: BrowserWindow): void {
-  // First-run URL selection
-  ipcMain.on('select-start-url', (_event, url: string) => {
-    store.set('startUrl', url);
-    store.set('lastUrl', url);
-    win.loadURL(url);
-  });
-
   // Navigation change from renderer
   ipcMain.on('navigation:changed', (_event, data: { url: string; videoId: string | null }) => {
     store.set('lastUrl', data.url);
@@ -121,10 +106,10 @@ function openSettingsWindow(parent: BrowserWindow): void {
   }
   settingsWin = new BrowserWindow({
     width: 480,
-    height: 320,
+    height: 460,
     parent,
     modal: false,
-    title: 'Kanade Settings',
+    title: 'YouTube Settings',
     backgroundColor: '#0f0f0f',
     webPreferences: {
       contextIsolation: true,
@@ -143,7 +128,7 @@ function openSettingsWindow(parent: BrowserWindow): void {
 function installAppMenu(getMainWin: () => BrowserWindow | null): void {
   const template: Electron.MenuItemConstructorOptions[] = [
     {
-      label: 'Kanade',
+      label: 'YouTube',
       submenu: [
         {
           label: 'Settings...',

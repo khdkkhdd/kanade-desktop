@@ -3,6 +3,7 @@ import { loadAllRendererPlugins } from './loader/renderer.js';
 import { relationOverlay } from './plugins/relation-overlay/index.js';
 import { adminVideo } from './plugins/admin-video/index.js';
 import { adminChannel } from './plugins/admin-channel/index.js';
+import { discordPresence } from './plugins/discord-presence/index.js';
 
 
 contextBridge.exposeInMainWorld('kanade', {
@@ -50,5 +51,6 @@ const plugins = {
   'relation-overlay': relationOverlay,
   'admin-video': adminVideo,
   'admin-channel': adminChannel,
+  'discord-presence': discordPresence,
 };
 loadAllRendererPlugins(plugins);
