@@ -101,9 +101,20 @@ function mergeSongInfo(
   resolved: ResolvedSongInfo,
   snapshot: PlayerStateUpdate,
 ): SongInfo {
+  // For fallback kind, the cached title/artists may have come from a stale DOM
+  // snapshot (YouTube SPA updates document.title AFTER yt-navigate-finish, so
+  // the first dispatch for a new video often captured the PREVIOUS video's
+  // title). Re-derive from the current snapshot on every merge so subsequent
+  // timeupdate/play events correct the display. DB kind is authoritative — we
+  // keep the resolved title/artists regardless of DOM state.
+  const isFallback = resolved.kind === 'fallback';
+  const title = isFallback ? (snapshot.domTitle || 'YouTube') : resolved.title;
+  const artists = isFallback
+    ? (snapshot.domChannel || 'YouTube')
+    : resolved.artists;
   return {
-    title: resolved.title,
-    artists: resolved.artists,
+    title,
+    artists,
     originUrl: resolved.originUrl,
     thumbnailUrl: resolved.thumbnailUrl,
     videoUrl: resolved.videoUrl,
@@ -111,6 +122,6 @@ function mergeSongInfo(
     isPaused: snapshot.paused,
     elapsedSeconds: snapshot.currentTime,
     durationSeconds: snapshot.duration,
-    isFallback: resolved.kind === 'fallback',
+    isFallback,
   };
 }
