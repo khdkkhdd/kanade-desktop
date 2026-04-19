@@ -1,6 +1,12 @@
 # Phase 3: Relation Overlay — Design Spec
 
 > **Updated 2026-04-06:** 구현 완료 후 실제 구현에 맞게 갱신
+>
+> **🗄 UI 스펙 대체됨 (2026-04-18):** Phase 4에서 칩 바 구조와 API 응답 shape이 재설계됨. 칩 "이 곡의 다른 영상" → "같은 녹음의 다른 영상" / "이 곡의 다른 버전" 2개로 분리, 헤더 영역 추가, `/video` 응답 recording+work 중첩으로 변경.
+>
+> **현재 정본:** `~/repo/kanade-server/docs/superpowers/specs/2026-04-18-phase4-3layer-schema-design.md` §5 (Desktop Overlay UI 명세)
+>
+> 이 문서는 Phase 3 구현 기록용으로만 보존. 플러그인 아키텍처 / SPA 감지 / IPC 패턴 등 **아키텍처 부분은 여전히 유효**.
 
 ## Overview
 

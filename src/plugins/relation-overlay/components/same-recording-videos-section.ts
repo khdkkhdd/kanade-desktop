@@ -1,6 +1,19 @@
 import type { RendererContext } from '../../../types/plugins.js';
-import type { RecordingVideo, VideoRecording } from '../types.js';
+import type { ArtistCredit, RecordingVideo, VideoRecording } from '../types.js';
 import { pickTitle, renderArtists } from '../utils.js';
+
+// Merge performers + work creators for origin recordings — mirrors the logic
+// in video-item.ts so "empty recording_artists on an origin" still shows the
+// song's composer/lyricist instead of an empty artist line.
+function mergeCredits(performers: ArtistCredit[], creators: ArtistCredit[]): ArtistCredit[] {
+  const byId = new Map<number, ArtistCredit>();
+  for (const c of [...performers, ...creators]) {
+    const existing = byId.get(c.artistId);
+    if (!existing) byId.set(c.artistId, { ...c });
+    else existing.isPublic = existing.isPublic || c.isPublic;
+  }
+  return [...byId.values()];
+}
 
 /**
  * Other external videos linked to the same recording. No pagination —
@@ -27,7 +40,10 @@ export async function createSameRecordingVideosSection(
 
   const title =
     recording.titles.length > 0 ? pickTitle(recording.titles, lang) : pickTitle(recording.work.titles, lang);
-  const artistLine = renderArtists(recording.artists);
+  const credits = recording.isOrigin
+    ? mergeCredits(recording.artists, recording.work.creators)
+    : recording.artists;
+  const artistLine = renderArtists(credits);
 
   for (const v of videos) {
     const card = createPlatformVideoCard(v, title, artistLine);
@@ -37,7 +53,6 @@ export async function createSameRecordingVideosSection(
   return root;
 }
 
-// Title arg is kept for the alt attribute; not rendered in the card.
 function createPlatformVideoCard(
   video: RecordingVideo,
   title: string,
@@ -65,16 +80,15 @@ function createPlatformVideoCard(
       thumbWrap.appendChild(badge);
     }
 
-    const platformBadge = document.createElement('span');
-    platformBadge.className = 'kanade-card-platform';
-    platformBadge.textContent = 'YouTube';
-    thumbWrap.appendChild(platformBadge);
-
     const info = document.createElement('div');
     info.className = 'kanade-video-info';
+    const titleEl = document.createElement('div');
+    titleEl.className = 'kanade-video-title';
+    titleEl.textContent = title;
     const artistEl = document.createElement('div');
     artistEl.className = 'kanade-video-artist';
     artistEl.textContent = artistLine;
+    info.appendChild(titleEl);
     info.appendChild(artistEl);
 
     link.appendChild(thumbWrap);

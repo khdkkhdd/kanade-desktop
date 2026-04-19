@@ -7,8 +7,8 @@ export interface VideoItemOptions {
 
 /**
  * Card for a recording. Uses its mainVideo thumbnail.
- * - `showTitle`: when false (same-work / same-recording sections), the title
- *   line is omitted (redundant with context).
+ * - `showTitle`: when false (same-recording section), the title line is
+ *   omitted because every card represents the same recording.
  * - Artist line: for origin recordings we merge work_creators into the
  *   credit list so the composer/lyricist shows alongside the vocalist.
  *   Covers show only the recording artists (the creator is the origin's

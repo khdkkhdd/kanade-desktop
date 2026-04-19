@@ -4,6 +4,11 @@ import { createListSection } from './list-section.js';
 
 const PAGE_LIMIT = 20;
 
+// See covers-section.ts — identical rationale.
+function playable(items: RecordingListItem[]): RecordingListItem[] {
+  return items.filter((r) => r.mainVideo && r.mainVideo.platform === 'youtube');
+}
+
 /**
  * Original recordings of the current work, excluding the current recording.
  * /works/:workId/recordings?isOrigin=true&exclude=<currentRecordingId>
@@ -24,7 +29,9 @@ export async function createOriginalSection(
     limit: PAGE_LIMIT,
   })) as RecordingListResponse | null;
 
-  if (!first || first.data.length === 0) return null;
+  if (!first) return null;
+  const initialPlayable = playable(first.data);
+  if (initialPlayable.length === 0 && first.nextOffset === null) return null;
 
   let nextOffset = first.nextOffset;
   const seed = first.seed;
@@ -45,7 +52,7 @@ export async function createOriginalSection(
       })) as RecordingListResponse | null;
       if (more && more.data.length > 0) {
         nextOffset = more.nextOffset;
-        list.appendItems(more.data);
+        list.appendItems(playable(more.data));
         if (nextOffset === null) list.setNoMore();
       } else {
         nextOffset = null;
@@ -54,10 +61,12 @@ export async function createOriginalSection(
     } finally {
       loading = false;
     }
-  }, { showTitle: false });
+  });
 
-  list.appendItems(first.data);
+  list.appendItems(initialPlayable);
   if (nextOffset === null) list.setNoMore();
+
+  if (initialPlayable.length === 0 && nextOffset === null) return null;
 
   return list.root;
 }

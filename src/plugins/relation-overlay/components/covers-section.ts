@@ -1,8 +1,16 @@
 import type { RendererContext } from '../../../types/plugins.js';
-import type { RecordingListResponse } from '../types.js';
+import type { RecordingListItem, RecordingListResponse } from '../types.js';
 import { createListSection } from './list-section.js';
 
 const PAGE_LIMIT = 20;
+
+// Recordings without a playable YouTube main video can't be rendered as cards,
+// so they shouldn't count toward "does this section have anything to show".
+// Without this filter a chip with zero cards can still render when every
+// returned recording lacks a mainVideo link.
+function playable(items: RecordingListItem[]): RecordingListItem[] {
+  return items.filter((r) => r.mainVideo && r.mainVideo.platform === 'youtube');
+}
 
 /**
  * Cover recordings of the current work.
@@ -23,7 +31,9 @@ export async function createCoversSection(
     limit: PAGE_LIMIT,
   })) as RecordingListResponse | null;
 
-  if (!first || first.data.length === 0) return null;
+  if (!first) return null;
+  const initialPlayable = playable(first.data);
+  if (initialPlayable.length === 0 && first.nextOffset === null) return null;
 
   let nextOffset = first.nextOffset;
   const seed = first.seed;
@@ -44,7 +54,7 @@ export async function createCoversSection(
       })) as RecordingListResponse | null;
       if (more && more.data.length > 0) {
         nextOffset = more.nextOffset;
-        list.appendItems(more.data);
+        list.appendItems(playable(more.data));
         if (nextOffset === null) list.setNoMore();
       } else {
         nextOffset = null;
@@ -55,8 +65,13 @@ export async function createCoversSection(
     }
   });
 
-  list.appendItems(first.data);
+  list.appendItems(initialPlayable);
   if (nextOffset === null) list.setNoMore();
+
+  // If the first page had only orphan recordings but more pages exist, we
+  // still return the section and let the scroll handler keep fetching until
+  // real items appear or pagination ends.
+  if (initialPlayable.length === 0 && nextOffset === null) return null;
 
   return list.root;
 }

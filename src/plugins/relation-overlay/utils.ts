@@ -1,18 +1,16 @@
-import type { ArtistCredit, TitleEntry } from './types.js';
+import type { TitleEntry } from './types.js';
 
 /**
- * Renders artist credits as "main1, main2 (feat. guest1, guest2)".
- * is_public=true are mains, is_public=false go into feat. parens.
- * If every credit is non-public, fall back to listing all.
+ * Renders artist credits as "name1, name2". `isPublic` controls default-view
+ * visibility — non-public credits are hidden here and only surface in detailed
+ * views (e.g. the artist chip panel). If nobody is flagged public (e.g.
+ * migrated data), fall back to listing all so the line isn't blank.
  */
 export function renderArtists(artists: Array<{ name: string; isPublic: boolean }>): string {
   if (artists.length === 0) return '';
-  const mains = artists.filter((a) => a.isPublic);
-  const others = artists.filter((a) => !a.isPublic);
-  if (mains.length === 0) return artists.map((a) => a.name).join(', ');
-  const mainStr = mains.map((a) => a.name).join(', ');
-  const featStr = others.length ? ` (feat. ${others.map((a) => a.name).join(', ')})` : '';
-  return mainStr + featStr;
+  const publicOnes = artists.filter((a) => a.isPublic);
+  const shown = publicOnes.length > 0 ? publicOnes : artists;
+  return shown.map((a) => a.name).join(', ');
 }
 
 /**
@@ -27,14 +25,3 @@ export function pickTitle(titles: TitleEntry[], lang: string): string {
   return titles[0].title;
 }
 
-/**
- * Credits with role labels — used for header creator/artist rows.
- * Role like "composer" gets a small bracketed tag after the name.
- */
-export function formatCreditsWithRoles(credits: ArtistCredit[]): Array<{
-  name: string;
-  role: string | null;
-  isPublic: boolean;
-}> {
-  return credits.map((c) => ({ name: c.name, role: c.role, isPublic: c.isPublic }));
-}
