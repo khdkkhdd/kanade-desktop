@@ -1,9 +1,17 @@
 import type { RendererContext } from '../../types/plugins.js';
 import type { PlayerStateUpdate } from './types.js';
 import { RENDERER_TIMEUPDATE_MIN_MS } from './constants.js';
-import { extractDomTitle, extractDomChannel } from './dom-fallback.js';
+import { extractDomTitle, extractDomChannel, getPlayerVideoId } from './dom-fallback.js';
 
+/**
+ * Prefer YouTube player's internal state (currently loaded video) over the URL's
+ * `v=` parameter. During Mix transitions URL can briefly show the outgoing
+ * video's id while DOM title has already switched to the incoming one — using
+ * player.getVideoData() avoids that mismatch.
+ */
 function extractVideoId(): string | null {
+  const playerId = getPlayerVideoId();
+  if (playerId) return playerId;
   const param = new URLSearchParams(window.location.search).get('v');
   if (param) return param;
   const shortsMatch = window.location.pathname.match(/^\/shorts\/([a-zA-Z0-9_-]+)/);
@@ -72,9 +80,6 @@ export function setupRenderer(ctx: RendererContext): void {
       ['pause', dispatch],
       ['seeked', dispatch],
       ['durationchange', dispatch],
-      // YouTube uses MSE — loadstart / loadedmetadata / loadeddata are the most
-      // reliable signals that a NEW video has started loading into the reused
-      // <video> element after SPA navigation.
       ['loadstart', dispatch],
       ['loadedmetadata', dispatch],
       ['loadeddata', dispatch],
@@ -85,19 +90,19 @@ export function setupRenderer(ctx: RendererContext): void {
     cleanup = () => {
       for (const [ev, h] of handlers) boundEl.removeEventListener(ev, h);
     };
-    dispatch(); // initial
+    dispatch();
   }
 
   document.addEventListener('yt-navigate-finish', () => {
     void rebindVideo();
-    // Multi-shot dispatch: at yt-navigate-finish time the URL has usually
-    // updated but the <video> element may still be on the OLD video's state.
-    // Fire once immediately, then again after short delays so we catch the
-    // moment YouTube swaps in the new video. Main dedupes repeat videoIds.
+    // Same <video> element is reused across SPA nav — rebindVideo returns
+    // early (no dispatch) — fire directly so Main sees the new URL.
     dispatch();
-    setTimeout(dispatch, 150);
-    setTimeout(dispatch, 500);
-    setTimeout(dispatch, 1200);
   });
+
+  // YouTube fires this AFTER page data for the new video is ready. More
+  // reliable than yt-navigate-finish alone for capturing settled state.
+  document.addEventListener('yt-page-data-updated', () => dispatch());
+
   window.addEventListener('load', () => { void rebindVideo(); });
 }
