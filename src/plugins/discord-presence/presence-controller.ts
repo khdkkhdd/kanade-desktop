@@ -87,7 +87,9 @@ export class PresenceController {
     if (videoId !== this.currentVideoId) return;
 
     this.addToCache(videoId, resolved);
-    const song = mergeSongInfo(resolved, snapshot);
+    // Use the freshest snapshot in case a newer dispatch arrived during fetch.
+    const merged = this.lastSnapshot ?? snapshot;
+    const song = mergeSongInfo(resolved, merged);
     this.dispatchUpdate(song, true);
   }
 
@@ -98,8 +100,14 @@ export class PresenceController {
       prev !== null &&
       !videoChanged &&
       isSeek(prev.elapsedSeconds, song.elapsedSeconds);
+    // Fallback titles refresh from live DOM — push immediately when they change
+    // instead of waiting out the 15s progress throttle.
+    const metaChanged =
+      prev !== null &&
+      !videoChanged &&
+      (prev.title !== song.title || prev.artists !== song.artists);
 
-    const trigger = videoChanged || pauseChanged || seeked;
+    const trigger = videoChanged || pauseChanged || seeked || metaChanged;
     const now = Date.now();
 
     if (trigger || now - this.lastProgressUpdate > PROGRESS_THROTTLE_MS) {
@@ -138,13 +146,14 @@ function mergeSongInfo(
   resolved: ResolvedSongInfo,
   snapshot: PlayerStateUpdate,
 ): SongInfo {
-  // title/artists always come from the resolved cache. During Mix transitions
-  // YouTube updates DOM/player title preemptively to next queue items, so
-  // re-reading from snapshot would cause flicker — we trust the one-shot
-  // delayed resolve instead.
+  // DB result keeps the server-resolved title/artists. Fallback has DOM as its
+  // only source, so we keep re-deriving from the freshest snapshot — otherwise
+  // a stale domTitle captured during a Mix transition gets cached forever and
+  // never recovers even after the player settles.
+  const isFallback = resolved.kind === 'fallback';
   return {
-    title: resolved.title,
-    artists: resolved.artists,
+    title: isFallback ? (snapshot.domTitle || 'YouTube') : resolved.title,
+    artists: isFallback ? (snapshot.domChannel || 'YouTube') : resolved.artists,
     originUrl: resolved.originUrl,
     thumbnailUrl: resolved.thumbnailUrl,
     videoUrl: resolved.videoUrl,
@@ -152,6 +161,6 @@ function mergeSongInfo(
     isPaused: snapshot.paused,
     elapsedSeconds: snapshot.currentTime,
     durationSeconds: snapshot.duration,
-    isFallback: resolved.kind === 'fallback',
+    isFallback,
   };
 }
