@@ -8,10 +8,16 @@ export interface WorkSectionProps {
   ctx: RendererContext;
   value: WorkSelection | null;
   onChange: (v: WorkSelection | null) => void;
+  /** Display label for pre-selected existing work (edit mode). */
+  initialLabel?: string;
 }
 
 export function WorkSection(props: WorkSectionProps) {
-  const [picked, setPicked] = createSignal<EntitySearchResult | null>(null);
+  const [picked, setPicked] = createSignal<EntitySearchResult | null>(
+    props.value?.kind === 'existing'
+      ? { id: props.value.id, displayLabel: props.initialLabel ?? `Work #${props.value.id}` }
+      : null,
+  );
   const [creating, setCreating] = createSignal(false);
   const [titles, setTitles] = createSignal<TitleInput[]>([]);
 

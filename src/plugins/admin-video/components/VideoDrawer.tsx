@@ -15,12 +15,36 @@ export interface VideoDrawerProps {
   onCommitted: () => void;
 }
 
+function pickDisplayTitle(titles: Array<{ language: string; title: string; isMain: boolean }> | undefined, fallback: string): string {
+  if (!titles || titles.length === 0) return fallback;
+  const main = titles.find((t) => t.isMain) ?? titles[0];
+  return main?.title || fallback;
+}
+
 export function VideoDrawer(props: VideoDrawerProps) {
-  const [work, setWork] = createSignal<WorkSelection | null>(null);
-  const [recording, setRecording] = createSignal<RecordingSelection | null>(null);
-  const [isMainVideo, setIsMainVideo] = createSignal(true);
+  // In edit mode the current mapping is pre-selected so the user sees the
+  // existing Work / Recording and can jump straight to the danger zone or
+  // reassign. We only handle the first recording of the video for now — a
+  // video with multiple recordings is rare and detailed per-recording edit
+  // lives in the web admin.
+  const editSeed = props.mode === 'edit' ? props.initialData?.recordings?.[0] : null;
+
+  const [work, setWork] = createSignal<WorkSelection | null>(
+    editSeed ? { kind: 'existing', id: editSeed.work.id } : null,
+  );
+  const [recording, setRecording] = createSignal<RecordingSelection | null>(
+    editSeed ? { kind: 'existing', id: editSeed.id } : null,
+  );
+  const [isMainVideo, setIsMainVideo] = createSignal(
+    editSeed ? !!editSeed.isMainVideo : true,
+  );
   const [submitting, setSubmitting] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+
+  const initialWorkLabel = editSeed ? pickDisplayTitle(editSeed.work.titles, `Work #${editSeed.work.id}`) : undefined;
+  const initialRecordingLabel = editSeed
+    ? pickDisplayTitle(editSeed.titles, initialWorkLabel ?? `Recording #${editSeed.id}`)
+    : undefined;
 
   const channelExternalId = () => {
     const meta = document.querySelector('meta[itemprop="channelId"]') as HTMLMetaElement | null;
@@ -99,7 +123,12 @@ export function VideoDrawer(props: VideoDrawerProps) {
       <Show when={error()}>
         <div class="kanade-admin-banner kanade-admin-banner--error">{error()}</div>
       </Show>
-      <WorkSection ctx={props.ctx} value={work()} onChange={setWork} />
+      <WorkSection
+        ctx={props.ctx}
+        value={work()}
+        onChange={setWork}
+        initialLabel={initialWorkLabel}
+      />
       <Show when={work()}>
         <RecordingSection
           ctx={props.ctx}
@@ -107,6 +136,7 @@ export function VideoDrawer(props: VideoDrawerProps) {
           value={recording()}
           onChange={setRecording}
           channelHint={channelHint() ?? undefined}
+          initialLabel={initialRecordingLabel}
         />
       </Show>
       <Show when={recording()}>

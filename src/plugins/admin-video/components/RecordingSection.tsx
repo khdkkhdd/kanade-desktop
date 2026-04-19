@@ -12,10 +12,16 @@ export interface RecordingSectionProps {
   value: RecordingSelection | null;
   onChange: (v: RecordingSelection | null) => void;
   channelHint?: { channelExternalId: string; artists: Array<{ id: number; displayName: string }> };
+  /** Display label for pre-selected existing recording (edit mode). */
+  initialLabel?: string;
 }
 
+type ViewMode = 'list' | 'create' | 'selected';
+
 export function RecordingSection(props: RecordingSectionProps) {
-  const [mode, setMode] = createSignal<'list' | 'create'>('list');
+  const [mode, setMode] = createSignal<ViewMode>(
+    props.value?.kind === 'existing' ? 'selected' : 'list',
+  );
   const [titles, setTitles] = createSignal<TitleInput[]>([]);
   const [isOrigin, setIsOrigin] = createSignal(true);
   const [artists, setArtists] = createSignal<ArtistCreditEntry[]>([]);
@@ -37,6 +43,7 @@ export function RecordingSection(props: RecordingSectionProps) {
 
   function pickExisting(r: { id: number }) {
     props.onChange({ kind: 'existing', id: r.id });
+    setMode('selected');
   }
 
   // Auto-emit when in create mode and state changes
@@ -73,6 +80,20 @@ export function RecordingSection(props: RecordingSectionProps) {
   return (
     <div class="kanade-admin-section">
       <div class="kanade-admin-section__title">🎤 Recording</div>
+      <Show when={mode() === 'selected' && props.value?.kind === 'existing'}>
+        <div style="padding: 8px 10px; background: #2a2a2a; border: 1px solid #3a7aff; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 13px;">
+            {props.initialLabel ?? `Recording #${(props.value as { kind: 'existing'; id: number }).id}`}
+          </div>
+          <button
+            type="button"
+            class="kanade-admin-btn"
+            onClick={() => { props.onChange(null); setMode('list'); }}
+          >
+            변경
+          </button>
+        </div>
+      </Show>
       <Show when={mode() === 'list' && props.work.kind === 'existing'}>
         <div style="max-height: 240px; overflow-y: auto; margin-bottom: 8px;">
           <For each={existingRecs() ?? []}>
