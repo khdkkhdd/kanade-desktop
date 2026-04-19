@@ -28,6 +28,11 @@ describe('buildActivity', () => {
     expect(a.state).toBe('Artist');
   });
 
+  it('sets detailsUrl to videoUrl so title text is clickable', () => {
+    const a = buildActivity(baseSongInfo());
+    expect(a.detailsUrl).toBe('https://www.youtube.com/watch?v=abc');
+  });
+
   it('uses thumbnailUrl as largeImageKey', () => {
     const a = buildActivity(baseSongInfo());
     expect(a.largeImageKey).toBe('https://i.ytimg.com/vi/abc/hqdefault.jpg');

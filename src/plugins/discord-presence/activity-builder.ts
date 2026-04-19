@@ -8,6 +8,7 @@ export function buildActivity(song: SongInfo): SetActivity {
     type: ActivityType.Listening,
     statusDisplayType: StatusDisplayType.Details,
     details: sanitizeActivityText(song.title, 'YouTube'),
+    detailsUrl: song.videoUrl,
     state: sanitizeActivityText(song.artists, 'YouTube'),
     largeImageKey: song.thumbnailUrl,
     largeImageText: 'Listening on YouTube',
