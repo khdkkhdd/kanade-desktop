@@ -1,6 +1,5 @@
-// Placeholder — Discord Developer Portal에서 "YouTube" 앱 신규 등록 후 교체.
-// 앱 생성 전이라도 타입/테스트 컴파일 목적으로 임시 값.
-export const clientId = '0000000000000000000';
+// Discord Developer Portal "YouTube" 앱 Application ID.
+export const clientId = '1495418394672103669';
 
 /** setActivity 호출 최소 간격 (ms). 곡/일시정지/seek 변경은 이 throttle 우회. */
 export const PROGRESS_THROTTLE_MS = 15_000;
