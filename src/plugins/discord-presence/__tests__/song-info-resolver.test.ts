@@ -227,6 +227,148 @@ describe('resolveSongInfo', () => {
     expect(result.artists).toBe('A, B');
   });
 
+  it('falls back to work.titles when recording.titles is empty', async () => {
+    mockFetchResponses({
+      '/public/videos/youtube/abc123?lang=ko': {
+        data: {
+          video: { platform: 'youtube', externalId: 'abc123' },
+          recordings: [{
+            id: 10,
+            isOrigin: true,
+            titles: [],
+            artists: [{ artistId: 1, name: '初音ミク', role: 'vocal', isPublic: true }],
+            work: {
+              id: 100,
+              titles: [
+                { language: 'en', title: 'Monitoring', isMain: false },
+                { language: 'ja', title: 'モニタリング', isMain: true },
+                { language: 'ko', title: '모니터링', isMain: false },
+              ],
+              creators: [{ artistId: 2, name: 'DECO*27', role: 'composer', isPublic: true }],
+            },
+            isMainVideo: true,
+          }],
+        },
+      },
+    });
+
+    const result = await resolveSongInfo(snapshotBase({ uiLang: 'ko' }), apiBase);
+    expect(result.kind).toBe('db');
+    expect(result.title).toBe('모니터링');
+  });
+
+  it('work.titles lang mismatch → uses isMain', async () => {
+    mockFetchResponses({
+      '/public/videos/youtube/abc123?lang=ko-KR': {
+        data: {
+          video: { platform: 'youtube', externalId: 'abc123' },
+          recordings: [{
+            id: 10,
+            isOrigin: true,
+            titles: [],
+            artists: [{ artistId: 1, name: 'A', role: 'vocal', isPublic: true }],
+            work: {
+              id: 100,
+              titles: [
+                { language: 'en', title: 'Monitoring', isMain: false },
+                { language: 'ja', title: 'モニタリング', isMain: true },
+              ],
+              creators: [],
+            },
+            isMainVideo: true,
+          }],
+        },
+      },
+    });
+
+    const result = await resolveSongInfo(snapshotBase({ uiLang: 'ko-KR' }), apiBase);
+    expect(result.kind).toBe('db');
+    expect(result.title).toBe('モニタリング');
+  });
+
+  it('recording.titles takes precedence over work.titles when both present', async () => {
+    mockFetchResponses({
+      '/public/videos/youtube/abc123?lang=ko': {
+        data: {
+          video: { platform: 'youtube', externalId: 'abc123' },
+          recordings: [{
+            id: 10,
+            isOrigin: false,
+            titles: [{ language: 'ko', title: 'Cover한국어', isMain: true }],
+            artists: [{ artistId: 1, name: 'A', role: 'vocal', isPublic: true }],
+            work: {
+              id: 100,
+              titles: [{ language: 'ko', title: 'Work한국어', isMain: true }],
+              creators: [],
+            },
+            isMainVideo: false,
+          }],
+        },
+      },
+      '/public/works/100/recordings?isOrigin=true&limit=1&lang=ko': {
+        data: [],
+        seed: 0,
+        nextOffset: null,
+      },
+    });
+
+    const result = await resolveSongInfo(snapshotBase(), apiBase);
+    expect(result.title).toBe('Cover한국어');
+  });
+
+  it("titleLanguage='main' picks isMain over UI lang", async () => {
+    mockFetchResponses({
+      '/public/videos/youtube/abc123?lang=ko': {
+        data: {
+          video: { platform: 'youtube', externalId: 'abc123' },
+          recordings: [{
+            id: 10,
+            isOrigin: true,
+            titles: [],
+            artists: [{ artistId: 1, name: 'A', role: 'vocal', isPublic: true }],
+            work: {
+              id: 100,
+              titles: [
+                { language: 'ja', title: 'モニタリング', isMain: true },
+                { language: 'ko', title: '모니터링', isMain: false },
+              ],
+              creators: [],
+            },
+            isMainVideo: true,
+          }],
+        },
+      },
+    });
+
+    const result = await resolveSongInfo(snapshotBase({ uiLang: 'ko' }), apiBase, 'main');
+    expect(result.title).toBe('モニタリング');
+  });
+
+  it("titleLanguage='main' still uses recording.titles when present", async () => {
+    mockFetchResponses({
+      '/public/videos/youtube/abc123?lang=ko': {
+        data: {
+          video: { platform: 'youtube', externalId: 'abc123' },
+          recordings: [{
+            id: 10,
+            isOrigin: true,
+            titles: [{ language: 'en', title: 'CoverEN', isMain: true }],
+            artists: [{ artistId: 1, name: 'A', role: 'vocal', isPublic: true }],
+            work: {
+              id: 100,
+              titles: [{ language: 'ja', title: 'Work JA', isMain: true }],
+              creators: [],
+            },
+            isMainVideo: true,
+          }],
+        },
+      },
+    });
+
+    const result = await resolveSongInfo(snapshotBase(), apiBase, 'main');
+    expect(result.title).toBe('CoverEN');
+  });
+
   it('origin fetch failure → cover still returns db result with null originUrl', async () => {
     mockFetchResponses({
       '/public/videos/youtube/abc123?lang=ko': {

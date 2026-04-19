@@ -1,10 +1,13 @@
 import { render } from 'solid-js/web';
 import { createSignal, onMount } from 'solid-js';
 
+type TitleLanguage = 'uilang' | 'main';
+
 interface PresenceConfig {
   enabled: boolean;
   autoReconnect: boolean;
   activityTimeoutMinutes: number;
+  titleLanguage: TitleLanguage;
 }
 
 interface SettingsShape {
@@ -28,6 +31,7 @@ function App() {
   const [enabled, setEnabled] = createSignal(false);
   const [autoReconnect, setAutoReconnect] = createSignal(true);
   const [timeoutMin, setTimeoutMin] = createSignal(10);
+  const [titleLang, setTitleLang] = createSignal<TitleLanguage>('uilang');
   const [saved, setSaved] = createSignal(false);
 
   onMount(async () => {
@@ -37,6 +41,7 @@ function App() {
     setEnabled(v.presence?.enabled ?? false);
     setAutoReconnect(v.presence?.autoReconnect ?? true);
     setTimeoutMin(v.presence?.activityTimeoutMinutes ?? 10);
+    setTitleLang(v.presence?.titleLanguage ?? 'uilang');
   });
 
   async function save() {
@@ -47,6 +52,7 @@ function App() {
         enabled: enabled(),
         autoReconnect: autoReconnect(),
         activityTimeoutMinutes: timeoutMin(),
+        titleLanguage: titleLang(),
       },
     });
     setSaved(true);
@@ -115,6 +121,18 @@ function App() {
             onInput={(e) => setTimeoutMin(Number(e.currentTarget.value) || 0)}
             style="width: 100px; padding: 8px; background: #1e1e1e; border: 1px solid #3a3a3a; border-radius: 4px; color: #fff;"
           />
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <label style={labelStyle}>곡 제목 표시 언어</label>
+          <select
+            value={titleLang()}
+            onChange={(e) => setTitleLang(e.currentTarget.value as TitleLanguage)}
+            style="width: 200px; padding: 8px; background: #1e1e1e; border: 1px solid #3a3a3a; border-radius: 4px; color: #fff;"
+          >
+            <option value="uilang">UI 언어 따라가기</option>
+            <option value="main">원어 (main)</option>
+          </select>
         </div>
       </div>
 

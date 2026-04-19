@@ -1,6 +1,6 @@
-import { pickTitle } from '../../shared/title-utils.js';
+import { pickTitle, pickMainTitle } from '../../shared/title-utils.js';
 import { dedupeByArtistId } from './utils.js';
-import type { PlayerStateUpdate, ResolvedSongInfo } from './types.js';
+import type { PlayerStateUpdate, ResolvedSongInfo, TitleLanguage } from './types.js';
 
 interface ApiArtist {
   artistId: number;
@@ -39,6 +39,7 @@ interface RecordingListBody {
 export async function resolveSongInfo(
   snapshot: PlayerStateUpdate,
   apiBase: string,
+  titleLanguage: TitleLanguage = 'uilang',
 ): Promise<ResolvedSongInfo> {
   const { videoId, url, uiLang, domTitle, domChannel } = snapshot;
   const thumbnailUrl = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
@@ -64,7 +65,11 @@ export async function resolveSongInfo(
     const visible = credits.filter((c) => c.isPublic);
     if (visible.length === 0) return fallback;
 
-    const title = pickTitle(rec.titles, uiLang);
+    const titleSource = rec.titles.length > 0 ? rec.titles : rec.work.titles;
+    const title =
+      titleLanguage === 'main'
+        ? pickMainTitle(titleSource)
+        : pickTitle(titleSource, uiLang);
     const artists = visible.map((c) => c.name).join(', ');
     const originUrl = rec.isOrigin
       ? null

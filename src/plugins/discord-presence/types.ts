@@ -11,11 +11,14 @@ export interface PlayerStateUpdate {
   domChannel: string | null;
 }
 
+export type TitleLanguage = 'uilang' | 'main';
+
 // Presence config (store.kanade.presence)
 export interface PresenceConfig {
   enabled: boolean;
   autoReconnect: boolean;
   activityTimeoutMinutes: number; // 0 = disabled
+  titleLanguage: TitleLanguage;
 }
 
 // Per-videoId resolved info — cached

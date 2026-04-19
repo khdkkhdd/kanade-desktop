@@ -15,3 +15,15 @@ export function pickTitle(titles: TitleEntry[], lang: string): string {
   if (main) return main.title;
   return titles[0].title;
 }
+
+/**
+ * Canonical title picker: isMain → first entry.
+ * Discord Rich Presence shows titles in the main (canonical) language,
+ * regardless of UI language.
+ */
+export function pickMainTitle(titles: TitleEntry[]): string {
+  if (titles.length === 0) return '';
+  const main = titles.find((t) => t.isMain);
+  if (main) return main.title;
+  return titles[0].title;
+}

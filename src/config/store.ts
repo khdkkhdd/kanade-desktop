@@ -8,10 +8,13 @@ interface WindowState {
   isMaximized: boolean;
 }
 
+type TitleLanguage = 'uilang' | 'main';
+
 interface PresenceConfig {
   enabled: boolean;
   autoReconnect: boolean;
   activityTimeoutMinutes: number;
+  titleLanguage: TitleLanguage;
 }
 
 interface KanadeConfig {
@@ -31,6 +34,7 @@ export const DEFAULT_PRESENCE_CONFIG: PresenceConfig = {
   enabled: false,
   autoReconnect: true,
   activityTimeoutMinutes: 10,
+  titleLanguage: 'uilang',
 };
 
 const store = new Store<StoreSchema>({
@@ -52,8 +56,9 @@ const store = new Store<StoreSchema>({
  */
 export function getPresenceConfig(): PresenceConfig {
   const k = store.get('kanade');
-  return k.presence ?? DEFAULT_PRESENCE_CONFIG;
+  const saved = k.presence ?? DEFAULT_PRESENCE_CONFIG;
+  return { ...DEFAULT_PRESENCE_CONFIG, ...saved };
 }
 
 export { store };
-export type { WindowState, StoreSchema, KanadeConfig, PresenceConfig };
+export type { WindowState, StoreSchema, KanadeConfig, PresenceConfig, TitleLanguage };

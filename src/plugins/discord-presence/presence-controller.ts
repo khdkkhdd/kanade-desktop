@@ -82,7 +82,8 @@ export class PresenceController {
     const snapshot = this.lastSnapshot;
     if (!snapshot) return;
 
-    const resolved = await resolveSongInfo(snapshot, this.getApiBase());
+    const cfg = this.getConfig();
+    const resolved = await resolveSongInfo(snapshot, this.getApiBase(), cfg.titleLanguage);
     if (videoId !== this.currentVideoId) return;
 
     this.addToCache(videoId, resolved);
