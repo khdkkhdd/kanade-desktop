@@ -44,7 +44,7 @@ describe('buildActivity', () => {
     const a = buildActivity(baseSongInfo({ isPaused: true }));
     expect(a.startTimestamp).toBeUndefined();
     expect(a.endTimestamp).toBeUndefined();
-    expect(a.largeImageText).toBe('⏸');
+    expect(a.largeImageText).toBe('⏸\uFE0E');
   });
 
   it('omits timestamps for live streams (Infinity duration)', () => {

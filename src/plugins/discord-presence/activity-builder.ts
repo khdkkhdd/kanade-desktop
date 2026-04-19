@@ -15,7 +15,9 @@ export function buildActivity(song: SongInfo): SetActivity {
   };
 
   if (song.isPaused) {
-    activity.largeImageText = '⏸';
+    // '⏸' alone is 1 codepoint — Discord requires min 2. Append U+FE0E (text
+    // variation selector) so it's still a single glyph but 2 code units.
+    activity.largeImageText = '⏸\uFE0E';
   } else if (
     Number.isFinite(song.durationSeconds) &&
     song.durationSeconds > 0
