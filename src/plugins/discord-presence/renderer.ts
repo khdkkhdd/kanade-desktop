@@ -81,6 +81,13 @@ export function setupRenderer(ctx: RendererContext): void {
     dispatch(); // initial
   }
 
-  document.addEventListener('yt-navigate-finish', () => { void rebindVideo(); });
+  document.addEventListener('yt-navigate-finish', () => {
+    void rebindVideo();
+    // YouTube reuses the same <video> element across SPA navigations, so
+    // rebindVideo returns early (no dispatch) and we'd miss the videoId change
+    // until the next timeupdate/play fires. Dispatch immediately with the new
+    // URL so Main can re-resolve; subsequent events refresh fallback DOM text.
+    dispatch();
+  });
   window.addEventListener('load', () => { void rebindVideo(); });
 }
