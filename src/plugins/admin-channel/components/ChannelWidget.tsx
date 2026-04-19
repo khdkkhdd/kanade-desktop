@@ -1,8 +1,7 @@
 import { createResource, createSignal, For, Show } from 'solid-js';
 import type { RendererContext } from '../../../types/plugins.js';
 import type { NewArtistInput } from '../../../admin/types.js';
-import { EntityPicker, type EntitySearchResult } from '../../../admin/components/EntityPicker.js';
-import { ArtistQuickAdd } from '../../../admin/components/ArtistQuickAdd.js';
+import { ChannelArtistPicker, type ArtistSearchHit } from './ChannelArtistPicker.js';
 
 export interface ChannelWidgetProps {
   ctx: RendererContext;
@@ -13,7 +12,6 @@ export interface ChannelWidgetProps {
 export function ChannelWidget(props: ChannelWidgetProps) {
   const [reloadToken, setReloadToken] = createSignal(0);
   const [showPicker, setShowPicker] = createSignal(false);
-  const [creating, setCreating] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
 
   const [state] = createResource(
@@ -25,10 +23,10 @@ export function ChannelWidget(props: ChannelWidgetProps) {
     },
   );
 
-  async function search(q: string): Promise<EntitySearchResult[]> {
+  async function search(q: string): Promise<ArtistSearchHit[]> {
     const r = (await props.ctx.ipc.invoke('search-artists', { q })) as any;
     if (!r?.ok) return [];
-    return r.data.map((a: any) => ({ id: a.id, displayLabel: a.displayName, subLabel: a.type }));
+    return r.data.map((a: any) => ({ id: a.id, displayName: a.displayName, type: a.type }));
   }
 
   async function link(artistId: number) {
@@ -45,7 +43,7 @@ export function ChannelWidget(props: ChannelWidgetProps) {
     const r = (await props.ctx.ipc.invoke('create-artist-and-link', {
       externalId: props.externalId, newArtist: artist,
     })) as any;
-    if (r?.ok) { setShowPicker(false); setCreating(false); setReloadToken((x) => x + 1); }
+    if (r?.ok) { setShowPicker(false); setReloadToken((x) => x + 1); }
     else setError(r?.error?.message ?? 'Create+link failed');
   }
 
@@ -59,50 +57,56 @@ export function ChannelWidget(props: ChannelWidgetProps) {
   }
 
   return (
-    <div style="background: rgba(40,40,40,0.9); padding: 8px 12px; border-radius: 8px; display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; color: #fff;">
-      <span style="font-size: 12px; color: #aaa;">Kanade:</span>
-      <For each={state()?.artists ?? []}>
-        {(a: any) => (
-          <span style="display: inline-flex; gap: 4px; align-items: center; background: #3a7aff; padding: 4px 8px; border-radius: 12px; font-size: 12px;">
-            {a.displayName ?? `#${a.id}`}
-            <button
-              type="button"
-              style="background: none; border: 0; color: #fff; cursor: pointer; font-size: 14px; line-height: 1;"
-              onClick={() => unlink(a.id)}
-            >×</button>
-          </span>
-        )}
-      </For>
-      <Show when={!showPicker()}>
-        <button class="kanade-admin-btn" onClick={() => setShowPicker(true)}>
-          + 아티스트 연결
-        </button>
-      </Show>
-      <Show when={showPicker() && !creating()}>
-        <div style="min-width: 280px;">
-          <EntityPicker
-            entityType="artist"
-            value={null}
-            onSelect={(item) => item && link(item.id)}
-            onCreateRequested={() => setCreating(true)}
-            allowCreate={true}
-            search={search}
-          />
-          <button class="kanade-admin-btn" style="margin-top: 6px;" onClick={() => setShowPicker(false)}>
+    <div class="kanade-channel-widget">
+      <div class="kanade-channel-widget__row">
+        <Show
+          when={(state()?.artists ?? []).length > 0}
+          fallback={
+            <Show when={!showPicker()}>
+              <span class="kanade-channel-widget__empty">연결된 아티스트 없음</span>
+            </Show>
+          }
+        >
+          <For each={state()?.artists ?? []}>
+            {(a: any) => (
+              <span class="kanade-channel-chip">
+                {a.displayName ?? `#${a.id}`}
+                <button
+                  type="button"
+                  class="kanade-channel-chip__remove"
+                  title="연결 해제"
+                  onClick={() => unlink(a.id)}
+                >×</button>
+              </span>
+            )}
+          </For>
+        </Show>
+        <Show when={!showPicker()}>
+          <button class="kanade-channel-chip--add" onClick={() => setShowPicker(true)}>
+            + 아티스트 연결
+          </button>
+        </Show>
+        <Show when={showPicker()}>
+          <button
+            class="kanade-channel-chip--ghost"
+            onClick={() => setShowPicker(false)}
+          >
             취소
           </button>
-        </div>
+        </Show>
+      </div>
+
+      <Show when={showPicker()}>
+        <ChannelArtistPicker
+          search={search}
+          onLink={link}
+          onCreateAndLink={createAndLink}
+          onCancel={() => setShowPicker(false)}
+        />
       </Show>
-      <Show when={creating()}>
-        <div style="min-width: 320px;">
-          <ArtistQuickAdd
-            onSubmit={createAndLink}
-            onCancel={() => setCreating(false)}
-          />
-        </div>
-      </Show>
+
       <Show when={error()}>
-        <div class="kanade-admin-banner kanade-admin-banner--error" style="margin-left: 8px;">
+        <div class="kanade-admin-banner kanade-admin-banner--error">
           {error()}
         </div>
       </Show>
