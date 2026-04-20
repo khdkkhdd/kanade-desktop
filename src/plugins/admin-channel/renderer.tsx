@@ -125,12 +125,20 @@ function buildKanadeTab(): HTMLElement {
 
 let disposePanel: (() => void) | null = null;
 
-function showKanadePanel(
+async function showKanadePanel(
   ctx: RendererContext,
   externalId: string,
   channelName: string,
-): void {
-  const content = findContentArea();
+): Promise<void> {
+  // Content area may not be mounted yet if the user clicked the Kanade tab
+  // immediately after SPA navigation — wait briefly before giving up.
+  let content = findContentArea();
+  if (!content) {
+    content = (await waitForElement(
+      'ytd-two-column-browse-results-renderer',
+      2000,
+    )) as HTMLElement | null;
+  }
   if (!content) return;
 
   pauseVideosIn(content);
@@ -143,7 +151,9 @@ function showKanadePanel(
   const panel = document.createElement('div');
   panel.id = KANADE_PANEL_ID;
   panel.className = 'kanade-channel-panel';
-  content.parentElement?.insertBefore(panel, content.nextSibling);
+  const parent = content.parentElement;
+  if (!parent) return;
+  parent.insertBefore(panel, content.nextSibling);
 
   disposePanel = render(
     () => (
@@ -178,33 +188,33 @@ export function setupRenderer(ctx: RendererContext): void {
   let currentExternalId: string | null = null;
   let currentChannelName = '';
 
-  // One-time capture-phase delegate — survives tab bar re-renders.
-  document.addEventListener(
-    'click',
-    (e) => {
-      const target = (e.target as HTMLElement | null)?.closest('yt-tab-shape') as HTMLElement | null;
-      if (!target) return;
-      const kanadeTab = document.getElementById(KANADE_TAB_ID);
-      if (!kanadeTab) return;
+  // Delegate handler — survives tab bar re-renders. YouTube tab logic can
+  // fire on pointerdown BEFORE click, so we listen to both in capture phase
+  // and preempt native handling when our tab is hit.
+  function handleTabActivation(e: Event): void {
+    const target = (e.target as HTMLElement | null)?.closest('yt-tab-shape') as HTMLElement | null;
+    if (!target) return;
+    const kanadeTab = document.getElementById(KANADE_TAB_ID);
+    if (!kanadeTab) return;
 
-      if (target.id === KANADE_TAB_ID) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        if (!currentExternalId) return;
-        const tabList = kanadeTab.parentElement as HTMLElement | null;
-        if (tabList) deselectAllNativeTabs(tabList);
-        setTabSelected(kanadeTab, true);
-        showKanadePanel(ctx, currentExternalId, currentChannelName);
-      } else {
-        // A native tab was clicked — YouTube will handle navigation.
-        // Just deactivate Kanade tab + restore content. (yt-navigate-finish
-        // will re-insert the tab cleanly afterwards.)
-        setTabSelected(kanadeTab, false);
-        hideKanadePanel();
-      }
-    },
-    { capture: true },
-  );
+    if (target.id === KANADE_TAB_ID) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (!currentExternalId) return;
+      const tabList = kanadeTab.parentElement as HTMLElement | null;
+      if (tabList) deselectAllNativeTabs(tabList);
+      setTabSelected(kanadeTab, true);
+      void showKanadePanel(ctx, currentExternalId, currentChannelName);
+    } else if (e.type === 'click') {
+      // A native tab was clicked — YouTube will handle navigation.
+      // Only react on click (not pointerdown) so we don't fight YT's
+      // own state machine across both phases.
+      setTabSelected(kanadeTab, false);
+      hideKanadePanel();
+    }
+  }
+  document.addEventListener('pointerdown', handleTabActivation, { capture: true });
+  document.addEventListener('click', handleTabActivation, { capture: true });
 
   async function onNavigate(): Promise<void> {
     cleanup();
