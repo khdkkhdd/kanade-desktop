@@ -12,7 +12,7 @@ type Credit = ArtistCreditInput | { newArtist: NewArtistInput; role: string | nu
  *   - existing artist with no name (draft restore — falls back to "Artist #id")
  *   - inline new artist (draft restore mid-creation) */
 export type ArtistCreditInitial =
-  | { artistId: number; displayName?: string; role: string | null; isPublic: boolean }
+  | { artistId: number; displayName?: string; originalName?: string; role: string | null; isPublic: boolean }
   | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
 
 export interface ArtistCreditsSectionProps {
@@ -46,7 +46,11 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
       };
     }
     return {
-      picked: { id: e.artistId, displayLabel: e.displayName ?? `Artist #${e.artistId}` },
+      picked: {
+        id: e.artistId,
+        displayLabel: e.displayName ?? `Artist #${e.artistId}`,
+        originalLabel: e.originalName,
+      },
       creating: false,
       role: e.role,
       isPublic: e.isPublic,
@@ -58,10 +62,10 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
   async function search(q: string): Promise<EntitySearchResult[]> {
     const r = (await props.ctx.ipc.invoke('search-artists', { q })) as any;
     if (!r?.ok) return [];
-    return r.data.map((a: { id: number; displayName: string; type: string }) => ({
+    return r.data.map((a: { id: number; displayName: string; originalName?: string }) => ({
       id: a.id,
       displayLabel: a.displayName,
-      subLabel: a.type,
+      originalLabel: a.originalName,
     }));
   }
 
@@ -106,75 +110,82 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
         {props.context === 'recording' ? '참여 아티스트' : '창작자'}
       </div>
       <Show when={props.channelHint && !hintDismissed() && (props.channelHint.artists?.length ?? 0) > 0}>
-        <div class="kanade-admin-banner kanade-admin-banner--info">
-          <span>이 채널은 <strong>{props.channelHint!.artists[0].displayName}</strong>의 채널입니다.</span>
+        <div class="kanade-admin-banner kanade-admin-banner--info" style="margin-top: 8px;">
+          <span style="flex: 1;">이 채널은 <strong>{props.channelHint!.artists[0].displayName}</strong>의 채널입니다.</span>
           <button
             type="button"
-            class="kanade-admin-btn"
-            style="margin-left: auto;"
+            class="kanade-admin-btn kanade-admin-btn--primary"
             onClick={() => acceptHint(props.channelHint!.artists[0])}
           >
             자동 추가
           </button>
           <button
             type="button"
-            class="kanade-admin-btn"
+            class="kanade-admin-btn kanade-admin-btn--icon"
+            aria-label="힌트 닫기"
             onClick={() => setHintDismissed(true)}
           >
             ×
           </button>
         </div>
       </Show>
-      <Index each={rows()}>
-        {(row, i) => (
-          <div style="background: #262626; padding: 8px; border-radius: 4px; margin-bottom: 6px;">
-            <Show when={!row().creating}>
-              <EntityPicker
-                entityType="artist"
-                value={row().picked}
-                onSelect={(item) => {
-                  if (item) updateRow(i, { picked: item, newArtist: undefined });
-                  else updateRow(i, { picked: null });
-                }}
-                onCreateRequested={() => updateRow(i, { creating: true })}
-                allowCreate={true}
-                search={search}
-              />
-            </Show>
-            <Show when={row().creating}>
-              <ArtistQuickAdd
-                onSubmit={(artist) => {
-                  updateRow(i, {
-                    newArtist: artist,
-                    creating: false,
-                    picked: { id: -1, displayLabel: artist.names.find((n) => n.isMain)?.name ?? '(new)' },
-                  });
-                }}
-                onCancel={() => updateRow(i, { creating: false })}
-              />
-            </Show>
-            <div style="display: flex; gap: 6px; margin-top: 6px; align-items: center;">
-              <div style="flex: 1;">
-                <RoleAutocomplete
-                  context={props.context}
-                  value={row().role}
-                  onChange={(v) => updateRow(i, { role: v })}
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+        <Index each={rows()}>
+          {(row, i) => (
+            <div class="kanade-admin-credit-row">
+              <Show when={!row().creating}>
+                <EntityPicker
+                  entityType="artist"
+                  value={row().picked}
+                  onSelect={(item) => {
+                    if (item) updateRow(i, { picked: item, newArtist: undefined });
+                    else updateRow(i, { picked: null });
+                  }}
+                  onCreateRequested={() => updateRow(i, { creating: true })}
+                  allowCreate={true}
+                  search={search}
                 />
+              </Show>
+              <Show when={row().creating}>
+                <ArtistQuickAdd
+                  onSubmit={(artist) => {
+                    updateRow(i, {
+                      newArtist: artist,
+                      creating: false,
+                      picked: { id: -1, displayLabel: artist.names.find((n) => n.isMain)?.name ?? '(new)' },
+                    });
+                  }}
+                  onCancel={() => updateRow(i, { creating: false })}
+                />
+              </Show>
+              <div class="kanade-admin-credit-row__actions">
+                <div class="kanade-admin-credit-row__role">
+                  <RoleAutocomplete
+                    context={props.context}
+                    value={row().role}
+                    onChange={(v) => updateRow(i, { role: v })}
+                  />
+                </div>
+                <label class="kanade-admin-checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={row().isPublic}
+                    onChange={(e) => updateRow(i, { isPublic: e.currentTarget.checked })}
+                  />
+                  public
+                </label>
+                <button
+                  type="button"
+                  class="kanade-admin-btn kanade-admin-btn--icon"
+                  aria-label="아티스트 제거"
+                  onClick={() => removeRow(i)}
+                >×</button>
               </div>
-              <label style="font-size: 12px; display: flex; gap: 4px; align-items: center;">
-                <input
-                  type="checkbox"
-                  checked={row().isPublic}
-                  onChange={(e) => updateRow(i, { isPublic: e.currentTarget.checked })}
-                />
-                public
-              </label>
-              <button type="button" class="kanade-admin-btn" onClick={() => removeRow(i)}>×</button>
             </div>
-          </div>
-        )}
-      </Index>
-      <button type="button" class="kanade-admin-btn" onClick={() => addRow()}>
+          )}
+        </Index>
+      </div>
+      <button type="button" class="kanade-admin-btn kanade-admin-btn--ghost" style="margin-top: 8px;" onClick={() => addRow()}>
         + 아티스트 추가
       </button>
     </div>

@@ -3,6 +3,9 @@ import { createSignal, createEffect, For, Show } from 'solid-js';
 export interface EntitySearchResult {
   id: number;
   displayLabel: string;
+  /** Original (isMain-language) label rendered as a dim secondary line
+   *  when different from the ko-preferred displayLabel. */
+  originalLabel?: string;
   subLabel?: string;
 }
 
@@ -32,14 +35,17 @@ export function EntityPicker(props: EntityPickerProps) {
   });
 
   return (
-    <div style="position: relative;">
+    <div class="kanade-admin-picker">
       <Show when={props.value}>
         {(v) => (
-          <div style="padding: 8px 10px; background: #2a2a2a; border: 1px solid #3a7aff; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <div style="font-size: 13px;">{v().displayLabel}</div>
+          <div class="kanade-admin-picker__selected">
+            <div style="min-width: 0;">
+              <div class="kanade-admin-picker__selected-main">{v().displayLabel}</div>
+              <Show when={v().originalLabel && v().originalLabel !== v().displayLabel}>
+                <div class="kanade-admin-picker__selected-sub kanade-admin-picker__selected-sub--original">{v().originalLabel}</div>
+              </Show>
               <Show when={v().subLabel}>
-                <div style="font-size: 11px; color: #888;">{v().subLabel}</div>
+                <div class="kanade-admin-picker__selected-sub">{v().subLabel}</div>
               </Show>
             </div>
             <button
@@ -62,23 +68,26 @@ export function EntityPicker(props: EntityPickerProps) {
           onInput={(e) => setQuery(e.currentTarget.value)}
         />
         <Show when={focused()}>
-          <div style="position: absolute; top: 100%; left: 0; right: 0; background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 4px; max-height: 240px; overflow-y: auto; z-index: 10; margin-top: 2px;">
+          <div class="kanade-admin-popover">
             <For each={results()}>
               {(r) => (
                 <div
-                  style="padding: 8px 10px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #222;"
+                  class="kanade-admin-popover__item"
                   onMouseDown={(e) => { e.preventDefault(); props.onSelect(r); setQuery(''); }}
                 >
                   <div>{r.displayLabel}</div>
+                  <Show when={r.originalLabel && r.originalLabel !== r.displayLabel}>
+                    <div class="kanade-admin-popover__item-sub kanade-admin-popover__item-sub--original">{r.originalLabel}</div>
+                  </Show>
                   <Show when={r.subLabel}>
-                    <div style="font-size: 11px; color: #888;">{r.subLabel}</div>
+                    <div class="kanade-admin-popover__item-sub">{r.subLabel}</div>
                   </Show>
                 </div>
               )}
             </For>
             <Show when={props.allowCreate}>
               <div
-                style="padding: 8px 10px; cursor: pointer; font-size: 13px; color: #3a7aff; border-top: 1px solid #3a3a3a;"
+                class="kanade-admin-popover__create"
                 onMouseDown={(e) => { e.preventDefault(); props.onCreateRequested(); }}
               >
                 + 새 {props.entityType} 만들기

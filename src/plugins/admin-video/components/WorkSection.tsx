@@ -14,6 +14,8 @@ export interface WorkSectionProps {
   channelHint?: { channelExternalId: string; artists: Array<{ id: number; displayName: string }> };
   /** Display label for pre-selected existing work (edit mode). */
   initialLabel?: string;
+  /** Original (isMain-language) label rendered as dim secondary when different from initialLabel. */
+  initialOriginalLabel?: string;
   /** Original work id in edit mode — used to scope artist editing to the untouched work. */
   originalWorkId?: number;
   /** Existing work's artists (edit mode) — prefilled into the editor when the
@@ -26,7 +28,11 @@ export interface WorkSectionProps {
 export function WorkSection(props: WorkSectionProps) {
   const [picked, setPicked] = createSignal<EntitySearchResult | null>(
     props.value?.kind === 'existing'
-      ? { id: props.value.id, displayLabel: props.initialLabel ?? `Work #${props.value.id}` }
+      ? {
+          id: props.value.id,
+          displayLabel: props.initialLabel ?? `Work #${props.value.id}`,
+          originalLabel: props.initialOriginalLabel,
+        }
       : null,
   );
   // When a draft restores with a new-work in progress, start in create mode
@@ -42,9 +48,18 @@ export function WorkSection(props: WorkSectionProps) {
   async function search(q: string): Promise<EntitySearchResult[]> {
     const r = (await props.ctx.ipc.invoke('search-works', { q })) as any;
     if (!r?.ok) return [];
-    return r.data.map((w: { id: number; displayTitle: string }) => ({
+    return r.data.map((w: {
+      id: number;
+      displayTitle: string;
+      originalTitle?: string;
+      artists?: Array<{ displayName: string; role: string | null }>;
+    }) => ({
       id: w.id,
       displayLabel: w.displayTitle,
+      originalLabel: w.originalTitle,
+      subLabel: (w.artists ?? []).length > 0
+        ? w.artists!.map((a) => (a.role ? `${a.displayName} (${a.role})` : a.displayName)).join(', ')
+        : undefined,
     }));
   }
 
@@ -80,7 +95,7 @@ export function WorkSection(props: WorkSectionProps) {
 
   return (
     <div class="kanade-admin-section">
-      <div class="kanade-admin-section__title">📝 Work</div>
+      <div class="kanade-admin-section__title">Work</div>
       <Show when={!creating()}>
         <EntityPicker
           entityType="work"
@@ -92,40 +107,35 @@ export function WorkSection(props: WorkSectionProps) {
         />
       </Show>
       <Show when={creating()}>
-        <div style="background: #262626; padding: 10px; border-radius: 6px;">
-          <div style="font-size: 12px; color: #aaa; margin-bottom: 6px;">새 Work 생성</div>
+        <div class="kanade-admin-subcard">
+          <div class="kanade-admin-subcard__hint">새 Work 생성</div>
           <TitleI18nInput entity="work" titles={titles()} onChange={setTitles} />
-          <div style="margin-top: 10px;">
-            <ArtistCreditsSection
-              ctx={props.ctx}
-              context="work"
-              credits={newArtists()}
-              onChange={setNewArtists}
-              initial={newArtists()}
-              channelHint={props.channelHint}
-            />
-          </div>
+          <ArtistCreditsSection
+            ctx={props.ctx}
+            context="work"
+            credits={newArtists()}
+            onChange={setNewArtists}
+            initial={newArtists()}
+            channelHint={props.channelHint}
+          />
           <button
             type="button"
-            class="kanade-admin-btn"
-            style="margin-top: 8px;"
+            class="kanade-admin-btn kanade-admin-btn--ghost"
             onClick={() => { setCreating(false); setNewArtists([]); props.onChange(null); }}
           >
-            검색으로 돌아가기
+            ← 검색으로 돌아가기
           </button>
         </div>
       </Show>
       <Show when={editingOriginal() && props.onExistingArtistsChange}>
-        <div style="margin-top: 10px;">
-          <ArtistCreditsSection
-            ctx={props.ctx}
-            context="work"
-            credits={[]}
-            onChange={props.onExistingArtistsChange!}
-            initial={props.originalArtists ?? []}
-            channelHint={props.channelHint}
-          />
-        </div>
+        <ArtistCreditsSection
+          ctx={props.ctx}
+          context="work"
+          credits={[]}
+          onChange={props.onExistingArtistsChange!}
+          initial={props.originalArtists ?? []}
+          channelHint={props.channelHint}
+        />
       </Show>
     </div>
   );

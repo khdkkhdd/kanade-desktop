@@ -40,6 +40,19 @@ function pickDisplayTitle(titles: Array<{ language: string; title: string; isMai
   return main?.title || fallback;
 }
 
+/** Bilingual labels sent through to EntityPicker so selected Work/Recording
+ *  renders ko-preferred primary + dim original when they differ. */
+function pickBilingualLabels(
+  titles: Array<{ language: string; title: string; isMain: boolean }> | undefined,
+  fallback: string,
+): { primary: string; original?: string } {
+  if (!titles || titles.length === 0) return { primary: fallback };
+  const main = titles.find((t) => t.isMain) ?? titles[0];
+  const original = main?.title || fallback;
+  const ko = titles.find((t) => t.language === 'ko')?.title;
+  return { primary: ko ?? original, original: ko ? original : undefined };
+}
+
 export function VideoDrawer(props: VideoDrawerProps) {
   // In edit mode the current mapping is pre-selected so the user sees the
   // existing Work / Recording and can jump straight to the danger zone or
@@ -78,7 +91,8 @@ export function VideoDrawer(props: VideoDrawerProps) {
   const workArtistsInitial: ArtistCreditInitial[] = editSeed
     ? (editSeed.work.creators ?? []).map((c: any) => ({
         artistId: c.artistId,
-        displayName: c.name,
+        displayName: c.displayName ?? c.name,
+        originalName: c.originalName,
         role: c.role ?? null,
         isPublic: !!c.isPublic,
       }))
@@ -93,7 +107,8 @@ export function VideoDrawer(props: VideoDrawerProps) {
   const recordingArtistsInitial: ArtistCreditInitial[] = editSeed
     ? (editSeed.artists ?? []).map((c: any) => ({
         artistId: c.artistId,
-        displayName: c.name,
+        displayName: c.displayName ?? c.name,
+        originalName: c.originalName,
         role: c.role ?? null,
         isPublic: !!c.isPublic,
       }))
@@ -152,28 +167,61 @@ export function VideoDrawer(props: VideoDrawerProps) {
   // artist state, not the untouched server data. We enrich each credit with
   // a displayName when we know it (from editSeed); unknown ids (e.g. user
   // added them in a previous session) fall back to "Artist #id" in the UI.
-  const workArtistsNameMap: Record<number, string | undefined> = Object.fromEntries(
-    workArtistsInitial.flatMap((e) => ('artistId' in e ? [[e.artistId, e.displayName]] : [])),
-  );
-  const recordingArtistsNameMap: Record<number, string | undefined> = Object.fromEntries(
-    recordingArtistsInitial.flatMap((e) => ('artistId' in e ? [[e.artistId, e.displayName]] : [])),
-  );
+  const workArtistsInfoMap: Record<number, { displayName?: string; originalName?: string } | undefined> =
+    Object.fromEntries(
+      workArtistsInitial.flatMap((e) =>
+        'artistId' in e ? [[e.artistId, { displayName: e.displayName, originalName: e.originalName }]] : [],
+      ),
+    );
+  const recordingArtistsInfoMap: Record<number, { displayName?: string; originalName?: string } | undefined> =
+    Object.fromEntries(
+      recordingArtistsInitial.flatMap((e) =>
+        'artistId' in e ? [[e.artistId, { displayName: e.displayName, originalName: e.originalName }]] : [],
+      ),
+    );
   const workArtistsForDisplay = (): ArtistCreditInitial[] =>
-    workArtistsAfter().map((c) =>
-      'newArtist' in c
-        ? c
-        : { artistId: c.artistId, displayName: workArtistsNameMap[c.artistId], role: c.role, isPublic: c.isPublic },
-    );
+    workArtistsAfter().map((c) => {
+      if ('newArtist' in c) return c;
+      const info = workArtistsInfoMap[c.artistId];
+      return {
+        artistId: c.artistId,
+        displayName: info?.displayName,
+        originalName: info?.originalName,
+        role: c.role,
+        isPublic: c.isPublic,
+      };
+    });
   const recordingArtistsForDisplay = (): ArtistCreditInitial[] =>
-    recordingArtistsAfter().map((c) =>
-      'newArtist' in c
-        ? c
-        : { artistId: c.artistId, displayName: recordingArtistsNameMap[c.artistId], role: c.role, isPublic: c.isPublic },
-    );
+    recordingArtistsAfter().map((c) => {
+      if ('newArtist' in c) return c;
+      const info = recordingArtistsInfoMap[c.artistId];
+      return {
+        artistId: c.artistId,
+        displayName: info?.displayName,
+        originalName: info?.originalName,
+        role: c.role,
+        isPublic: c.isPublic,
+      };
+    });
 
-  const initialWorkLabel = editSeed ? pickDisplayTitle(editSeed.work.titles, `Work #${editSeed.work.id}`) : undefined;
+  // Prefer server-computed bilingual fields (from admin endpoint). These
+  // already apply the recording→work title fallback, which the raw titles
+  // array doesn't — so picking from editSeed.titles alone loses the
+  // original label whenever a recording inherits its work's titles.
+  const initialWorkLabel = editSeed
+    ? (editSeed.work.displayTitle ?? pickDisplayTitle(editSeed.work.titles, `Work #${editSeed.work.id}`))
+    : undefined;
+  const initialWorkOriginalLabel = editSeed
+    ? (editSeed.work.originalTitle ?? pickBilingualLabels(editSeed.work.titles, '').original)
+    : undefined;
   const initialRecordingLabel = editSeed
-    ? pickDisplayTitle(editSeed.titles, initialWorkLabel ?? `Recording #${editSeed.id}`)
+    ? (editSeed.displayTitle
+        ?? pickDisplayTitle(editSeed.titles, initialWorkLabel ?? `Recording #${editSeed.id}`))
+    : undefined;
+  const initialRecordingOriginalLabel = editSeed
+    ? (editSeed.originalTitle
+        ?? pickBilingualLabels(editSeed.titles, '').original
+        ?? initialWorkOriginalLabel)
     : undefined;
 
   // YouTube exposes the current video's channel id through several paths, and
@@ -214,9 +262,12 @@ export function VideoDrawer(props: VideoDrawerProps) {
       if (!cid) return undefined;
       const r = (await props.ctx.ipc.invoke('get-channel-hint', { externalId: cid })) as any;
       if (!r?.ok || !r.data) return undefined;
+      // Server returns `{ artistId, displayName }`; normalise to `id` so the
+      // downstream section/banner components can stay framework-generic.
+      const rawArtists = (r.data.artists ?? []) as Array<{ artistId: number; displayName: string }>;
       return {
         channelExternalId: cid,
-        artists: (r.data.artists ?? []) as Array<{ id: number; displayName: string }>,
+        artists: rawArtists.map((a) => ({ id: a.artistId, displayName: a.displayName })),
       };
     },
   );
@@ -378,6 +429,7 @@ export function VideoDrawer(props: VideoDrawerProps) {
         onChange={setWork}
         channelHint={channelHint() ?? undefined}
         initialLabel={initialWorkLabel}
+        initialOriginalLabel={initialWorkOriginalLabel}
         originalWorkId={editSeed ? editSeed.work.id : undefined}
         originalArtists={workArtistsForDisplay()}
         onExistingArtistsChange={props.mode === 'edit' ? setWorkArtistsAfter : undefined}
@@ -390,6 +442,7 @@ export function VideoDrawer(props: VideoDrawerProps) {
           onChange={setRecording}
           channelHint={channelHint() ?? undefined}
           initialLabel={initialRecordingLabel}
+          initialOriginalLabel={initialRecordingOriginalLabel}
           originalRecordingId={editSeed ? editSeed.id : undefined}
           originalArtists={recordingArtistsForDisplay()}
           onExistingArtistsChange={props.mode === 'edit' ? setRecordingArtistsAfter : undefined}
@@ -405,8 +458,8 @@ export function VideoDrawer(props: VideoDrawerProps) {
         />
       </Show>
       <Show when={props.mode === 'edit'}>
-        <div class="kanade-admin-section" style="margin-top: 24px; border-color: #5a2a2a; background: rgba(192,48,48,0.04);">
-          <div class="kanade-admin-section__title" style="color: #ff8080;">⚠ 위험 영역</div>
+        <div class="kanade-admin-section kanade-admin-section--danger">
+          <div class="kanade-admin-section__title">위험 영역</div>
           <button class="kanade-admin-btn kanade-admin-btn--danger" onClick={deleteVideo}>
             이 영상을 DB에서 제거
           </button>

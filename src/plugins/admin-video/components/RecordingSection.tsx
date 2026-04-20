@@ -14,6 +14,8 @@ export interface RecordingSectionProps {
   channelHint?: { channelExternalId: string; artists: Array<{ id: number; displayName: string }> };
   /** Display label for pre-selected existing recording (edit mode). */
   initialLabel?: string;
+  /** Original (isMain-language) label shown as dim secondary when different from initialLabel. */
+  initialOriginalLabel?: string;
   /** Original recording id in edit mode — artist edit UI is only shown when
    *  the user keeps the untouched recording selected. */
   originalRecordingId?: number;
@@ -59,8 +61,9 @@ export function RecordingSection(props: RecordingSectionProps) {
       return (r.data.recordings ?? []) as Array<{
         id: number;
         displayTitle: string;
+        originalTitle?: string;
         isOrigin: boolean;
-        artists: Array<{ id: number; displayName: string; role: string | null; isPublic: boolean }>;
+        artists: Array<{ id: number; displayName: string; originalName?: string; role: string | null; isPublic: boolean }>;
       }>;
     },
   );
@@ -103,11 +106,16 @@ export function RecordingSection(props: RecordingSectionProps) {
 
   return (
     <div class="kanade-admin-section">
-      <div class="kanade-admin-section__title">🎤 Recording</div>
+      <div class="kanade-admin-section__title">Recording</div>
       <Show when={mode() === 'selected' && props.value?.kind === 'existing'}>
-        <div style="padding: 8px 10px; background: #2a2a2a; border: 1px solid #3a7aff; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
-          <div style="font-size: 13px;">
-            {props.initialLabel ?? `Recording #${(props.value as { kind: 'existing'; id: number }).id}`}
+        <div class="kanade-admin-selected-pill">
+          <div style="min-width: 0;">
+            <div class="kanade-admin-picker__selected-main">
+              {props.initialLabel ?? `Recording #${(props.value as { kind: 'existing'; id: number }).id}`}
+            </div>
+            <Show when={props.initialOriginalLabel && props.initialOriginalLabel !== props.initialLabel}>
+              <div class="kanade-admin-picker__selected-sub">{props.initialOriginalLabel}</div>
+            </Show>
           </div>
           <button
             type="button"
@@ -125,30 +133,28 @@ export function RecordingSection(props: RecordingSectionProps) {
             props.onExistingArtistsChange
           }
         >
-          <div style="margin-top: 10px;">
-            <ArtistCreditsSection
-              ctx={props.ctx}
-              context="recording"
-              credits={[]}
-              onChange={props.onExistingArtistsChange!}
-              initial={props.originalArtists ?? []}
-              channelHint={props.channelHint}
-            />
-          </div>
+          <ArtistCreditsSection
+            ctx={props.ctx}
+            context="recording"
+            credits={[]}
+            onChange={props.onExistingArtistsChange!}
+            initial={props.originalArtists ?? []}
+            channelHint={props.channelHint}
+          />
         </Show>
       </Show>
       <Show when={mode() === 'list' && props.work.kind === 'existing'}>
-        <div style="max-height: 240px; overflow-y: auto; margin-bottom: 8px;">
+        <div class="kanade-admin-list">
           <For each={existingRecs() ?? []}>
             {(r) => (
-              <div
-                style="padding: 8px 10px; background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 4px; margin-bottom: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;"
-                onClick={() => pickExisting(r)}
-              >
-                <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1;">
-                  <span style="font-size: 13px;">{r.displayTitle}</span>
+              <div class="kanade-admin-list__item" onClick={() => pickExisting(r)}>
+                <div class="kanade-admin-list__item-main">
+                  <span class="kanade-admin-list__item-title">{r.displayTitle}</span>
+                  <Show when={r.originalTitle && r.originalTitle !== r.displayTitle}>
+                    <span class="kanade-admin-list__item-original">{r.originalTitle}</span>
+                  </Show>
                   <Show when={r.artists.length > 0}>
-                    <span style="font-size: 11px; color: #9a9a9a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <span class="kanade-admin-list__item-sub">
                       {r.artists
                         .map((a) => (a.role ? `${a.displayName} (${a.role})` : a.displayName))
                         .join(', ')}
@@ -156,7 +162,7 @@ export function RecordingSection(props: RecordingSectionProps) {
                   </Show>
                 </div>
                 <Show when={r.isOrigin}>
-                  <span style="font-size: 10px; background: #3a7aff; padding: 2px 6px; border-radius: 3px; flex-shrink: 0;">원곡</span>
+                  <span class="kanade-admin-badge kanade-admin-badge--origin">원곡</span>
                 </Show>
               </div>
             )}
@@ -167,30 +173,28 @@ export function RecordingSection(props: RecordingSectionProps) {
         </button>
       </Show>
       <Show when={mode() === 'create'}>
-        <div style="background: #262626; padding: 10px; border-radius: 6px;">
-          <label style="display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 8px;">
+        <div class="kanade-admin-subcard">
+          <div class="kanade-admin-subcard__hint">새 Recording 생성</div>
+          <label class="kanade-admin-inline-label">
             <input type="checkbox" checked={isOrigin()} onChange={(e) => updateIsOrigin(e.currentTarget.checked)} />
             isOrigin (원곡)
           </label>
           <TitleI18nInput entity="recording" titles={titles()} onChange={updateTitles} optional={true} />
-          <div style="margin-top: 10px;">
-            <ArtistCreditsSection
-              ctx={props.ctx}
-              context="recording"
-              credits={artists()}
-              onChange={updateArtists}
-              channelHint={props.channelHint}
-              initial={artists()}
-            />
-          </div>
+          <ArtistCreditsSection
+            ctx={props.ctx}
+            context="recording"
+            credits={artists()}
+            onChange={updateArtists}
+            channelHint={props.channelHint}
+            initial={artists()}
+          />
           <Show when={props.work.kind === 'existing'}>
             <button
               type="button"
-              class="kanade-admin-btn"
-              style="margin-top: 8px;"
+              class="kanade-admin-btn kanade-admin-btn--ghost"
               onClick={() => { setMode('list'); props.onChange(null); }}
             >
-              기존 목록으로 돌아가기
+              ← 기존 목록으로 돌아가기
             </button>
           </Show>
         </div>

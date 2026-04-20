@@ -18,7 +18,7 @@ export function RoleAutocomplete(props: RoleAutocompleteProps) {
   };
 
   return (
-    <div style="position: relative;">
+    <div class="kanade-admin-picker">
       <input
         class="kanade-admin-input"
         type="text"
@@ -29,11 +29,11 @@ export function RoleAutocomplete(props: RoleAutocompleteProps) {
         onInput={(e) => props.onChange(e.currentTarget.value || null)}
       />
       <Show when={showList() && filtered().length > 0}>
-        <div style="position: absolute; top: 100%; left: 0; right: 0; background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 4px; z-index: 10; max-height: 180px; overflow-y: auto;">
+        <div class="kanade-admin-popover">
           <For each={filtered()}>
             {(r) => (
               <div
-                style="padding: 6px 10px; cursor: pointer; font-size: 13px;"
+                class="kanade-admin-popover__item"
                 onMouseDown={(e) => { e.preventDefault(); props.onChange(r); setShowList(false); }}
               >
                 {r}

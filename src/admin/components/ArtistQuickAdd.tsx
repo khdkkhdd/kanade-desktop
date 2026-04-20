@@ -54,19 +54,17 @@ export function ArtistQuickAdd(props: ArtistQuickAddProps) {
   }
 
   return (
-    <div style="padding: 12px; background: #262626; border-radius: 6px; margin: 8px 0;">
-      <div class="kanade-admin-section__title">새 아티스트</div>
-      <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+    <div class="kanade-admin-subcard">
+      <div class="kanade-admin-subcard__hint">새 아티스트</div>
+      <div class="kanade-admin-field-row">
         <input
-          class="kanade-admin-input"
-          style="flex: 1;"
+          class="kanade-admin-input kanade-admin-field-row__grow"
           placeholder="이름 (주 언어)"
           value={primaryName()}
           onInput={(e) => onPrimaryInput(e.currentTarget.value)}
         />
         <select
-          class="kanade-admin-input"
-          style="width: 90px;"
+          class="kanade-admin-input kanade-admin-input--narrow"
           value={primaryLang()}
           onChange={(e) => setPrimaryLang(e.currentTarget.value)}
         >
@@ -75,32 +73,31 @@ export function ArtistQuickAdd(props: ArtistQuickAddProps) {
           </For>
         </select>
       </div>
-      <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
-        <label style="font-size: 12px; color: #aaa;">Type:</label>
-        <label style="font-size: 13px;">
+      <div class="kanade-admin-radio-row">
+        <span class="kanade-admin-radio-row__label">Type:</span>
+        <label>
           <input type="radio" checked={type() === 'solo'} onChange={() => setType('solo')} /> Solo
         </label>
-        <label style="font-size: 13px;">
+        <label>
           <input type="radio" checked={type() === 'group'} onChange={() => setType('group')} /> Group
         </label>
       </div>
       <Show when={expanded()}>
         <Index each={secondaries()}>
           {(s, i) => (
-            <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+            <div class="kanade-admin-field-row">
               <input
-                class="kanade-admin-input"
-                style="flex: 1;"
+                class="kanade-admin-input kanade-admin-field-row__grow"
                 placeholder={`다른 언어 이름 (${s().language})`}
                 value={s().name}
                 onInput={(e) => updateSecondary(i, e.currentTarget.value)}
               />
-              <button type="button" class="kanade-admin-btn" onClick={() => removeSecondary(i)}>×</button>
+              <button type="button" class="kanade-admin-btn kanade-admin-btn--icon" onClick={() => removeSecondary(i)}>×</button>
             </div>
           )}
         </Index>
         <Show when={availableLangs().length > 0}>
-          <div style="display: flex; gap: 6px; margin-top: 6px;">
+          <div class="kanade-admin-field-row">
             <For each={availableLangs()}>
               {(l) => (
                 <button type="button" class="kanade-admin-btn" onClick={() => addSecondary(l.code)}>
@@ -112,11 +109,11 @@ export function ArtistQuickAdd(props: ArtistQuickAddProps) {
         </Show>
       </Show>
       <Show when={!expanded()}>
-        <button type="button" class="kanade-admin-btn" onClick={() => setExpanded(true)}>
+        <button type="button" class="kanade-admin-btn kanade-admin-btn--ghost" onClick={() => setExpanded(true)}>
           ▸ 다른 언어 이름 추가
         </button>
       </Show>
-      <div style="display: flex; gap: 6px; margin-top: 12px; justify-content: flex-end;">
+      <div class="kanade-admin-actions-end">
         <button type="button" class="kanade-admin-btn" onClick={props.onCancel}>취소</button>
         <button
           type="button"

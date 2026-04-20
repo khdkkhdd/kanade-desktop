@@ -54,17 +54,18 @@ export function setupBackend(ctx: BackendContext): void {
 
   ctx.ipc.handle('get-video-state', async (...args) => {
     const { videoId } = args[0] as { videoId: string };
-    const base = store.get('kanade').apiBase;
-    try {
-      const res = await fetch(`${base}/public/videos/youtube/${encodeURIComponent(videoId)}`);
-      if (!res.ok) return { ok: true, data: { registered: false } };
-      const body = await res.json();
-      const data = body?.data ?? body;
-      const recordings = data?.recordings ?? [];
-      return { ok: true, data: { registered: recordings.length > 0, video: data } };
-    } catch (e) {
-      return { ok: false, error: { code: 'NETWORK', message: (e as Error).message } };
+    const r = await client().request(
+      'GET',
+      `/admin/videos/youtube/${encodeURIComponent(videoId)}`,
+    );
+    if (!r.ok) {
+      // 404 from admin endpoint means the video isn't registered yet —
+      // the drawer opens in create mode with no initial data.
+      return { ok: true, data: { registered: false } };
     }
+    const data = (r as any).data;
+    const recordings = data?.recordings ?? [];
+    return { ok: true, data: { registered: recordings.length > 0, video: data } };
   });
 
   ctx.ipc.handle('register', async (...args) => {

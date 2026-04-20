@@ -14,6 +14,14 @@ describe('detectLanguage', () => {
   it('returns ko for hangul', () => {
     expect(detectLanguage('아도')).toBe('ko');
   });
+  it('returns ko for hangul compatibility jamo (IME mid-composition)', () => {
+    // User typed ㅇ while composing 아 — onInput fires with just the jamo
+    expect(detectLanguage('ㅇ')).toBe('ko');
+    expect(detectLanguage('ㅏ')).toBe('ko');
+  });
+  it('returns ko for hangul jamo initial+medial', () => {
+    expect(detectLanguage('\u1100\u1161')).toBe('ko'); // 가
+  });
   it('returns en for latin', () => {
     expect(detectLanguage('Ado')).toBe('en');
   });

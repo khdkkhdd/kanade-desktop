@@ -26,7 +26,11 @@ export function ChannelWidget(props: ChannelWidgetProps) {
   async function search(q: string): Promise<ArtistSearchHit[]> {
     const r = (await props.ctx.ipc.invoke('search-artists', { q })) as any;
     if (!r?.ok) return [];
-    return r.data.map((a: any) => ({ id: a.id, displayName: a.displayName, type: a.type }));
+    return r.data.map((a: any) => ({
+      id: a.id,
+      displayName: a.displayName,
+      originalName: a.originalName,
+    }));
   }
 
   async function link(artistId: number) {
@@ -70,12 +74,17 @@ export function ChannelWidget(props: ChannelWidgetProps) {
           <For each={state()?.artists ?? []}>
             {(a: any) => (
               <span class="kanade-channel-chip">
-                {a.displayName ?? `#${a.id}`}
+                <span class="kanade-channel-chip__label">
+                  <span class="kanade-channel-chip__main">{a.displayName ?? `#${a.artistId}`}</span>
+                  <Show when={a.originalName && a.originalName !== a.displayName}>
+                    <span class="kanade-channel-chip__original">{a.originalName}</span>
+                  </Show>
+                </span>
                 <button
                   type="button"
                   class="kanade-channel-chip__remove"
                   title="연결 해제"
-                  onClick={() => unlink(a.id)}
+                  onClick={() => unlink(a.artistId)}
                 >×</button>
               </span>
             )}

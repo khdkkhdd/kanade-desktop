@@ -17,10 +17,10 @@ export function getAdminStyles(): string {
       top: 0; right: 0; bottom: 0;
       width: 480px;
       max-width: 100vw;
-      background: #1f1f1f;
-      color: #fff;
+      background: #141414;
+      color: #f0f0f0;
       z-index: 9999;
-      box-shadow: -4px 0 16px rgba(0,0,0,0.3);
+      box-shadow: -12px 0 32px rgba(0,0,0,0.45);
       transform: translateX(100%);
       transition: transform 0.25s cubic-bezier(.2,.8,.2,1);
       display: flex;
@@ -30,75 +30,336 @@ export function getAdminStyles(): string {
     .kanade-admin-drawer.is-open { transform: translateX(0); }
 
     .kanade-admin-drawer__header {
-      padding: 16px 20px;
-      border-bottom: 1px solid #3a3a3a;
+      padding: 18px 22px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
-    .kanade-admin-drawer__title { font-size: 16px; font-weight: 600; }
-    .kanade-admin-drawer__close {
-      background: none; border: 0; color: #aaa; cursor: pointer;
-      font-size: 20px; padding: 4px 8px; border-radius: 4px;
+    .kanade-admin-drawer__title {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.1px;
     }
-    .kanade-admin-drawer__close:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    .kanade-admin-drawer__close {
+      background: none; border: 0; color: #8a8a8a; cursor: pointer;
+      font-size: 22px; line-height: 1;
+      width: 32px; height: 32px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 8px;
+      transition: background 0.12s, color 0.12s;
+    }
+    .kanade-admin-drawer__close:hover { background: rgba(255,255,255,0.06); color: #f0f0f0; }
 
     .kanade-admin-drawer__body {
       flex: 1;
       overflow-y: auto;
-      padding: 16px 20px;
+      padding: 4px 22px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
     }
 
     .kanade-admin-drawer__footer {
-      padding: 12px 20px;
-      border-top: 1px solid #3a3a3a;
+      padding: 14px 22px;
+      border-top: 1px solid rgba(255,255,255,0.06);
       display: flex; gap: 8px; justify-content: flex-end;
+      background: rgba(0,0,0,0.2);
     }
 
     .kanade-admin-section {
-      margin-bottom: 16px;
-      padding: 14px 16px;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid #2d2d2d;
-      border-radius: 8px;
+      padding: 16px 18px;
+      background: #1c1c1c;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
     .kanade-admin-section__title {
-      font-size: 12px; font-weight: 600; color: #bbb;
-      margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 0.6px;
+      font-size: 13px; font-weight: 600; color: #d4d4d4;
+      margin: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
     }
-    /* Sub-section header inside a section card (e.g. "창작자" inside Work, "참여 아티스트" inside Recording) */
+    .kanade-admin-section__title::before {
+      content: '';
+      width: 3px;
+      height: 14px;
+      background: #3ea6ff;
+      border-radius: 2px;
+      display: inline-block;
+    }
+    .kanade-admin-section--danger { border-color: rgba(220,80,80,0.3); background: rgba(60,20,20,0.18); }
+    .kanade-admin-section--danger .kanade-admin-section__title { color: #ff9999; }
+    .kanade-admin-section--danger .kanade-admin-section__title::before { background: #dc5050; }
+    /* Sub-section header — used for 창작자 / 참여 아티스트 groups. Softer than section titles. */
     .kanade-admin-subsection__title {
-      font-size: 11px; font-weight: 500; color: #8a8a8a;
-      margin: 14px 0 8px 0;
-      padding-top: 12px;
-      border-top: 1px solid rgba(255,255,255,0.06);
-      letter-spacing: 0.3px;
+      font-size: 12px; font-weight: 500; color: #8a8a8a;
+      margin: 4px 0 0 0;
+      letter-spacing: 0.1px;
     }
+
+    /* Nested sub-card for "create new" forms (new work, new recording, new artist quick-add). */
+    .kanade-admin-subcard {
+      padding: 14px;
+      background: #232323;
+      border: 1px solid rgba(255,255,255,0.04);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .kanade-admin-subcard__hint {
+      font-size: 11px;
+      color: #7a7a7a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 500;
+    }
+
+    .kanade-admin-meta {
+      font-size: 12px;
+      color: #8a8a8a;
+    }
+    .kanade-admin-meta--small {
+      font-size: 11px;
+      color: #6f6f6f;
+    }
+
+    .kanade-admin-field-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .kanade-admin-field-row__grow { flex: 1; min-width: 0; }
 
     .kanade-admin-input {
-      width: 100%; padding: 8px 10px; background: #2a2a2a;
-      border: 1px solid #3a3a3a; border-radius: 4px; color: #fff;
+      width: 100%; padding: 9px 11px; background: #202020;
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; color: #f0f0f0;
       font-size: 13px; box-sizing: border-box;
+      font-family: inherit;
+      transition: border-color 0.12s, background 0.12s;
     }
-    .kanade-admin-input:focus { outline: 1px solid #3a7aff; border-color: #3a7aff; }
+    .kanade-admin-input:focus { outline: none; border-color: #3ea6ff; background: #242424; }
+    .kanade-admin-input::placeholder { color: #6a6a6a; }
+    .kanade-admin-input--narrow { width: 92px; flex: 0 0 auto; }
 
     .kanade-admin-btn {
-      padding: 8px 14px; border-radius: 4px; border: 1px solid #3a3a3a;
-      background: #2a2a2a; color: #fff; font-size: 13px; cursor: pointer;
+      padding: 8px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);
+      background: transparent; color: #e0e0e0; font-size: 13px; cursor: pointer;
+      font-family: inherit;
+      line-height: 1.2;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
     }
-    .kanade-admin-btn:hover:not(:disabled) { background: #3a3a3a; }
-    .kanade-admin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .kanade-admin-btn--primary { background: #3a7aff; border-color: #3a7aff; }
-    .kanade-admin-btn--primary:hover:not(:disabled) { background: #4a8aff; }
-    .kanade-admin-btn--danger { background: #c03030; border-color: #c03030; }
+    .kanade-admin-btn:hover:not(:disabled) { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.18); }
+    .kanade-admin-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .kanade-admin-btn--primary {
+      background: #3ea6ff; border-color: #3ea6ff; color: #0b1620;
+      font-weight: 600;
+    }
+    .kanade-admin-btn--primary:hover:not(:disabled) { background: #5fb6ff; border-color: #5fb6ff; }
+    .kanade-admin-btn--danger {
+      background: #dc5050; border-color: #dc5050; color: #fff;
+      font-weight: 500;
+    }
+    .kanade-admin-btn--danger:hover:not(:disabled) { background: #e66060; border-color: #e66060; }
+    .kanade-admin-btn--ghost {
+      padding: 6px 10px;
+      color: #b0b0b0;
+      border-color: transparent;
+    }
+    .kanade-admin-btn--ghost:hover:not(:disabled) { background: rgba(255,255,255,0.06); border-color: transparent; }
+    .kanade-admin-btn--icon {
+      width: 32px; padding: 0; height: 32px;
+      display: inline-flex; align-items: center; justify-content: center;
+      flex: 0 0 auto;
+      color: #8a8a8a;
+      border-color: transparent;
+    }
+    .kanade-admin-btn--icon:hover:not(:disabled) { background: rgba(255,255,255,0.06); color: #f0f0f0; border-color: transparent; }
+    .kanade-admin-btn--star-active {
+      background: rgba(62,166,255,0.14);
+      border-color: rgba(62,166,255,0.5);
+      color: #7cc0ff;
+    }
+    .kanade-admin-btn--star-active:hover:not(:disabled) {
+      background: rgba(62,166,255,0.2);
+      border-color: rgba(62,166,255,0.7);
+      color: #a0d4ff;
+    }
 
     .kanade-admin-banner {
-      padding: 10px 12px; border-radius: 4px; margin-bottom: 12px;
-      font-size: 13px; display: flex; gap: 8px; align-items: center;
+      padding: 10px 12px 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      display: flex; gap: 10px; align-items: center;
+      border-left: 3px solid transparent;
     }
-    .kanade-admin-banner--error { background: rgba(192,48,48,0.2); color: #ff8080; border: 1px solid #c03030; }
-    .kanade-admin-banner--warn  { background: rgba(192,160,48,0.2); color: #ffc860; border: 1px solid #c0a030; }
-    .kanade-admin-banner--info  { background: rgba(48,96,192,0.2); color: #80b0ff; border: 1px solid #3060c0; }
+    .kanade-admin-banner--error { background: rgba(220,80,80,0.1); color: #ffb0b0; border-left-color: #dc5050; }
+    .kanade-admin-banner--warn  { background: rgba(220,170,60,0.1); color: #ffd580; border-left-color: #d0a030; }
+    .kanade-admin-banner--info  { background: rgba(62,166,255,0.1); color: #a5d0ff; border-left-color: #3ea6ff; }
+
+    /* Entity picker (Work/Recording/Artist search + create) */
+    .kanade-admin-picker { position: relative; }
+    .kanade-admin-picker__selected {
+      padding: 10px 12px;
+      background: rgba(62,166,255,0.08);
+      border: 1px solid rgba(62,166,255,0.35);
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .kanade-admin-picker__selected-main { font-size: 13px; color: #f0f0f0; font-weight: 500; }
+    .kanade-admin-picker__selected-sub { font-size: 11px; color: #8a8a8a; margin-top: 2px; }
+    .kanade-admin-picker__selected-sub--original { font-style: italic; color: #7a7a7a; }
+    .kanade-admin-popover {
+      position: absolute;
+      top: calc(100% + 4px); left: 0; right: 0;
+      background: #242424;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      max-height: 240px; overflow-y: auto;
+      z-index: 10;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .kanade-admin-popover__item {
+      padding: 9px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.1s;
+    }
+    .kanade-admin-popover__item:hover { background: rgba(255,255,255,0.06); }
+    .kanade-admin-popover__item-sub { font-size: 11px; color: #8a8a8a; margin-top: 2px; }
+    .kanade-admin-popover__item-sub--original { font-style: italic; color: #7a7a7a; }
+    .kanade-admin-popover__create {
+      padding: 10px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #3ea6ff;
+      font-weight: 500;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .kanade-admin-popover__create:hover { background: rgba(62,166,255,0.1); }
+
+    /* Selection list inside RecordingSection (existing recordings) */
+    .kanade-admin-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 260px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+    .kanade-admin-list__item {
+      padding: 10px 12px;
+      background: #232323;
+      border: 1px solid rgba(255,255,255,0.04);
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .kanade-admin-list__item:hover { background: #292929; border-color: rgba(255,255,255,0.12); }
+    .kanade-admin-list__item-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+    .kanade-admin-list__item-title { font-size: 13px; color: #f0f0f0; }
+    .kanade-admin-list__item-sub {
+      font-size: 11px; color: #8a8a8a;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .kanade-admin-list__item-original {
+      font-size: 11px;
+      color: #7a7a7a;
+      font-style: italic;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .kanade-admin-badge {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .kanade-admin-badge--origin { background: rgba(62,166,255,0.2); color: #7cc0ff; }
+
+    /* "Selected existing recording" pill state */
+    .kanade-admin-selected-pill {
+      padding: 10px 12px;
+      background: rgba(62,166,255,0.08);
+      border: 1px solid rgba(62,166,255,0.35);
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .kanade-admin-selected-pill__label { font-size: 13px; color: #f0f0f0; }
+
+    /* Artist credit rows — 2-line layout so wide role/public controls don't crowd the picker. */
+    .kanade-admin-credit-row {
+      background: #232323;
+      border: 1px solid rgba(255,255,255,0.04);
+      padding: 10px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .kanade-admin-credit-row__actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .kanade-admin-credit-row__role { flex: 1; min-width: 0; }
+    .kanade-admin-checkbox-label {
+      font-size: 12px;
+      color: #b0b0b0;
+      display: inline-flex;
+      gap: 5px;
+      align-items: center;
+      user-select: none;
+      cursor: pointer;
+    }
+    .kanade-admin-checkbox-label input[type="checkbox"] { accent-color: #3ea6ff; }
+
+    /* Inline label (isOrigin, 대표영상 등) */
+    .kanade-admin-inline-label {
+      font-size: 13px;
+      color: #d0d0d0;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      user-select: none;
+      cursor: pointer;
+    }
+    .kanade-admin-inline-label--disabled { cursor: not-allowed; color: #7a7a7a; }
+    .kanade-admin-inline-label input { accent-color: #3ea6ff; }
+
+    /* Language radio group (Solo/Group in quick add) */
+    .kanade-admin-radio-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 13px;
+      color: #d0d0d0;
+    }
+    .kanade-admin-radio-row__label { font-size: 12px; color: #8a8a8a; margin-right: 2px; }
+    .kanade-admin-radio-row input { accent-color: #3ea6ff; }
+
+    /* Footer-aligned helpers */
+    .kanade-admin-actions-end {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
 
     .kanade-admin-fab {
       position: fixed; bottom: 80px; right: 24px;
@@ -166,15 +427,30 @@ export function getAdminStyles(): string {
       display: inline-flex;
       align-items: center;
       gap: 2px;
-      height: 32px;
-      padding: 0 4px 0 12px;
+      min-height: 32px;
+      padding: 4px 4px 4px 12px;
       background: var(--yt-spec-badge-chip-background, rgba(255,255,255,0.1));
       border: 0;
       border-radius: 16px;
       font-size: 14px;
       font-weight: 500;
       color: var(--yt-spec-text-primary, #fff);
-      line-height: 1;
+      line-height: 1.2;
+    }
+    .kanade-channel-chip__label {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .kanade-channel-chip__main {
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .kanade-channel-chip__original {
+      font-size: 12px;
+      font-style: italic;
+      color: var(--yt-spec-text-secondary, rgba(255,255,255,0.55));
+      font-weight: 400;
     }
     .kanade-channel-chip__remove {
       width: 24px; height: 24px;
@@ -285,7 +561,28 @@ export function getAdminStyles(): string {
     .kanade-channel-picker__item:hover {
       background: var(--yt-spec-button-chip-background-hover, rgba(255,255,255,0.08));
     }
-    .kanade-channel-picker__item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .kanade-channel-picker__item-name {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .kanade-channel-picker__item-main {
+      font-size: 14px;
+      color: var(--yt-spec-text-primary, #fff);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .kanade-channel-picker__item-original {
+      font-size: 12px;
+      font-style: italic;
+      color: var(--yt-spec-text-secondary, rgba(255,255,255,0.55));
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .kanade-channel-picker__item-type {
       font-size: 11px;
       color: var(--yt-spec-text-secondary, rgba(255,255,255,0.55));

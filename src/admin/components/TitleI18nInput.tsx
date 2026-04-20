@@ -30,8 +30,12 @@ export function TitleI18nInput(props: TitleI18nInputProps) {
   function updateMain(idx: number, title: string) {
     props.onChange(props.titles.map((t, i) => {
       if (i !== idx) return t;
-      // Auto-detect language when going from empty to non-empty.
-      const language = t.title === '' && title !== '' ? detectLanguage(title) : t.language;
+      // Auto-detect language only for the primary row (idx 0). Secondary
+      // rows are added via explicit language buttons ("+ 한국어" etc.) so
+      // typing English into a ko row must NOT flip its language.
+      const language = idx === 0 && t.title === '' && title !== ''
+        ? detectLanguage(title)
+        : t.language;
       return { ...t, title, language };
     }));
   }
@@ -59,7 +63,7 @@ export function TitleI18nInput(props: TitleI18nInputProps) {
     LANG_OPTIONS.filter((l) => !props.titles.some((t) => t.language === l.code));
 
   return (
-    <div>
+    <div style="display: flex; flex-direction: column; gap: 6px;">
       <Show when={props.optional && !opened()}>
         <button
           class="kanade-admin-btn"
@@ -68,22 +72,20 @@ export function TitleI18nInput(props: TitleI18nInputProps) {
         >
           + Recording 전용 제목 추가
         </button>
-        <div style="font-size: 12px; color: #888; margin-top: 4px;">현재 Work 제목 사용 중</div>
+        <div class="kanade-admin-meta">현재 Work 제목 사용 중</div>
       </Show>
       <Show when={opened()}>
         <Index each={props.titles}>
           {(t, i) => (
-            <div style="display: flex; gap: 6px; margin-bottom: 6px; align-items: center;">
+            <div class="kanade-admin-field-row">
               <input
-                class="kanade-admin-input"
-                style="flex: 1;"
+                class="kanade-admin-input kanade-admin-field-row__grow"
                 placeholder={i === 0 ? (props.entity === 'work' ? '주 제목 (예: 千本桜)' : '녹음 전용 제목') : ''}
                 value={t().title}
                 onInput={(e) => updateMain(i, e.currentTarget.value)}
               />
               <select
-                class="kanade-admin-input"
-                style="width: 90px;"
+                class="kanade-admin-input kanade-admin-input--narrow"
                 value={t().language}
                 onChange={(e) => updateLang(i, e.currentTarget.value)}
               >
@@ -93,21 +95,20 @@ export function TitleI18nInput(props: TitleI18nInputProps) {
               </select>
               <button
                 type="button"
-                class="kanade-admin-btn"
+                class={`kanade-admin-btn kanade-admin-btn--icon${t().isMain ? ' kanade-admin-btn--star-active' : ''}`}
                 title="대표 제목"
-                style={t().isMain ? 'background: #3a7aff; border-color: #3a7aff;' : ''}
                 onClick={() => setIsMain(i)}
               >
                 ★
               </button>
               <Show when={props.titles.length > 1 || props.optional}>
-                <button type="button" class="kanade-admin-btn" onClick={() => remove(i)}>×</button>
+                <button type="button" class="kanade-admin-btn kanade-admin-btn--icon" onClick={() => remove(i)}>×</button>
               </Show>
             </div>
           )}
         </Index>
         <Show when={expanded() && availableLangs().length > 0}>
-          <div style="display: flex; gap: 6px; margin-top: 6px;">
+          <div class="kanade-admin-field-row">
             <For each={availableLangs()}>
               {(l) => (
                 <button type="button" class="kanade-admin-btn" onClick={() => addSecondary(l.code)}>
@@ -118,7 +119,7 @@ export function TitleI18nInput(props: TitleI18nInputProps) {
           </div>
         </Show>
         <Show when={!expanded() && availableLangs().length > 0}>
-          <button type="button" class="kanade-admin-btn" style="margin-top: 6px;" onClick={() => setExpanded(true)}>
+          <button type="button" class="kanade-admin-btn kanade-admin-btn--ghost" onClick={() => setExpanded(true)}>
             ▸ 다른 언어 제목 추가
           </button>
         </Show>

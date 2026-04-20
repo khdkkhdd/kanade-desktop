@@ -5,6 +5,7 @@ import { detectLanguage } from '../../../admin/lang-detect.js';
 export interface ArtistSearchHit {
   id: number;
   displayName: string;
+  originalName?: string;
   type?: string;
 }
 
@@ -98,10 +99,12 @@ export function ChannelArtistPicker(props: ChannelArtistPickerProps) {
                 class="kanade-channel-picker__item"
                 onClick={() => props.onLink(r.id)}
               >
-                <span class="kanade-channel-picker__item-name">{r.displayName}</span>
-                <Show when={r.type}>
-                  <span class="kanade-channel-picker__item-type">{r.type}</span>
-                </Show>
+                <span class="kanade-channel-picker__item-name">
+                  <span class="kanade-channel-picker__item-main">{r.displayName}</span>
+                  <Show when={r.originalName && r.originalName !== r.displayName}>
+                    <span class="kanade-channel-picker__item-original">{r.originalName}</span>
+                  </Show>
+                </span>
               </button>
             )}
           </For>
