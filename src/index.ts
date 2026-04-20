@@ -83,6 +83,22 @@ function createWindow(): BrowserWindow {
 
   win.once('ready-to-show', () => win.show());
 
+  // Browser-like back/forward navigation. Electron tracks history internally
+  // but doesn't bind UI/shortcuts; wire three input paths:
+  //   1. macOS trackpad 3-finger swipe (swipe event fires only on macOS)
+  //   2. Mouse button 4/5 / OS-level browser back/forward keys (app-command)
+  //   3. Menu accelerators Cmd+[ / Cmd+] (installed in installAppMenu below)
+  win.on('swipe' as any, (_e: Electron.Event, direction: string) => {
+    const nav = win.webContents.navigationHistory;
+    if (direction === 'left' && nav.canGoBack()) nav.goBack();
+    else if (direction === 'right' && nav.canGoForward()) nav.goForward();
+  });
+  win.webContents.on('app-command' as any, (_e: Electron.Event, cmd: string) => {
+    const nav = win.webContents.navigationHistory;
+    if (cmd === 'browser-backward' && nav.canGoBack()) nav.goBack();
+    else if (cmd === 'browser-forward' && nav.canGoForward()) nav.goForward();
+  });
+
   // URL loading logic
   const startUrl = store.get('startUrl') || 'https://www.youtube.com';
   const lastUrl = store.get('lastUrl');
@@ -141,6 +157,15 @@ function installAppMenu(getMainWin: () => BrowserWindow | null): void {
       label: 'YouTube',
       submenu: [
         {
+          label: 'Go to URL or Video ID...',
+          accelerator: process.platform === 'darwin' ? 'Cmd+L' : 'Ctrl+L',
+          click: () => {
+            const main = getMainWin();
+            main?.webContents.send('plugin:url-prompt:show');
+          },
+        },
+        { type: 'separator' },
+        {
           label: 'Settings...',
           accelerator: process.platform === 'darwin' ? 'Cmd+,' : 'Ctrl+,',
           click: () => {
@@ -154,6 +179,29 @@ function installAppMenu(getMainWin: () => BrowserWindow | null): void {
     },
     { role: 'editMenu' },
     { role: 'viewMenu' },
+    {
+      label: 'History',
+      submenu: [
+        {
+          label: 'Back',
+          accelerator: process.platform === 'darwin' ? 'Cmd+[' : 'Alt+Left',
+          click: () => {
+            const main = getMainWin();
+            const nav = main?.webContents.navigationHistory;
+            if (nav?.canGoBack()) nav.goBack();
+          },
+        },
+        {
+          label: 'Forward',
+          accelerator: process.platform === 'darwin' ? 'Cmd+]' : 'Alt+Right',
+          click: () => {
+            const main = getMainWin();
+            const nav = main?.webContents.navigationHistory;
+            if (nav?.canGoForward()) nav.goForward();
+          },
+        },
+      ],
+    },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }

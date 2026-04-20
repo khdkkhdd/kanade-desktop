@@ -6,6 +6,7 @@ import type {
   VideoRecording,
 } from '../types.js';
 import { createListSection } from './list-section.js';
+import { t } from '../../../i18n/index.js';
 
 const PAGE_LIMIT = 20;
 
@@ -149,7 +150,7 @@ async function renderRecordingsList(
   const seed = first?.seed;
   let loading = false;
 
-  if (items.length === 0) return emptyMessage('녹음 없음');
+  if (items.length === 0) return emptyMessage(t('relationOverlay.emptyNoRecordings'));
 
   const section = createListSection(async () => {
     if (loading || nextOffset === null) return;

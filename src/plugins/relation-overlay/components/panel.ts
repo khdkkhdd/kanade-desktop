@@ -5,6 +5,7 @@ import { createOriginalSection } from './original-section.js';
 import { createCoversSection } from './covers-section.js';
 import { createSameRecordingVideosSection } from './same-recording-videos-section.js';
 import { createArtistSection } from './artist-section.js';
+import { t } from '../../../i18n/index.js';
 
 const PANEL_ID = 'kanade-relation-panel';
 const STYLE_ID = 'kanade-relation-styles';
@@ -62,10 +63,10 @@ export async function createPanel(
     createArtistSection(recording, lang, ctx),
   ]);
 
-  if (originalContent) topChips.push({ id: 'original', label: '원곡', content: originalContent });
-  if (sameRecContent) topChips.push({ id: 'same-recording', label: '같은 녹음의 다른 영상', content: sameRecContent });
-  if (coversContent) topChips.push({ id: 'covers', label: '커버', content: coversContent });
-  if (artistParts) topChips.push({ id: 'artists', label: '아티스트', content: artistParts.content });
+  if (originalContent) topChips.push({ id: 'original', label: t('relationOverlay.tabOriginal'), content: originalContent });
+  if (sameRecContent) topChips.push({ id: 'same-recording', label: t('relationOverlay.tabSameRecording'), content: sameRecContent });
+  if (coversContent) topChips.push({ id: 'covers', label: t('relationOverlay.tabCovers'), content: coversContent });
+  if (artistParts) topChips.push({ id: 'artists', label: t('relationOverlay.tabArtists'), content: artistParts.content });
 
   if (topChips.length === 0) return panel;
 

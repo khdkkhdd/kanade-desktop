@@ -4,6 +4,7 @@ import { relationOverlay } from './plugins/relation-overlay/index.js';
 import { adminVideo } from './plugins/admin-video/index.js';
 import { adminChannel } from './plugins/admin-channel/index.js';
 import { discordPresence } from './plugins/discord-presence/index.js';
+import { urlPrompt } from './plugins/url-prompt/index.js';
 
 
 contextBridge.exposeInMainWorld('kanade', {
@@ -52,5 +53,6 @@ const plugins = {
   'admin-video': adminVideo,
   'admin-channel': adminChannel,
   'discord-presence': discordPresence,
+  'url-prompt': urlPrompt,
 };
 loadAllRendererPlugins(plugins);
