@@ -99,10 +99,13 @@ function createWindow(): BrowserWindow {
     else if (cmd === 'browser-forward' && nav.canGoForward()) nav.goForward();
   });
 
-  // URL loading logic
+  // URL loading logic. Guard against non-http(s) values sneaking in via
+  // `navigation:changed` (e.g. file:// paths from loaded HTML) so the main
+  // window always boots to a real web page.
   const startUrl = store.get('startUrl') || 'https://www.youtube.com';
   const lastUrl = store.get('lastUrl');
-  win.loadURL(lastUrl || startUrl);
+  const bootUrl = isSafeWebUrl(lastUrl) ? lastUrl : startUrl;
+  win.loadURL(bootUrl);
 
   // Plugins
   const plugins = {
@@ -116,10 +119,18 @@ function createWindow(): BrowserWindow {
   return win;
 }
 
+function isSafeWebUrl(url: string | undefined | null): url is string {
+  if (!url) return false;
+  return url.startsWith('http://') || url.startsWith('https://');
+}
+
 function setupIPC(win: BrowserWindow): void {
-  // Navigation change from renderer
+  // Navigation change from renderer. Only remember http(s) URLs so internal
+  // file:// navigations (e.g. the Settings window) can't poison `lastUrl`.
   ipcMain.on('navigation:changed', (_event, data: { url: string; videoId: string | null }) => {
-    store.set('lastUrl', data.url);
+    if (isSafeWebUrl(data.url)) {
+      store.set('lastUrl', data.url);
+    }
   });
 }
 
