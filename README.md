@@ -32,15 +32,15 @@ covers, and the artists behind them — layered on top of the video you're watch
 > overlay — the feature that makes the app interesting — talks to a **private
 > catalog server** that I curate and maintain myself.
 >
-> Without access to that server, the app runs as a plain YouTube viewer. If you'd
-> like access, see [Request access](#request-access) below.
+> Without access to that server, the app runs as a plain YouTube viewer —
+> with Discord Rich Presence on top, if that's useful to you. If you'd like
+> access to the catalog, see [Request access](#request-access) below.
 
 ## Contents
 
 - [What you'll see](#what-youll-see)
 - [Download](#download)
 - [Request access](#request-access)
-- [Also included](#also-included)
 - [Languages](#languages)
 - [Development](#development)
 - [Credits](#credits)
@@ -100,17 +100,6 @@ The admin UI lets trusted contributors edit the catalog — register videos, lin
 channels to artists, attach metadata. This is significantly more restricted.
 Reach out at [me@dong.kim](mailto:me@dong.kim) if you'd like to help curate.
 
-## Also included
-
-- **Discord Rich Presence.** Shows friends what you're watching, with title,
-  artist, and a link back to the video. Works without any server access;
-  requires only the Discord desktop app running.
-- **Navigation shortcuts.** `⌘L` / `Ctrl+L` to jump to a URL or video ID.
-  `⌘[` / `⌘]` for back/forward (also wired to three-finger trackpad swipes
-  and mouse side buttons on macOS).
-- **State persistence.** Window size, position, and last URL are remembered
-  across launches.
-
 ## Languages
 
 - 한국어 (Korean) — default
@@ -131,11 +120,7 @@ pnpm install
 pnpm dev            # run with HMR
 pnpm typecheck
 pnpm test
-pnpm dist:mac       # build a signed DMG locally (requires Apple Developer setup)
 ```
-
-Releases are driven by tags. Bump `"version"` in `package.json`, tag `v*.*.*`,
-push — CI signs, notarizes, and uploads a draft release to GitHub.
 
 ## Credits
 
