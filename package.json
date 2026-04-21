@@ -1,6 +1,6 @@
 {
   "name": "kanade-desktop",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "YouTube desktop client with song relation data",
   "main": "dist/main/index.js",
   "type": "module",
