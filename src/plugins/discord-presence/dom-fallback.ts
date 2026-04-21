@@ -1,10 +1,10 @@
 /**
- * YouTube 의 `document.title` 은 Mix autoplay queue 에서 "다음에 재생될" 영상의
- * 제목으로 선제적으로 바뀌는 경우가 있어서, URL 의 videoId 와 불일치하는 window
- * 가 생긴다. 대신 player 내부의 `getVideoData()` 를 쓰면 실제 재생 중인
- * 영상의 metadata 라서 이 race 를 피한다.
+ * YouTube's `document.title` sometimes flips early to the "next up" video's
+ * title in a Mix autoplay queue, creating a window where it disagrees with
+ * the URL's videoId. Using the player's internal `getVideoData()` instead
+ * returns the actually-playing video's metadata, sidestepping this race.
  *
- * @returns title — player 에서 못 읽으면 document.title 로 fallback.
+ * @returns title — falls back to document.title if the player can't be read.
  */
 export function extractDomTitle(): string {
   const player = getMoviePlayer();
@@ -19,7 +19,8 @@ export function extractDomTitle(): string {
 }
 
 /**
- * 채널명 추출. player 의 getVideoData().author 우선, ytd-channel-name 으로 fallback.
+ * Extracts the channel name. Prefers the player's getVideoData().author, and
+ * falls back to the ytd-channel-name element.
  */
 export function extractDomChannel(): string | null {
   const player = getMoviePlayer();
@@ -32,8 +33,9 @@ export function extractDomChannel(): string | null {
 }
 
 /**
- * URL 의 `v=` 파라미터 대신 player 내부 상태에서 현재 재생 중 videoId 를 얻는다.
- * Mix 전환 중 URL 과 player 가 엇나가는 순간에 유용.
+ * Reads the currently-playing videoId from the player's internal state rather
+ * than the URL's `v=` parameter. Useful during Mix transitions when the URL
+ * and player get temporarily out of sync.
  */
 export function getPlayerVideoId(): string | null {
   const player = getMoviePlayer();

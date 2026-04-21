@@ -93,7 +93,7 @@ export function getAdminStyles(): string {
     .kanade-admin-section--danger { border-color: rgba(220,80,80,0.3); background: rgba(60,20,20,0.18); }
     .kanade-admin-section--danger .kanade-admin-section__title { color: #ff9999; }
     .kanade-admin-section--danger .kanade-admin-section__title::before { background: #dc5050; }
-    /* Sub-section header — used for 창작자 / 참여 아티스트 groups. Softer than section titles. */
+    /* Sub-section header — used for creator / performing-artist groups. Softer than section titles. */
     .kanade-admin-subsection__title {
       font-size: 12px; font-weight: 500; color: #8a8a8a;
       margin: 4px 0 0 0;
@@ -329,7 +329,7 @@ export function getAdminStyles(): string {
     }
     .kanade-admin-checkbox-label input[type="checkbox"] { accent-color: #3ea6ff; }
 
-    /* Inline label (isOrigin, 대표영상 등) */
+    /* Inline label (isOrigin, main video, etc.) */
     .kanade-admin-inline-label {
       font-size: 13px;
       color: #d0d0d0;

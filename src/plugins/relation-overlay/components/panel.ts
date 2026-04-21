@@ -25,8 +25,9 @@ function injectStyles(): void {
 }
 
 /**
- * Builds the overlay: single chip bar (원곡 / 같은녹음 / 커버 / 아티스트 + 아티스트
- * 서브칩이 그 옆에 인라인으로 확장됨) + content area for the active chip.
+ * Builds the overlay: single chip bar (original / same-recording / cover / artist
+ * + artist sub-chips inlined next to the artist top-chip) + content area for
+ * the active chip.
  */
 export async function createPanel(
   data: VideoResponse,
@@ -105,7 +106,7 @@ export async function createPanel(
     const btn = createTopChip(def.label, () => selectTopChip(def.id));
     topChipBar.appendChild(btn);
     topChipElements.set(def.id, btn);
-    // Inline the artist sub-chip group right after the "아티스트" top-chip.
+    // Inline the artist sub-chip group right after the "artist" top-chip.
     if (def.id === 'artists' && artistParts) {
       topChipBar.appendChild(artistParts.subChips);
     }

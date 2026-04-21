@@ -1,7 +1,7 @@
 import { HANGUL_FILLER, MAX_ACTIVITY_TEXT_LENGTH, SEEK_THRESHOLD_SECONDS } from './constants.js';
 
 /**
- * Discord 활동 텍스트 요구사항 충족 (trim / truncate / min-length pad).
+ * Satisfies Discord activity text requirements (trim / truncate / min-length pad).
  */
 export function sanitizeActivityText(
   input: string | undefined,
@@ -15,7 +15,7 @@ export function sanitizeActivityText(
 }
 
 /**
- * Discord min-2자 조건을 만족하도록 한글 filler 로 pad.
+ * Pads with a Hangul filler char to satisfy Discord's 2-character minimum.
  */
 export function padHangul(str: string): string {
   if (str.length === 0 || str.length >= 2) return str;
@@ -34,7 +34,8 @@ export interface ArtistCreditLite {
 }
 
 /**
- * 같은 artistId 병합. 첫 occurrence의 position 유지, isPublic은 OR.
+ * Merges entries sharing the same artistId. Keeps the position of the first
+ * occurrence; isPublic is OR'd across duplicates.
  */
 export function dedupeByArtistId<T extends ArtistCreditLite>(credits: T[]): T[] {
   const byId = new Map<number, T>();

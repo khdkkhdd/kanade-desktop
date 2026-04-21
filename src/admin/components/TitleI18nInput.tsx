@@ -31,7 +31,7 @@ export function TitleI18nInput(props: TitleI18nInputProps) {
     props.onChange(props.titles.map((t, i) => {
       if (i !== idx) return t;
       // Auto-detect language only for the primary row (idx 0). Secondary
-      // rows are added via explicit language buttons ("+ 한국어" etc.) so
+      // rows are added via explicit language buttons (e.g. "+ Korean") so
       // typing English into a ko row must NOT flip its language.
       const language = idx === 0 && t.title === '' && title !== ''
         ? detectLanguage(title)

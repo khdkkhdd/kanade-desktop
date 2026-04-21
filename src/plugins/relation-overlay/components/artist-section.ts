@@ -28,7 +28,7 @@ export interface ArtistSectionParts {
 /**
  * Artist chip bar — one sub-chip per artist (work creators ∪ recording artists,
  * deduped by artistId, performers first). Returns two elements so the panel
- * can inline the sub-chips next to the "아티스트" top-chip and keep the card
+ * can inline the sub-chips next to the "artist" top-chip and keep the card
  * list in the content region.
  */
 export async function createArtistSection(

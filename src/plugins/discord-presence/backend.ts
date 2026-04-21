@@ -29,9 +29,10 @@ export function setupBackend(ctx: BackendContext): void {
 }
 
 /**
- * Settings save 시 `src/index.ts` 가 직접 호출.
- * 전역 `settings:changed` 는 Main→Renderer 브로드캐스트라 Main에서 ipcMain.on 으로 수신 불가 —
- * 따라서 exported 함수를 index.ts 에서 직접 호출하는 패턴 채택.
+ * Called directly from `src/index.ts` when settings are saved.
+ * The global `settings:changed` event is a Main→Renderer broadcast, so Main
+ * itself can't receive it via `ipcMain.on` — hence this exported helper is
+ * invoked directly from index.ts instead.
  */
 export function applyPresenceConfigChange(newPresence: PresenceConfig | undefined): void {
   if (!discord || !newPresence) return;

@@ -1,8 +1,9 @@
 import { TimerKey } from './constants.js';
 
 /**
- * 키로 구분되는 타이머들을 중앙 관리. 같은 키에 중복 set 시 이전 타이머 clear.
- * Ported from ~/repo/pear-desktop/src/plugins/discord/timer-manager.ts.
+ * Central manager for keyed timers. Setting a new timer for the same key
+ * clears the previous one automatically.
+ * Adapted from pear-desktop (MIT) — see NOTICE.
  */
 export class TimerManager {
   private timers = new Map<TimerKey, NodeJS.Timeout>();

@@ -30,7 +30,7 @@ export interface VideoDrawerProps {
   initialDraft?: DraftData | null;
   /** Fires on every state mutation; caller persists the latest draft. */
   onDraftChange?: (draft: DraftData) => void;
-  /** Fires when the user clicks "새로 시작" to discard the draft. */
+  /** Fires when the user clicks "Start over" to discard the draft. */
   onDraftDiscard?: () => void;
 }
 
@@ -297,7 +297,7 @@ export function VideoDrawer(props: VideoDrawerProps) {
     editSeed && recording()?.kind === 'existing' && (recording() as { id: number }).id === editSeed.id;
 
   // Has the user changed anything from the fresh initial state? Drives the
-  // "초기화" button's visibility.
+  // "Reset" button's visibility.
   const hasChanges = () => {
     if (props.mode === 'create') {
       return (

@@ -51,8 +51,8 @@ const store = new Store<StoreSchema>({
 });
 
 /**
- * 기존 사용자 config에 presence 키가 없을 수 있음 (electron-store `defaults` 는 top-level만 채움).
- * 이 헬퍼는 presence 를 항상 PresenceConfig 로 반환.
+ * Existing user configs may not have the `presence` key (electron-store `defaults`
+ * only fills top-level keys). This helper always returns a full PresenceConfig.
  */
 export function getPresenceConfig(): PresenceConfig {
   const k = store.get('kanade');

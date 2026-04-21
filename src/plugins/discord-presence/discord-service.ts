@@ -5,8 +5,8 @@ import { TimerManager } from './timer-manager.js';
 import type { PresenceConfig } from './types.js';
 
 /**
- * Discord RPC client lifecycle 관리.
- * Ported patterns from ~/repo/pear-desktop/src/plugins/discord/discord-service.ts.
+ * Manages the Discord RPC client lifecycle.
+ * Adapted from pear-desktop (MIT) — see NOTICE.
  */
 export class DiscordService {
   private rpc!: DiscordClient;

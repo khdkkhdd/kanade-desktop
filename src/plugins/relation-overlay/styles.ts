@@ -27,7 +27,7 @@ export function getStyles(): string {
       margin-bottom: 4px;
     }
 
-    /* ─── Inline artist sub-chip group (expands after "아티스트" top-chip) ─── */
+    /* ─── Inline artist sub-chip group (expands after "artist" top-chip) ─── */
     .kanade-artist-subchips {
       display: inline-flex;
       gap: 8px;

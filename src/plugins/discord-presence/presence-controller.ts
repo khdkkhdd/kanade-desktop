@@ -14,10 +14,10 @@ import type {
 const MAX_CACHE = 50;
 
 /**
- * YouTube Mix 에서 다음 큐 아이템의 metadata 를 선제적으로 DOM/player API 에 반영하는
- * 시간이 있어서, videoChanged 직후의 snapshot 은 stale / 엇갈린 title 을 담고
- * 있는 경우가 많다. 1.5s 정도 기다리면 player 가 settle 되고 snapshot 이
- * 현재 영상의 진짜 metadata 를 담게 된다.
+ * In a YouTube Mix, the DOM/player API sometimes pre-populates the next queued
+ * item's metadata, so the snapshot captured right after videoChanged often
+ * holds stale / mismatched titles. Waiting ~1.5s lets the player settle, so
+ * the snapshot then reflects the actually-playing video's real metadata.
  */
 const RESOLVE_SETTLE_DELAY_MS = 1500;
 

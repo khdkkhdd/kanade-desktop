@@ -1,6 +1,6 @@
 export type SupportedLanguage = 'ja' | 'ko' | 'en';
 
-// Unicode 범위 (IME 조합 중간 상태까지 커버):
+// Unicode ranges (covers in-progress IME composition states as well):
 //   Hangul Jamo:                 1100-11FF   (e.g. ᄀ ᅡ — initial/medial during IME)
 //   Hangul Compatibility Jamo:   3130-318F   (e.g. ㄱ ㅏ — standalone jamo seen on keypress)
 //   Hangul Syllables:            AC00-D7AF   (e.g. 가 나 다 — composed)

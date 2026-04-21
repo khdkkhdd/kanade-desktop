@@ -220,7 +220,7 @@ function setupSettingsIPC(): void {
     for (const w of BrowserWindow.getAllWindows()) {
       w.webContents.send('settings:changed', v);
     }
-    // Main 쪽 플러그인에 config 변경 전파 (settings:changed는 Main→Renderer라 Main이 수신 불가)
+    // Propagate config change to main-side plugins (settings:changed only flows Main→Renderer, so Main can't receive it)
     applyPresenceConfigChange(v.presence);
     return { ok: true };
   });
