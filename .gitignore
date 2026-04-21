@@ -2,6 +2,7 @@ node_modules/
 dist/
 out/
 .env
+.claude/
 docs/superpowers/
 build/icon.icns
 build/icon.iconset/
