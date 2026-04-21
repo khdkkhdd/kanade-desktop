@@ -11,7 +11,7 @@ covers, and the artists behind them — layered on top of the video you're watch
 
 </div>
 
-<!-- ![Screenshot](docs/screenshot.png) -->
+![Screenshot](docs/screenshot.png)
 
 > [!IMPORTANT]
 > ### ⚠️ Disclaimer
@@ -61,8 +61,6 @@ with:
 The overlay only renders when the catalog has data for the current video.
 Outside the catalog, it stays hidden and the app behaves like a regular browser
 window.
-
-<!-- Screenshot placeholder -->
 
 ## Download
 
