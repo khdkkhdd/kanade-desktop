@@ -1,4 +1,4 @@
-import { createSignal, createEffect, Index, Show } from 'solid-js';
+import { createSignal, createEffect, For, Index, Show } from 'solid-js';
 import type { RendererContext } from '../../../types/plugins.js';
 import type { ArtistCreditInput, NewArtistInput } from '../../../admin/types.js';
 import { EntityPicker, type EntitySearchResult } from '../../../admin/components/EntityPicker.js';
@@ -62,11 +62,14 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
   async function search(q: string): Promise<EntitySearchResult[]> {
     const r = (await props.ctx.ipc.invoke('search-artists', { q })) as any;
     if (!r?.ok) return [];
-    return r.data.map((a: { id: number; displayName: string; originalName?: string }) => ({
-      id: a.id,
-      displayLabel: a.displayName,
-      originalLabel: a.originalName,
-    }));
+    const pickedIds = new Set(rows().map((row) => row.picked?.id).filter((id): id is number => id != null));
+    return r.data
+      .filter((a: { id: number }) => !pickedIds.has(a.id))
+      .map((a: { id: number; displayName: string; originalName?: string }) => ({
+        id: a.id,
+        displayLabel: a.displayName,
+        originalLabel: a.originalName,
+      }));
   }
 
   createEffect(() => {
@@ -101,7 +104,9 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
       role: null,
       isPublic: true,
     });
-    setHintDismissed(true);
+    // Keep the banner open — when a channel has multiple linked artists,
+    // the rest stay visible so the admin can keep clicking. Banner self-
+    // hides once all linked artists are picked.
   }
 
   return (
@@ -109,26 +114,44 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
       <div class="kanade-admin-subsection__title">
         {props.context === 'recording' ? '참여 아티스트' : '창작자'}
       </div>
-      <Show when={props.channelHint && !hintDismissed() && (props.channelHint.artists?.length ?? 0) > 0}>
-        <div class="kanade-admin-banner kanade-admin-banner--info" style="margin-top: 8px;">
-          <span style="flex: 1;">이 채널은 <strong>{props.channelHint!.artists[0].displayName}</strong>의 채널입니다.</span>
-          <button
-            type="button"
-            class="kanade-admin-btn kanade-admin-btn--primary"
-            onClick={() => acceptHint(props.channelHint!.artists[0])}
-          >
-            자동 추가
-          </button>
-          <button
-            type="button"
-            class="kanade-admin-btn kanade-admin-btn--icon"
-            aria-label="힌트 닫기"
-            onClick={() => setHintDismissed(true)}
-          >
-            ×
-          </button>
-        </div>
-      </Show>
+      {(() => {
+        const availableHints = () => {
+          const hints = props.channelHint?.artists ?? [];
+          if (hints.length === 0) return [];
+          const pickedIds = new Set(
+            rows().map((r) => r.picked?.id).filter((id): id is number => id != null),
+          );
+          return hints.filter((a) => !pickedIds.has(a.id));
+        };
+        return (
+          <Show when={!hintDismissed() && availableHints().length > 0}>
+            <div class="kanade-admin-banner kanade-admin-banner--info" style="margin-top: 8px; flex-wrap: wrap;">
+              <span>이 채널의 아티스트:</span>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap; flex: 1;">
+                <For each={availableHints()}>
+                  {(artist) => (
+                    <button
+                      type="button"
+                      class="kanade-admin-btn kanade-admin-btn--primary"
+                      onClick={() => acceptHint(artist)}
+                    >
+                      + {artist.displayName}
+                    </button>
+                  )}
+                </For>
+              </div>
+              <button
+                type="button"
+                class="kanade-admin-btn kanade-admin-btn--icon"
+                aria-label="힌트 닫기"
+                onClick={() => setHintDismissed(true)}
+              >
+                ×
+              </button>
+            </div>
+          </Show>
+        );
+      })()}
       <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
         <Index each={rows()}>
           {(row, i) => (

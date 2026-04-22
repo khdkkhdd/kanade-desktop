@@ -3,6 +3,7 @@ import { render } from 'solid-js/web';
 import type { RendererContext } from '../../types/plugins.js';
 import { injectAdminStyles } from '../../admin/components/styles.js';
 import { VideoDrawer, type DraftData } from './components/VideoDrawer.js';
+import { installVideoChannelBridge } from './channel-bridge.js';
 import type { AdminVideoData } from './types.js';
 
 // In-memory drafts keyed by videoId. Survives drawer open/close within the
@@ -34,6 +35,7 @@ function waitForElement(selector: string, timeout = 10000): Promise<Element | nu
 
 export function setupRenderer(ctx: RendererContext): void {
   injectAdminStyles();
+  installVideoChannelBridge();
   let currentVideoId: string | null = null;
   let requestId = 0;
 

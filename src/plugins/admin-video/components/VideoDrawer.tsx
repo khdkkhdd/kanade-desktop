@@ -1,4 +1,4 @@
-import { batch, createSignal, createResource, createEffect, Show } from 'solid-js';
+import { batch, createSignal, createResource, createEffect, onCleanup, Show } from 'solid-js';
 import type { RendererContext } from '../../../types/plugins.js';
 import type { WorkSelection, RecordingSelection, RegisterVideoPayload, ArtistCreditInput, NewArtistInput } from '../../../admin/types.js';
 import { Drawer } from '../../../admin/components/Drawer.js';
@@ -9,6 +9,7 @@ import type { ArtistCreditInitial } from './ArtistCreditsSection.js';
 import { computeArtistDiff, type ArtistCreditSnapshot } from '../diff.js';
 import type { UpdateVideoPayload, ReassignVideoPayload } from '../update.js';
 import type { AdminVideoArtist, AdminVideoData } from '../types.js';
+import { readBridgedChannelId } from '../channel-bridge.js';
 
 type Credit = ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
 
@@ -239,11 +240,15 @@ export function VideoDrawer(props: VideoDrawerProps) {
       return m ? m[1] : null;
     };
 
-    // 1. ytInitialPlayerResponse — populated on every SPA nav for watch pages.
-    const ypr = (window as any).ytInitialPlayerResponse?.videoDetails?.channelId;
-    if (typeof ypr === 'string' && ucRe.test(ypr)) return ypr;
+    // 1. Main-world bridge — ytInitialPlayerResponse.videoDetails.channelId,
+    // verified fresh by videoId match. Works even when the owner element
+    // only exposes /@handle anchors.
+    const bridged = readBridgedChannelId();
+    if (bridged) return bridged;
 
-    // 2. ytd-video-owner-renderer anchor — present once the owner chip renders.
+    // 2. ytd-video-owner-renderer anchor — present once the owner chip
+    // renders. Some channels' owner anchors only carry /@handle, in which
+    // case we fall through.
     const owner = document.querySelector('ytd-video-owner-renderer a[href*="/channel/"]') as HTMLAnchorElement | null;
     const fromOwner = pickUc(owner?.href ?? owner?.getAttribute('href'));
     if (fromOwner) return fromOwner;
@@ -253,28 +258,44 @@ export function VideoDrawer(props: VideoDrawerProps) {
     const fromAlt = pickUc(alt?.href ?? alt?.getAttribute('href'));
     if (fromAlt) return fromAlt;
 
-    // 4. Legacy <meta itemprop="channelId"> (still present on some page types).
+    // 4. Legacy <meta itemprop="channelId">.
     const meta = document.querySelector('meta[itemprop="channelId"]') as HTMLMetaElement | null;
     if (meta?.content && ucRe.test(meta.content)) return meta.content;
 
     return '';
   };
 
-  const [channelHint] = createResource(
-    () => channelExternalId(),
-    async (cid) => {
-      if (!cid) return undefined;
-      const r = (await props.ctx.ipc.invoke('get-channel-hint', { externalId: cid })) as any;
-      if (!r?.ok || !r.data) return undefined;
-      // Server returns `{ artistId, displayName }`; normalise to `id` so the
-      // downstream section/banner components can stay framework-generic.
-      const rawArtists = (r.data.artists ?? []) as Array<{ artistId: number; displayName: string }>;
-      return {
-        channelExternalId: cid,
-        artists: rawArtists.map((a) => ({ id: a.artistId, displayName: a.displayName })),
-      };
-    },
-  );
+  // Poll for up to 5s until the channel id surfaces — the bridge writes the
+  // data attribute asynchronously, and watch pages occasionally render the
+  // owner chip after the drawer has already mounted.
+  const [cid, setCid] = createSignal(channelExternalId());
+  if (!cid()) {
+    const interval = setInterval(() => {
+      const v = channelExternalId();
+      if (v) {
+        setCid(v);
+        clearInterval(interval);
+      }
+    }, 200);
+    const timeout = setTimeout(() => clearInterval(interval), 5000);
+    onCleanup(() => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    });
+  }
+
+  const [channelHint] = createResource(cid, async (c) => {
+    if (!c) return undefined;
+    const r = (await props.ctx.ipc.invoke('get-channel-hint', { externalId: c })) as any;
+    if (!r?.ok || !r.data) return undefined;
+    // Server returns `{ artistId, displayName }`; normalise to `id` so the
+    // downstream section/banner components can stay framework-generic.
+    const rawArtists = (r.data.artists ?? []) as Array<{ artistId: number; displayName: string }>;
+    return {
+      channelExternalId: c,
+      artists: rawArtists.map((a) => ({ id: a.artistId, displayName: a.displayName })),
+    };
+  });
 
   // A new work needs at least one title (and exactly one flagged isMain) —
   // without this guard the server rejects the create with "Exactly one title
