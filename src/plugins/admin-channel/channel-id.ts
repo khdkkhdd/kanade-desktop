@@ -1,11 +1,12 @@
 // Resolves the YouTube channel external ID (UC...) for the current page.
 // YouTube exposes a channel under four URL forms (/channel/UC..., /@handle,
 // /c/name, /user/name) and the <meta itemprop="channelId"> tag isn't always
-// present, so this module layers four strategies:
+// present, so this module layers five strategies:
 //   1. Direct URL match           — definitive, fast
 //   2. Identity-keyed cache       — avoids re-extraction across sub-tabs
-//   3. <meta itemprop="channelId">— classic approach, usually present
-//   4. Most-frequent anchor       — heuristic fallback for custom layouts
+//   3. <meta itemprop="channelId">— classic approach, sometimes absent on @handle pages
+//   4. <link rel="canonical">     — reliable on @handle pages where meta is missing
+//   5. Most-frequent anchor       — heuristic fallback for custom layouts
 //
 // The cache is keyed on the part of the URL that survives sub-tab changes
 // (e.g. /@foo/videos vs /@foo/playlists → same key), so it only grows by
@@ -50,7 +51,17 @@ export function resolveChannelId(): string | null {
     return meta.content;
   }
 
-  // 4. Most-frequent /channel/UC... anchor on the page. The current channel
+  // 4. <link rel="canonical"> href points at /channel/UC... on channel pages.
+  const canonical = document.querySelector(
+    'link[rel="canonical"]',
+  ) as HTMLLinkElement | null;
+  const canonicalMatch = canonical?.href.match(/\/channel\/(UC[\w-]{22})(?:\/|$|\?)/);
+  if (canonicalMatch) {
+    if (identity) identityToChannelId.set(identity, canonicalMatch[1]);
+    return canonicalMatch[1];
+  }
+
+  // 5. Most-frequent /channel/UC... anchor on the page. The current channel
   //    is referenced by many internal nav links (tabs, breadcrumbs), so it
   //    dominates in frequency. Studio links are filtered out. Require ≥2
   //    occurrences to avoid picking up incidental /channel/ links.
