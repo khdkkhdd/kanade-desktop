@@ -6,12 +6,17 @@
 //   yt-navigate-finish / load / settings:changed → onNavigate()
 //     1. panel.hide() + remove old Kanade tab           (clean prior state)
 //     2. mark = panel.mark()                            (capture context for guards)
-//     3. if not a channel page: clear state, return
+//     3. if not a channel page: return
 //     4. await auth check                               → guard via panel.isValid(mark)
 //     5. await YouTube's tab bar render                 → guard again
-//     6. resolve channel id + name → insert Kanade tab + publish to handler
+//     6. probe channel id (existence check only) → insert Kanade tab
 //
 //   User clicks Kanade tab → handleTabEvent
+//     - Re-extracts the channel id and name from the current DOM. Avoids
+//       stashing onNavigate's extraction: YouTube's SPA swaps the URL
+//       ahead of <meta>/<link rel=canonical>/anchors, so a value captured
+//       during that window belongs to the PREVIOUS channel. By click time
+//       the DOM has settled, so extraction is reliable.
 //     - Both pointerdown and click block YouTube's native tab delegates
 //       (preventDefault + stopImmediatePropagation) so YouTube doesn't
 //       navigate the URL out from under us.
@@ -49,8 +54,6 @@ export function setupRenderer(ctx: RendererContext): void {
   injectAdminStyles();
 
   const panel = createPanelController(ctx);
-  let currentExternalId: string | null = null;
-  let currentChannelName = '';
 
   function removeKanadeTab(): void {
     document.getElementById(KANADE_TAB_ID)?.remove();
@@ -67,11 +70,12 @@ export function setupRenderer(ctx: RendererContext): void {
       e.preventDefault();
       e.stopImmediatePropagation();
       if (e.type !== 'pointerdown') return;
-      if (!currentExternalId) return;
+      const externalId = resolveChannelId();
+      if (!externalId) return;
       const tabList = kanadeTab.parentElement as HTMLElement | null;
       if (tabList) deselectAllNativeTabs(tabList);
       setTabSelected(kanadeTab, true);
-      void panel.show(currentExternalId, currentChannelName);
+      void panel.show(externalId, extractChannelName());
     } else if (e.type === 'click') {
       setTabSelected(kanadeTab, false);
       panel.hide();
@@ -85,31 +89,20 @@ export function setupRenderer(ctx: RendererContext): void {
     removeKanadeTab();
     const mark = panel.mark();
 
-    if (!isChannelPage()) {
-      currentExternalId = null;
-      currentChannelName = '';
-      return;
-    }
+    if (!isChannelPage()) return;
 
     const authResp = (await ctx.ipc.invoke('check-auth')) as { valid?: boolean } | null;
     if (!panel.isValid(mark)) return;
-    if (!authResp?.valid) {
-      currentExternalId = null;
-      currentChannelName = '';
-      return;
-    }
+    if (!authResp?.valid) return;
 
     const tabBar = await locateTabBar(3000);
     if (!panel.isValid(mark)) return;
     if (!tabBar) return;
 
-    // Extract AFTER DOM is ready — the anchor-frequency fallback in
-    // resolveChannelId needs channel nav links rendered.
-    const externalId = resolveChannelId();
-    if (!externalId) return;
-
-    currentExternalId = externalId;
-    currentChannelName = extractChannelName();
+    // Probe for a resolvable channel id — existence gate only. The actual
+    // id used by the panel is re-extracted at click time to sidestep
+    // YouTube's stale-DOM-during-navigation window (see handleTabEvent).
+    if (!resolveChannelId()) return;
 
     insertKanadeTab(tabBar.tabList, tabBar.anchorBefore);
   }
