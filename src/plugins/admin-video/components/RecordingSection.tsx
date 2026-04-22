@@ -48,9 +48,13 @@ export function RecordingSection(props: RecordingSectionProps) {
     props.value?.kind === 'new' ? props.value.artists : [],
   );
 
-  // If new work, auto-enter create mode
+  // If new work, auto-enter create mode. A brand-new work can't have any
+  // existing recordings yet, so default isOrigin → true (skip when a draft
+  // has already captured the user's own choice).
   createEffect(() => {
-    if (props.work.kind === 'new') setMode('create');
+    if (props.work.kind !== 'new') return;
+    setMode('create');
+    if (props.value?.kind !== 'new') setIsOrigin(true);
   });
 
   const [existingRecs] = createResource(
@@ -91,7 +95,9 @@ export function RecordingSection(props: RecordingSectionProps) {
   function enterCreate() {
     setMode('create');
     setTitles([]);
-    setIsOrigin(false);
+    // First recording on a work is overwhelmingly the origin; covers come
+    // later. Default true when the work has no existing recordings.
+    setIsOrigin((existingRecs() ?? []).length === 0);
     setArtists([]);
     // createEffect picks this up automatically
   }
