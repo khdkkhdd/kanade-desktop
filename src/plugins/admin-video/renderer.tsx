@@ -3,6 +3,7 @@ import { render } from 'solid-js/web';
 import type { RendererContext } from '../../types/plugins.js';
 import { injectAdminStyles } from '../../admin/components/styles.js';
 import { VideoDrawer, type DraftData } from './components/VideoDrawer.js';
+import type { AdminVideoData } from './types.js';
 
 // In-memory drafts keyed by videoId. Survives drawer open/close within the
 // session so users don't lose in-progress form data; cleared on commit.
@@ -49,12 +50,12 @@ export function setupRenderer(ctx: RendererContext): void {
     if (!authResp?.valid) return;
 
     const stateResp = (await ctx.ipc.invoke('get-video-state', { videoId })) as
-      | { ok: true; data: { registered: boolean; video?: unknown } }
+      | { ok: true; data: { registered: boolean; video?: AdminVideoData } }
       | { ok: false; error: { code: string; message: string } };
     if (myRequest !== requestId) return;
 
     const registered = stateResp.ok ? stateResp.data.registered : false;
-    const initialData = stateResp.ok ? (stateResp.data as any).video : null;
+    const initialData: AdminVideoData | null = stateResp.ok ? (stateResp.data.video ?? null) : null;
 
     await waitForElement('ytd-watch-metadata');
     if (myRequest !== requestId) return;
@@ -62,7 +63,7 @@ export function setupRenderer(ctx: RendererContext): void {
     mountButton(videoId, registered, initialData);
   }
 
-  function mountButton(videoId: string, registered: boolean, initialData: any): void {
+  function mountButton(videoId: string, registered: boolean, initialData: AdminVideoData | null): void {
     removeUI();
     const btn = document.createElement('button');
     btn.id = BUTTON_ID;
@@ -73,7 +74,7 @@ export function setupRenderer(ctx: RendererContext): void {
     document.body.appendChild(btn);
   }
 
-  function openDrawer(videoId: string, mode: 'create' | 'edit', initialData: any): void {
+  function openDrawer(videoId: string, mode: 'create' | 'edit', initialData: AdminVideoData | null): void {
     let container = document.getElementById(DRAWER_ID);
     if (container) container.remove();
     container = document.createElement('div');

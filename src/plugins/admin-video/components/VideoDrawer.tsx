@@ -8,6 +8,7 @@ import { VideoLinkSection } from './VideoLinkSection.js';
 import type { ArtistCreditInitial } from './ArtistCreditsSection.js';
 import { computeArtistDiff, type ArtistCreditSnapshot } from '../diff.js';
 import type { UpdateVideoPayload, ReassignVideoPayload } from '../update.js';
+import type { AdminVideoArtist, AdminVideoData } from '../types.js';
 
 type Credit = ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
 
@@ -22,7 +23,7 @@ export interface DraftData {
 export interface VideoDrawerProps {
   videoId: string;
   mode: 'create' | 'edit';
-  initialData: any;
+  initialData: AdminVideoData | null;
   ctx: RendererContext;
   onClose: () => void;
   onCommitted: () => void;
@@ -85,32 +86,32 @@ export function VideoDrawer(props: VideoDrawerProps) {
 
   // Edit-mode artist editing snapshots + current state.
   const workArtistsBefore: ArtistCreditSnapshot[] = editSeed
-    ? (editSeed.work.creators ?? []).map((c: any) => ({
+    ? (editSeed.work.creators ?? []).map((c: AdminVideoArtist) => ({
         artistId: c.artistId,
         role: c.role ?? null,
         isPublic: !!c.isPublic,
       }))
     : [];
   const workArtistsInitial: ArtistCreditInitial[] = editSeed
-    ? (editSeed.work.creators ?? []).map((c: any) => ({
+    ? (editSeed.work.creators ?? []).map((c: AdminVideoArtist) => ({
         artistId: c.artistId,
-        displayName: c.displayName ?? c.name,
+        displayName: c.displayName,
         originalName: c.originalName,
         role: c.role ?? null,
         isPublic: !!c.isPublic,
       }))
     : [];
   const recordingArtistsBefore: ArtistCreditSnapshot[] = editSeed
-    ? (editSeed.artists ?? []).map((c: any) => ({
+    ? (editSeed.artists ?? []).map((c: AdminVideoArtist) => ({
         artistId: c.artistId,
         role: c.role ?? null,
         isPublic: !!c.isPublic,
       }))
     : [];
   const recordingArtistsInitial: ArtistCreditInitial[] = editSeed
-    ? (editSeed.artists ?? []).map((c: any) => ({
+    ? (editSeed.artists ?? []).map((c: AdminVideoArtist) => ({
         artistId: c.artistId,
-        displayName: c.displayName ?? c.name,
+        displayName: c.displayName,
         originalName: c.originalName,
         role: c.role ?? null,
         isPublic: !!c.isPublic,
@@ -332,6 +333,9 @@ export function VideoDrawer(props: VideoDrawerProps) {
   }
 
   async function submitEdit() {
+    // submitEdit only runs in edit mode, so editSeed is guaranteed to exist —
+    // but TS can't narrow a closure-captured const, so we re-check here.
+    if (!editSeed) return { ok: false, error: { code: 'MISSING', message: 'editSeed missing' } };
     const externalVideoId = props.initialData?.video?.id;
 
     // Path A: user reassigned to a different work and/or recording. Unlink
