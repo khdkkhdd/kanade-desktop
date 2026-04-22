@@ -19,8 +19,17 @@ export function installVideoChannelBridge(): void {
   const script = document.createElement('script');
   script.textContent = `
     (function(){
+      function readVideoDetails(){
+        var ipr = window.ytInitialPlayerResponse;
+        if (ipr && ipr.videoDetails && ipr.videoDetails.channelId) return ipr.videoDetails;
+        // Some watch pages don't expose ytInitialPlayerResponse on window,
+        // but the player element's getPlayerResponse() returns the same shape.
+        var p = document.getElementById('movie_player');
+        var resp = p && typeof p.getPlayerResponse === 'function' ? p.getPlayerResponse() : null;
+        return resp && resp.videoDetails ? resp.videoDetails : null;
+      }
       function sync(){
-        var vd = window.ytInitialPlayerResponse && window.ytInitialPlayerResponse.videoDetails;
+        var vd = readVideoDetails();
         var root = document.documentElement;
         if (vd && vd.channelId && vd.videoId) {
           root.dataset.kanadeVideoChannelId = vd.channelId;
