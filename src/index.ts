@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, Menu, session, shell } from 'electron';
 import path from 'node:path';
 import { store, getPresenceConfig } from './config/store.js';
 import type { PresenceConfig } from './config/store.js';
+import { setupAutoUpdater } from './auto-updater.js';
 import { loadAllMainPlugins, unloadAllMainPlugins } from './loader/main.js';
 import { relationOverlayMain } from './plugins/relation-overlay/main.js';
 import { adminVideoMain } from './plugins/admin-video/main.js';
@@ -249,6 +250,7 @@ app.whenReady().then(() => {
   setupIPC(win);
   setupSettingsIPC();
   installAppMenu(() => win);
+  setupAutoUpdater(() => win);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
