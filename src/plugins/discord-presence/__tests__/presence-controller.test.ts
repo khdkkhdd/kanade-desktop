@@ -90,11 +90,11 @@ describe('PresenceController', () => {
         data: {
           video: { platform: 'youtube', externalId: 'vid1' },
           recordings: [{
-            id: 1,
+            publicId: 'rc_aaaaaaaaa',
             isOrigin: true,
             titles: [{ language: 'ko', title: 'DB Title', isMain: true }],
-            artists: [{ artistId: 1, name: 'DB Artist', role: 'vocal', isPublic: true }],
-            work: { id: 1, titles: [], creators: [] },
+            artists: [{ artistPublicId: 'ar_aaaaaaaaa', name: 'DB Artist', role: 'vocal', isPublic: true }],
+            work: { publicId: 'wk_aaaaaaaaa', titles: [], creators: [] },
             isMainVideo: true,
           }],
         },

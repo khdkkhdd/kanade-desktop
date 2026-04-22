@@ -40,10 +40,10 @@ export function setupBackend(ctx: BackendContext): void {
   ctx.ipc.handle('fetch-work-recordings', async (...args: unknown[]) => {
     const req = args[0] as FetchWorkRecordingsRequest;
     return fetchApi(
-      `/works/${req.workId}/recordings${queryString({
+      `/works/${req.workPublicId}/recordings${queryString({
         lang: req.lang,
         isOrigin: req.isOrigin,
-        exclude: req.exclude,
+        exclude: req.excludePublicId,
         seed: req.seed,
         offset: req.offset,
         limit: req.limit,
@@ -53,13 +53,13 @@ export function setupBackend(ctx: BackendContext): void {
 
   ctx.ipc.handle('fetch-recording-videos', async (...args: unknown[]) => {
     const req = args[0] as FetchRecordingVideosRequest;
-    return fetchApi(`/recordings/${req.recordingId}/videos`);
+    return fetchApi(`/recordings/${req.recordingPublicId}/videos`);
   });
 
   ctx.ipc.handle('fetch-artist-recordings', async (...args: unknown[]) => {
     const req = args[0] as FetchArtistRecordingsRequest;
     return fetchApi(
-      `/artists/${req.artistId}/recordings${queryString({
+      `/artists/${req.artistPublicId}/recordings${queryString({
         lang: req.lang,
         seed: req.seed,
         offset: req.offset,
@@ -70,6 +70,6 @@ export function setupBackend(ctx: BackendContext): void {
 
   ctx.ipc.handle('fetch-artist-relations', async (...args: unknown[]) => {
     const req = args[0] as FetchArtistRelationsRequest;
-    return fetchApi(`/artists/${req.artistId}/relations${queryString({ lang: req.lang })}`);
+    return fetchApi(`/artists/${req.artistPublicId}/relations${queryString({ lang: req.lang })}`);
   });
 }

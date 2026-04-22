@@ -6,10 +6,10 @@ import { pickTitle, renderArtists, externalUrlFor, isSupportedPlatform } from '.
 // in video-item.ts so "empty recording_artists on an origin" still shows the
 // song's composer/lyricist instead of an empty artist line.
 function mergeCredits(performers: ArtistCredit[], creators: ArtistCredit[]): ArtistCredit[] {
-  const byId = new Map<number, ArtistCredit>();
+  const byId = new Map<string, ArtistCredit>();
   for (const c of [...performers, ...creators]) {
-    const existing = byId.get(c.artistId);
-    if (!existing) byId.set(c.artistId, { ...c });
+    const existing = byId.get(c.artistPublicId);
+    if (!existing) byId.set(c.artistPublicId, { ...c });
     else existing.isPublic = existing.isPublic || c.isPublic;
   }
   return [...byId.values()];
@@ -27,7 +27,7 @@ export async function createSameRecordingVideosSection(
   ctx: RendererContext,
 ): Promise<HTMLElement | null> {
   const raw = (await ctx.ipc.invoke('fetch-recording-videos', {
-    recordingId: recording.id,
+    recordingPublicId: recording.publicId,
   })) as { data: RecordingVideo[] } | null;
 
   const videos = (raw?.data ?? []).filter(

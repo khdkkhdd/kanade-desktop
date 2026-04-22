@@ -56,11 +56,11 @@ export async function createPanel(
   const topChipElements = new Map<string, HTMLButtonElement>();
   let activeTopChipId: string | null = null;
 
-  const workId = recording.work.id;
+  const workPublicId = recording.work.publicId;
   const [originalContent, sameRecContent, coversContent, artistParts] = await Promise.all([
-    createOriginalSection(workId, recording.id, lang, ctx),
+    createOriginalSection(workPublicId, recording.publicId, lang, ctx),
     createSameRecordingVideosSection(recording, videoId, lang, ctx),
-    createCoversSection(workId, recording.id, lang, ctx),
+    createCoversSection(workPublicId, recording.publicId, lang, ctx),
     createArtistSection(recording, lang, ctx),
   ]);
 

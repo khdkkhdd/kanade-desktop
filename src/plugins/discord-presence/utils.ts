@@ -28,23 +28,23 @@ function truncate(str: string, length: number): string {
 }
 
 export interface ArtistCreditLite {
-  artistId: number;
+  artistPublicId: string;
   name: string;
   isPublic: boolean;
 }
 
 /**
- * Merges entries sharing the same artistId. Keeps the position of the first
- * occurrence; isPublic is OR'd across duplicates.
+ * Merges entries sharing the same artistPublicId. Keeps the position of the
+ * first occurrence; isPublic is OR'd across duplicates.
  */
-export function dedupeByArtistId<T extends ArtistCreditLite>(credits: T[]): T[] {
-  const byId = new Map<number, T>();
-  const order: number[] = [];
+export function dedupeByArtistPublicId<T extends ArtistCreditLite>(credits: T[]): T[] {
+  const byId = new Map<string, T>();
+  const order: string[] = [];
   for (const c of credits) {
-    const existing = byId.get(c.artistId);
+    const existing = byId.get(c.artistPublicId);
     if (!existing) {
-      byId.set(c.artistId, { ...c });
-      order.push(c.artistId);
+      byId.set(c.artistPublicId, { ...c });
+      order.push(c.artistPublicId);
     } else {
       existing.isPublic = existing.isPublic || c.isPublic;
     }

@@ -11,7 +11,7 @@ import { t } from '../../../i18n/index.js';
 const PAGE_LIMIT = 20;
 
 interface SubChipDef {
-  artistId: number;
+  artistPublicId: string;
   name: string;
 }
 
@@ -27,9 +27,9 @@ export interface ArtistSectionParts {
 
 /**
  * Artist chip bar — one sub-chip per artist (work creators ∪ recording artists,
- * deduped by artistId, performers first). Returns two elements so the panel
- * can inline the sub-chips next to the "artist" top-chip and keep the card
- * list in the content region.
+ * deduped by artistPublicId, performers first). Returns two elements so the
+ * panel can inline the sub-chips next to the "artist" top-chip and keep the
+ * card list in the content region.
  */
 export async function createArtistSection(
   recording: VideoRecording,
@@ -45,46 +45,46 @@ export async function createArtistSection(
   const content = document.createElement('div');
   content.className = 'kanade-artist-list-holder';
 
-  const chipStates = new Map<number, SubChipState>();
+  const chipStates = new Map<string, SubChipState>();
   // Cache per-artist card-list DOM so revisiting a sub-chip restores the
   // exact same cards in the same seeded-random order (instead of re-fetching
   // with a fresh server seed and reshuffling).
-  const bodyCache = new Map<number, HTMLElement>();
-  let activeArtistId: number | null = null;
+  const bodyCache = new Map<string, HTMLElement>();
+  let activeArtistPublicId: string | null = null;
 
   function addSubChip(def: SubChipDef): void {
-    if (chipStates.has(def.artistId)) return;
+    if (chipStates.has(def.artistPublicId)) return;
     const btn = createSubChip(def.name, () => void activateChip(def));
     subChips.appendChild(btn);
-    chipStates.set(def.artistId, { element: btn, relationsLoaded: false });
+    chipStates.set(def.artistPublicId, { element: btn, relationsLoaded: false });
   }
 
   async function activateChip(def: SubChipDef): Promise<void> {
-    if (activeArtistId === def.artistId) return;
-    if (activeArtistId !== null) {
-      const prev = chipStates.get(activeArtistId);
+    if (activeArtistPublicId === def.artistPublicId) return;
+    if (activeArtistPublicId !== null) {
+      const prev = chipStates.get(activeArtistPublicId);
       if (prev) setChipActive(prev.element, false);
     }
-    activeArtistId = def.artistId;
-    const state = chipStates.get(def.artistId);
+    activeArtistPublicId = def.artistPublicId;
+    const state = chipStates.get(def.artistPublicId);
     if (!state) return;
     setChipActive(state.element, true);
 
     content.innerHTML = '';
-    let body = bodyCache.get(def.artistId);
+    let body = bodyCache.get(def.artistPublicId);
     if (!body) {
-      body = await renderRecordingsList(def.artistId, lang, ctx);
-      bodyCache.set(def.artistId, body);
+      body = await renderRecordingsList(def.artistPublicId, lang, ctx);
+      bodyCache.set(def.artistPublicId, body);
     }
     content.appendChild(body);
 
     if (!state.relationsLoaded) {
       state.relationsLoaded = true;
-      void loadRelatedChips(def.artistId, ctx, lang, addSubChip);
+      void loadRelatedChips(def.artistPublicId, ctx, lang, addSubChip);
     }
   }
 
-  const initialChips: SubChipDef[] = credits.map((c) => ({ artistId: c.artistId, name: c.name }));
+  const initialChips: SubChipDef[] = credits.map((c) => ({ artistPublicId: c.artistPublicId, name: c.name }));
   for (const def of initialChips) addSubChip(def);
   if (initialChips.length > 0) await activateChip(initialChips[0]);
 
@@ -92,14 +92,14 @@ export async function createArtistSection(
 }
 
 // Combine recording artists + work creators (performers first, then creators),
-// dedup by artistId. Fall back to hidden credits when every credit is
+// dedup by artistPublicId. Fall back to hidden credits when every credit is
 // is_public=false.
 function collectVisibleCredits(recording: VideoRecording): ArtistCredit[] {
   const all: ArtistCredit[] = [...recording.artists, ...recording.work.creators];
-  const byId = new Map<number, ArtistCredit>();
+  const byId = new Map<string, ArtistCredit>();
   for (const c of all) {
-    const existing = byId.get(c.artistId);
-    if (!existing) byId.set(c.artistId, { ...c });
+    const existing = byId.get(c.artistPublicId);
+    if (!existing) byId.set(c.artistPublicId, { ...c });
     else existing.isPublic = existing.isPublic || c.isPublic;
   }
   const deduped = [...byId.values()];
@@ -134,12 +134,12 @@ function setChipActive(btn: HTMLButtonElement, active: boolean): void {
 }
 
 async function renderRecordingsList(
-  artistId: number,
+  artistPublicId: string,
   lang: string,
   ctx: RendererContext,
 ): Promise<HTMLElement> {
   const first = (await ctx.ipc.invoke('fetch-artist-recordings', {
-    artistId,
+    artistPublicId,
     lang,
     offset: 0,
     limit: PAGE_LIMIT,
@@ -157,7 +157,7 @@ async function renderRecordingsList(
     loading = true;
     try {
       const more = (await ctx.ipc.invoke('fetch-artist-recordings', {
-        artistId,
+        artistPublicId,
         lang,
         seed,
         offset: nextOffset,
@@ -185,18 +185,18 @@ function emptyMessage(text: string): HTMLElement {
 }
 
 async function loadRelatedChips(
-  artistId: number,
+  artistPublicId: string,
   ctx: RendererContext,
   lang: string,
   addSubChip: (def: SubChipDef) => void,
 ): Promise<void> {
   const raw = (await ctx.ipc.invoke('fetch-artist-relations', {
-    artistId,
+    artistPublicId,
     lang,
   })) as { data: ArtistRelation[] } | null;
 
   const relations = raw?.data ?? [];
   for (const rel of relations) {
-    addSubChip({ artistId: rel.artist.id, name: rel.artist.name });
+    addSubChip({ artistPublicId: rel.artist.publicId, name: rel.artist.name });
   }
 }

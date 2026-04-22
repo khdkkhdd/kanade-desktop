@@ -88,14 +88,14 @@ export function createVideoItem(
   return link;
 }
 
-// Dedup by artistId, performers first, then work creators. If the same
+// Dedup by artistPublicId, performers first, then work creators. If the same
 // artist appears in both rows, is_public becomes true when either side is public.
 function mergeCredits(performers: ArtistCredit[], creators: ArtistCredit[]): ArtistCredit[] {
-  const byId = new Map<number, ArtistCredit>();
+  const byId = new Map<string, ArtistCredit>();
   for (const c of [...performers, ...creators]) {
-    const existing = byId.get(c.artistId);
+    const existing = byId.get(c.artistPublicId);
     if (!existing) {
-      byId.set(c.artistId, { ...c });
+      byId.set(c.artistPublicId, { ...c });
     } else {
       existing.isPublic = existing.isPublic || c.isPublic;
     }

@@ -12,20 +12,20 @@ function playable(items: RecordingListItem[]): RecordingListItem[] {
 
 /**
  * Original recordings of the current work, excluding the current recording.
- * /works/:workId/recordings?isOrigin=true&exclude=<currentRecordingId>
+ * /works/:workPublicId/recordings?isOrigin=true&exclude=<currentRecordingPublicId>
  * Empty results → returns null so the chip stays hidden.
  */
 export async function createOriginalSection(
-  workId: number,
-  currentRecordingId: number,
+  workPublicId: string,
+  currentRecordingPublicId: string,
   lang: string,
   ctx: RendererContext,
 ): Promise<HTMLElement | null> {
   const first = (await ctx.ipc.invoke('fetch-work-recordings', {
-    workId,
+    workPublicId,
     lang,
     isOrigin: true,
-    exclude: currentRecordingId,
+    excludePublicId: currentRecordingPublicId,
     offset: 0,
     limit: PAGE_LIMIT,
   })) as RecordingListResponse | null;
@@ -43,10 +43,10 @@ export async function createOriginalSection(
     loading = true;
     try {
       const more = (await ctx.ipc.invoke('fetch-work-recordings', {
-        workId,
+        workPublicId,
         lang,
         isOrigin: true,
-        exclude: currentRecordingId,
+        excludePublicId: currentRecordingPublicId,
         seed,
         offset: nextOffset,
         limit: PAGE_LIMIT,

@@ -17,6 +17,18 @@ const snapshotBase = (overrides: Partial<PlayerStateUpdate> = {}): PlayerStateUp
 
 const apiBase = 'http://localhost:3000/api/v1';
 
+// 12-char nanoid-shaped placeholders (matches the server-side validator).
+const PID = {
+  work100: 'wk_aaaaaaaaa',
+  work200: 'wk_bbbbbbbbb',
+  rec10:   'rc_aaaaaaaaa',
+  rec11:   'rc_bbbbbbbbb',
+  rec1:    'rc_ccccccccc',
+  rec2:    'rc_ddddddddd',
+  artist1: 'ar_aaaaaaaaa',
+  artist2: 'ar_bbbbbbbbb',
+};
+
 function mockFetchResponses(responses: Record<string, unknown>) {
   global.fetch = vi.fn(async (url) => {
     const path = url.toString().replace(apiBase, '');
@@ -40,14 +52,14 @@ describe('resolveSongInfo', () => {
         data: {
           video: { platform: 'youtube', externalId: 'abc123' },
           recordings: [{
-            id: 10,
+            publicId: PID.rec10,
             isOrigin: true,
             titles: [{ language: 'ko', title: '한국어제목', isMain: false }, { language: 'ja', title: 'JA', isMain: true }],
-            artists: [{ artistId: 1, name: '傘村トータ', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist1, name: '傘村トータ', role: 'vocal', isPublic: true }],
             work: {
-              id: 100,
+              publicId: PID.work100,
               titles: [{ language: 'ja', title: 'Work', isMain: true }],
-              creators: [{ artistId: 1, name: '傘村トータ', role: 'composer', isPublic: true }],
+              creators: [{ artistPublicId: PID.artist1, name: '傘村トータ', role: 'composer', isPublic: true }],
             },
             isMainVideo: true,
           }],
@@ -71,25 +83,26 @@ describe('resolveSongInfo', () => {
         data: {
           video: { platform: 'youtube', externalId: 'abc123' },
           recordings: [{
-            id: 11,
+            publicId: PID.rec11,
             isOrigin: false,
             titles: [{ language: 'ja', title: 'Cover', isMain: true }],
-            artists: [{ artistId: 2, name: 'あるふぁきゅん。', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist2, name: 'あるふぁきゅん。', role: 'vocal', isPublic: true }],
             work: {
-              id: 100,
+              publicId: PID.work100,
               titles: [{ language: 'ja', title: 'Work', isMain: true }],
-              creators: [{ artistId: 1, name: '傘村トータ', role: 'composer', isPublic: true }],
+              creators: [{ artistPublicId: PID.artist1, name: '傘村トータ', role: 'composer', isPublic: true }],
             },
             isMainVideo: false,
           }],
         },
       },
-      '/public/works/100/recordings?isOrigin=true&limit=1&lang=ko': {
+      [`/public/works/${PID.work100}/recordings?isOrigin=true&limit=1&lang=ko`]: {
         data: [{
-          id: 10,
+          publicId: PID.rec10,
           isOrigin: true,
           title: 'Origin',
           workTitle: 'Work',
+          workPublicId: PID.work100,
           artists: [],
           workCreators: [],
           mainVideo: { platform: 'youtube', externalId: 'origin_vid' },
@@ -124,8 +137,8 @@ describe('resolveSongInfo', () => {
         data: {
           video: { platform: 'youtube', externalId: 'abc123' },
           recordings: [
-            { id: 1, isOrigin: true, titles: [{ language: 'ja', title: 'A', isMain: true }], artists: [], work: { id: 1, titles: [], creators: [] }, isMainVideo: false },
-            { id: 2, isOrigin: true, titles: [{ language: 'ja', title: 'B', isMain: true }], artists: [], work: { id: 2, titles: [], creators: [] }, isMainVideo: false },
+            { publicId: PID.rec1, isOrigin: true, titles: [{ language: 'ja', title: 'A', isMain: true }], artists: [], work: { publicId: PID.work100, titles: [], creators: [] }, isMainVideo: false },
+            { publicId: PID.rec2, isOrigin: true, titles: [{ language: 'ja', title: 'B', isMain: true }], artists: [], work: { publicId: PID.work200, titles: [], creators: [] }, isMainVideo: false },
           ],
         },
       },
@@ -141,11 +154,11 @@ describe('resolveSongInfo', () => {
         data: {
           video: { platform: 'youtube', externalId: 'abc123' },
           recordings: [{
-            id: 10,
+            publicId: PID.rec10,
             isOrigin: true,
             titles: [{ language: 'ja', title: 'T', isMain: true }],
-            artists: [{ artistId: 1, name: 'Hidden', role: null, isPublic: false }],
-            work: { id: 1, titles: [], creators: [] },
+            artists: [{ artistPublicId: PID.artist1, name: 'Hidden', role: null, isPublic: false }],
+            work: { publicId: PID.work100, titles: [], creators: [] },
             isMainVideo: false,
           }],
         },
@@ -178,20 +191,20 @@ describe('resolveSongInfo', () => {
     expect(result.artists).toBe('YouTube');
   });
 
-  it('dedupes recording+work artist when same artistId', async () => {
+  it('dedupes recording+work artist when same artistPublicId', async () => {
     mockFetchResponses({
       '/public/videos/youtube/abc123?lang=ko': {
         data: {
           video: { platform: 'youtube', externalId: 'abc123' },
           recordings: [{
-            id: 10,
+            publicId: PID.rec10,
             isOrigin: true,
             titles: [{ language: 'ja', title: 'T', isMain: true }],
-            artists: [{ artistId: 1, name: 'SameArtist', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist1, name: 'SameArtist', role: 'vocal', isPublic: true }],
             work: {
-              id: 100,
+              publicId: PID.work100,
               titles: [],
-              creators: [{ artistId: 1, name: 'SameArtist', role: 'composer', isPublic: true }],
+              creators: [{ artistPublicId: PID.artist1, name: 'SameArtist', role: 'composer', isPublic: true }],
             },
             isMainVideo: true,
           }],
@@ -209,14 +222,14 @@ describe('resolveSongInfo', () => {
         data: {
           video: { platform: 'youtube', externalId: 'abc123' },
           recordings: [{
-            id: 10,
+            publicId: PID.rec10,
             isOrigin: true,
             titles: [{ language: 'ja', title: 'T', isMain: true }],
             artists: [
-              { artistId: 1, name: 'A', role: 'vocal', isPublic: true },
-              { artistId: 2, name: 'B', role: 'vocal', isPublic: true },
+              { artistPublicId: PID.artist1, name: 'A', role: 'vocal', isPublic: true },
+              { artistPublicId: PID.artist2, name: 'B', role: 'vocal', isPublic: true },
             ],
-            work: { id: 100, titles: [], creators: [] },
+            work: { publicId: PID.work100, titles: [], creators: [] },
             isMainVideo: true,
           }],
         },
@@ -233,18 +246,18 @@ describe('resolveSongInfo', () => {
         data: {
           video: { platform: 'youtube', externalId: 'abc123' },
           recordings: [{
-            id: 10,
+            publicId: PID.rec10,
             isOrigin: true,
             titles: [],
-            artists: [{ artistId: 1, name: '初音ミク', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist1, name: '初音ミク', role: 'vocal', isPublic: true }],
             work: {
-              id: 100,
+              publicId: PID.work100,
               titles: [
                 { language: 'en', title: 'Monitoring', isMain: false },
                 { language: 'ja', title: 'モニタリング', isMain: true },
                 { language: 'ko', title: '모니터링', isMain: false },
               ],
-              creators: [{ artistId: 2, name: 'DECO*27', role: 'composer', isPublic: true }],
+              creators: [{ artistPublicId: PID.artist2, name: 'DECO*27', role: 'composer', isPublic: true }],
             },
             isMainVideo: true,
           }],
@@ -263,12 +276,12 @@ describe('resolveSongInfo', () => {
         data: {
           video: { platform: 'youtube', externalId: 'abc123' },
           recordings: [{
-            id: 10,
+            publicId: PID.rec10,
             isOrigin: true,
             titles: [],
-            artists: [{ artistId: 1, name: 'A', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist1, name: 'A', role: 'vocal', isPublic: true }],
             work: {
-              id: 100,
+              publicId: PID.work100,
               titles: [
                 { language: 'en', title: 'Monitoring', isMain: false },
                 { language: 'ja', title: 'モニタリング', isMain: true },
@@ -292,12 +305,12 @@ describe('resolveSongInfo', () => {
         data: {
           video: { platform: 'youtube', externalId: 'abc123' },
           recordings: [{
-            id: 10,
+            publicId: PID.rec10,
             isOrigin: false,
             titles: [{ language: 'ko', title: 'Cover한국어', isMain: true }],
-            artists: [{ artistId: 1, name: 'A', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist1, name: 'A', role: 'vocal', isPublic: true }],
             work: {
-              id: 100,
+              publicId: PID.work100,
               titles: [{ language: 'ko', title: 'Work한국어', isMain: true }],
               creators: [],
             },
@@ -305,7 +318,7 @@ describe('resolveSongInfo', () => {
           }],
         },
       },
-      '/public/works/100/recordings?isOrigin=true&limit=1&lang=ko': {
+      [`/public/works/${PID.work100}/recordings?isOrigin=true&limit=1&lang=ko`]: {
         data: [],
         seed: 0,
         nextOffset: null,
@@ -322,12 +335,12 @@ describe('resolveSongInfo', () => {
         data: {
           video: { platform: 'youtube', externalId: 'abc123' },
           recordings: [{
-            id: 10,
+            publicId: PID.rec10,
             isOrigin: true,
             titles: [],
-            artists: [{ artistId: 1, name: 'A', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist1, name: 'A', role: 'vocal', isPublic: true }],
             work: {
-              id: 100,
+              publicId: PID.work100,
               titles: [
                 { language: 'ja', title: 'モニタリング', isMain: true },
                 { language: 'ko', title: '모니터링', isMain: false },
@@ -350,12 +363,12 @@ describe('resolveSongInfo', () => {
         data: {
           video: { platform: 'youtube', externalId: 'abc123' },
           recordings: [{
-            id: 10,
+            publicId: PID.rec10,
             isOrigin: true,
             titles: [{ language: 'en', title: 'CoverEN', isMain: true }],
-            artists: [{ artistId: 1, name: 'A', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist1, name: 'A', role: 'vocal', isPublic: true }],
             work: {
-              id: 100,
+              publicId: PID.work100,
               titles: [{ language: 'ja', title: 'Work JA', isMain: true }],
               creators: [],
             },
@@ -375,11 +388,11 @@ describe('resolveSongInfo', () => {
         data: {
           video: { platform: 'youtube', externalId: 'abc123' },
           recordings: [{
-            id: 11,
+            publicId: PID.rec11,
             isOrigin: false,
             titles: [{ language: 'ja', title: 'Cover', isMain: true }],
-            artists: [{ artistId: 2, name: 'X', role: 'vocal', isPublic: true }],
-            work: { id: 100, titles: [], creators: [] },
+            artists: [{ artistPublicId: PID.artist2, name: 'X', role: 'vocal', isPublic: true }],
+            work: { publicId: PID.work100, titles: [], creators: [] },
             isMainVideo: false,
           }],
         },

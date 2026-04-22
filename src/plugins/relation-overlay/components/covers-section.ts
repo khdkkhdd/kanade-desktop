@@ -15,19 +15,19 @@ function playable(items: RecordingListItem[]): RecordingListItem[] {
 
 /**
  * Cover recordings of the current work.
- * /works/:workId/recordings?isOrigin=false&exclude=<currentRecordingId>
+ * /works/:workPublicId/recordings?isOrigin=false&exclude=<currentRecordingPublicId>
  */
 export async function createCoversSection(
-  workId: number,
-  currentRecordingId: number,
+  workPublicId: string,
+  currentRecordingPublicId: string,
   lang: string,
   ctx: RendererContext,
 ): Promise<HTMLElement | null> {
   const first = (await ctx.ipc.invoke('fetch-work-recordings', {
-    workId,
+    workPublicId,
     lang,
     isOrigin: false,
-    exclude: currentRecordingId,
+    excludePublicId: currentRecordingPublicId,
     offset: 0,
     limit: PAGE_LIMIT,
   })) as RecordingListResponse | null;
@@ -45,10 +45,10 @@ export async function createCoversSection(
     loading = true;
     try {
       const more = (await ctx.ipc.invoke('fetch-work-recordings', {
-        workId,
+        workPublicId,
         lang,
         isOrigin: false,
-        exclude: currentRecordingId,
+        excludePublicId: currentRecordingPublicId,
         seed,
         offset: nextOffset,
         limit: PAGE_LIMIT,

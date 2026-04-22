@@ -1,20 +1,20 @@
 import { pickTitle, pickMainTitle } from '../../shared/title-utils.js';
-import { dedupeByArtistId } from './utils.js';
+import { dedupeByArtistPublicId } from './utils.js';
 import type { PlayerStateUpdate, ResolvedSongInfo, TitleLanguage } from './types.js';
 
 interface ApiArtist {
-  artistId: number;
+  artistPublicId: string;
   name: string;
   role: string | null;
   isPublic: boolean;
 }
 interface ApiWork {
-  id: number;
+  publicId: string;
   titles: { language: string; title: string; isMain: boolean }[];
   creators: ApiArtist[];
 }
 interface ApiRecording {
-  id: number;
+  publicId: string;
   isOrigin: boolean;
   titles: { language: string; title: string; isMain: boolean }[];
   artists: ApiArtist[];
@@ -29,7 +29,7 @@ interface VideoResponseBody {
 }
 interface RecordingListBody {
   data: {
-    id: number;
+    publicId: string;
     mainVideo: { platform: string; externalId: string } | null;
   }[];
   seed: number;
@@ -61,7 +61,7 @@ export async function resolveSongInfo(
     if (recordings.length !== 1) return fallback;
 
     const rec = recordings[0];
-    const credits = dedupeByArtistId([...rec.artists, ...rec.work.creators]);
+    const credits = dedupeByArtistPublicId([...rec.artists, ...rec.work.creators]);
     const visible = credits.filter((c) => c.isPublic);
     if (visible.length === 0) return fallback;
 
@@ -73,7 +73,7 @@ export async function resolveSongInfo(
     const artists = visible.map((c) => c.name).join(', ');
     const originUrl = rec.isOrigin
       ? null
-      : await fetchOriginMainVideoUrl(apiBase, rec.work.id, uiLang);
+      : await fetchOriginMainVideoUrl(apiBase, rec.work.publicId, uiLang);
 
     return {
       kind: 'db',
@@ -90,12 +90,12 @@ export async function resolveSongInfo(
 
 async function fetchOriginMainVideoUrl(
   apiBase: string,
-  workId: number,
+  workPublicId: string,
   lang: string,
 ): Promise<string | null> {
   try {
     const res = await fetch(
-      `${apiBase}/public/works/${workId}/recordings?isOrigin=true&limit=1&lang=${lang}`,
+      `${apiBase}/public/works/${workPublicId}/recordings?isOrigin=true&limit=1&lang=${lang}`,
     );
     if (!res.ok) return null;
     const body = (await res.json()) as RecordingListBody;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeActivityText, padHangul, dedupeByArtistId, isSeek } from '../utils.js';
+import { sanitizeActivityText, padHangul, dedupeByArtistPublicId, isSeek } from '../utils.js';
 
 describe('sanitizeActivityText', () => {
   it('returns text as-is when within 128 chars', () => {
@@ -43,31 +43,31 @@ describe('padHangul', () => {
   });
 });
 
-describe('dedupeByArtistId', () => {
-  it('merges duplicate artistIds keeping first position', () => {
+describe('dedupeByArtistPublicId', () => {
+  it('merges duplicate artistPublicIds keeping first position', () => {
     const input = [
-      { artistId: 1, name: 'A', isPublic: true },
-      { artistId: 2, name: 'B', isPublic: false },
-      { artistId: 1, name: 'A', isPublic: false },
+      { artistPublicId: 'a_aaaaaaaaaa', name: 'A', isPublic: true },
+      { artistPublicId: 'b_bbbbbbbbbb', name: 'B', isPublic: false },
+      { artistPublicId: 'a_aaaaaaaaaa', name: 'A', isPublic: false },
     ];
-    const result = dedupeByArtistId(input);
+    const result = dedupeByArtistPublicId(input);
     expect(result).toEqual([
-      { artistId: 1, name: 'A', isPublic: true },
-      { artistId: 2, name: 'B', isPublic: false },
+      { artistPublicId: 'a_aaaaaaaaaa', name: 'A', isPublic: true },
+      { artistPublicId: 'b_bbbbbbbbbb', name: 'B', isPublic: false },
     ]);
   });
 
   it('ORs isPublic across duplicate occurrences', () => {
     const input = [
-      { artistId: 1, name: 'A', isPublic: false },
-      { artistId: 1, name: 'A', isPublic: true },
+      { artistPublicId: 'a_aaaaaaaaaa', name: 'A', isPublic: false },
+      { artistPublicId: 'a_aaaaaaaaaa', name: 'A', isPublic: true },
     ];
-    const result = dedupeByArtistId(input);
+    const result = dedupeByArtistPublicId(input);
     expect(result[0].isPublic).toBe(true);
   });
 
   it('handles empty input', () => {
-    expect(dedupeByArtistId([])).toEqual([]);
+    expect(dedupeByArtistPublicId([])).toEqual([]);
   });
 });
 

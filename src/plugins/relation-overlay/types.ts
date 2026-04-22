@@ -1,5 +1,10 @@
 // Wire shape types mirroring kanade-server's /api/v1/public responses.
 // Source of truth: docs/superpowers/specs/2026-04-18-phase4-3layer-schema-design.md §4.
+//
+// Public identifiers are opaque nanoid strings — the server never exposes its
+// internal BigInt PKs. Field naming:
+//   - `publicId` for the entity itself
+//   - `artistPublicId` / `workPublicId` for references in nested contexts
 
 // ─── Primitives ──────────────────────────────────────────
 
@@ -15,7 +20,7 @@ export interface TitleEntry {
 }
 
 export interface ArtistCredit {
-  artistId: number;
+  artistPublicId: string;
   name: string;
   role: string | null;
   isPublic: boolean;
@@ -24,13 +29,13 @@ export interface ArtistCredit {
 // ─── /videos/:platform/:externalId ───────────────────────
 
 export interface WorkSummary {
-  id: number;
+  publicId: string;
   titles: TitleEntry[];
   creators: ArtistCredit[];
 }
 
 export interface VideoRecording {
-  id: number;
+  publicId: string;
   isOrigin: boolean;
   titles: TitleEntry[];
   artists: ArtistCredit[];
@@ -43,13 +48,14 @@ export interface VideoResponse {
   recordings: VideoRecording[];
 }
 
-// ─── Recording list item (shared: /works/:id/recordings, /artists/:id/recordings) ───
+// ─── Recording list item (shared: /works/:publicId/recordings, /artists/:publicId/recordings) ───
 
 export interface RecordingListItem {
-  id: number;
+  publicId: string;
   isOrigin: boolean;
   title: string;
   workTitle: string;
+  workPublicId: string;
   artists: ArtistCredit[];
   workCreators: ArtistCredit[];
   mainVideo: VideoRef | null;
@@ -61,7 +67,7 @@ export interface RecordingListResponse {
   nextOffset: number | null;
 }
 
-// ─── /recordings/:id/videos ──────────────────────────────
+// ─── /recordings/:publicId/videos ────────────────────────
 
 export interface RecordingVideo {
   platform: string;
@@ -69,12 +75,12 @@ export interface RecordingVideo {
   isMain: boolean;
 }
 
-// ─── /artists/:id/relations ──────────────────────────────
+// ─── /artists/:publicId/relations ────────────────────────
 
 export interface ArtistRelation {
   type: string;
   direction: 'outgoing' | 'incoming';
-  artist: { id: number; name: string; type: string };
+  artist: { publicId: string; name: string; type: string };
 }
 
 // ─── IPC Request shapes ──────────────────────────────────
@@ -85,21 +91,21 @@ export interface FetchVideoRequest {
 }
 
 export interface FetchWorkRecordingsRequest {
-  workId: number;
+  workPublicId: string;
   lang: string;
   isOrigin?: boolean;
-  exclude?: number;
+  excludePublicId?: string;
   seed?: number;
   offset: number;
   limit: number;
 }
 
 export interface FetchRecordingVideosRequest {
-  recordingId: number;
+  recordingPublicId: string;
 }
 
 export interface FetchArtistRecordingsRequest {
-  artistId: number;
+  artistPublicId: string;
   lang: string;
   seed?: number;
   offset: number;
@@ -107,6 +113,6 @@ export interface FetchArtistRecordingsRequest {
 }
 
 export interface FetchArtistRelationsRequest {
-  artistId: number;
+  artistPublicId: string;
   lang: string;
 }
