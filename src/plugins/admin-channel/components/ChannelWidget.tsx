@@ -26,11 +26,14 @@ export function ChannelWidget(props: ChannelWidgetProps) {
   async function search(q: string): Promise<ArtistSearchHit[]> {
     const r = (await props.ctx.ipc.invoke('search-artists', { q })) as any;
     if (!r?.ok) return [];
-    return r.data.map((a: any) => ({
-      id: a.id,
-      displayName: a.displayName,
-      originalName: a.originalName,
-    }));
+    const linkedIds = new Set((state()?.artists ?? []).map((a: any) => a.artistId));
+    return r.data
+      .filter((a: { id: number }) => !linkedIds.has(a.id))
+      .map((a: any) => ({
+        id: a.id,
+        displayName: a.displayName,
+        originalName: a.originalName,
+      }));
   }
 
   async function link(artistId: number) {

@@ -26,13 +26,15 @@ export function isChannelPage(): boolean {
   return /^\/(channel\/|@|c\/|user\/)/.test(window.location.pathname);
 }
 
-/** True when the URL's @handle differs from the one YouTube loaded the
- *  page with — i.e. the DOM sources we read from belong to a previous
- *  channel and we can't trust them. */
+/** True when the URL's @handle can't be trusted against the DOM sources.
+ *  Two cases: the handle changed since initial load, OR we loaded on a
+ *  non-channel page (watch, search, …) and SPA-navved into a channel,
+ *  so canonical/og:url still reflect that prior page. */
 export function isStaleAfterSpaNav(): boolean {
   const handle = currentHandle();
   if (!handle) return false;
-  return pageLoadHandle !== null && handle !== pageLoadHandle;
+  if (pageLoadHandle === null) return true;
+  return handle !== pageLoadHandle;
 }
 
 export function resolveChannelId(): string | null {
