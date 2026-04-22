@@ -14,7 +14,7 @@ export function RoleAutocomplete(props: RoleAutocompleteProps) {
   const suggestions = () => (props.context === 'work' ? WORK_ROLES : RECORDING_ROLES);
   const filtered = () => {
     const v = (props.value ?? '').toLowerCase();
-    return suggestions().filter((r) => r.startsWith(v));
+    return suggestions().filter((r) => r.includes(v));
   };
 
   return (

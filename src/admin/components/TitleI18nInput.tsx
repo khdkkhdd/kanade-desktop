@@ -56,6 +56,10 @@ export function TitleI18nInput(props: TitleI18nInputProps) {
   function remove(idx: number) {
     const next = props.titles.filter((_, i) => i !== idx);
     if (next.length > 0 && !next.some((t) => t.isMain)) next[0].isMain = true;
+    // Collapse back to the "+ add title" button when the last row is removed
+    // in optional mode; otherwise the seed effect (opened && empty) would
+    // immediately resurrect a blank row.
+    if (next.length === 0 && props.optional) setOpened(false);
     props.onChange(next);
   }
 

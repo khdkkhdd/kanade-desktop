@@ -3,6 +3,7 @@ import type { RendererContext } from '../../../types/plugins.js';
 import type { WorkSelection, TitleInput, ArtistCreditInput, NewArtistInput } from '../../../admin/types.js';
 import { EntityPicker, type EntitySearchResult } from '../../../admin/components/EntityPicker.js';
 import { TitleI18nInput } from '../../../admin/components/TitleI18nInput.js';
+import { normalizeTitles } from '../../../admin/title-utils.js';
 import { ArtistCreditsSection, type ArtistCreditInitial } from './ArtistCreditsSection.js';
 
 type Credit = ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
@@ -82,9 +83,11 @@ export function WorkSection(props: WorkSectionProps) {
   }
 
   // Keep emitted payload in sync with titles + newArtists while in create mode.
+  // Titles are normalized (trim + drop empties) so empty rows from the seed
+  // effect or trailing whitespace never leak into the server payload.
   createEffect(() => {
     if (!creating()) return;
-    props.onChange({ kind: 'new', titles: titles(), artists: newArtists() });
+    props.onChange({ kind: 'new', titles: normalizeTitles(titles()), artists: newArtists() });
   });
 
   // True iff user has the ORIGINAL existing work selected (edit mode, not reassigned).

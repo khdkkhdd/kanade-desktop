@@ -19,17 +19,20 @@ export function setupBackend(ctx: BackendContext): void {
 
   ctx.ipc.handle('search-works', async (...args) => {
     const { q } = args[0] as { q: string };
-    return client().request('GET', `/admin/search/works${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+    const qt = q?.trim() ?? '';
+    return client().request('GET', `/admin/search/works${qt ? `?q=${encodeURIComponent(qt)}` : ''}`);
   });
 
   ctx.ipc.handle('search-recordings', async (...args) => {
     const { q } = args[0] as { q: string };
-    return client().request('GET', `/admin/search/recordings${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+    const qt = q?.trim() ?? '';
+    return client().request('GET', `/admin/search/recordings${qt ? `?q=${encodeURIComponent(qt)}` : ''}`);
   });
 
   ctx.ipc.handle('search-artists', async (...args) => {
     const { q } = args[0] as { q: string };
-    return client().request('GET', `/admin/search/artists${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+    const qt = q?.trim() ?? '';
+    return client().request('GET', `/admin/search/artists${qt ? `?q=${encodeURIComponent(qt)}` : ''}`);
   });
 
   ctx.ipc.handle('get-work', async (...args) => {

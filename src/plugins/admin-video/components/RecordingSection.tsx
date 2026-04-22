@@ -2,6 +2,7 @@ import { createSignal, createEffect, createResource, For, Show } from 'solid-js'
 import type { RendererContext } from '../../../types/plugins.js';
 import type { RecordingSelection, TitleInput, WorkSelection, ArtistCreditInput, NewArtistInput } from '../../../admin/types.js';
 import { TitleI18nInput } from '../../../admin/components/TitleI18nInput.js';
+import { normalizeTitles } from '../../../admin/title-utils.js';
 import { ArtistCreditsSection, type ArtistCreditInitial } from './ArtistCreditsSection.js';
 
 type ArtistCreditEntry = ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
@@ -73,13 +74,16 @@ export function RecordingSection(props: RecordingSectionProps) {
     setMode('selected');
   }
 
-  // Auto-emit when in create mode and state changes
+  // Auto-emit when in create mode and state changes. Titles are normalized
+  // (trim + drop empties) so seed-only / whitespace-only rows never reach
+  // the server, which is what lets recordings legitimately carry zero titles
+  // (falling back to the work's titles in display).
   createEffect(() => {
     if (mode() !== 'create') return;
     props.onChange({
       kind: 'new',
       isOrigin: isOrigin(),
-      titles: titles(),
+      titles: normalizeTitles(titles()),
       artists: artists(),
     });
   });

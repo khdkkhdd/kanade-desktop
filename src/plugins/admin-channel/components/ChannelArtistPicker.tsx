@@ -1,6 +1,6 @@
-import { createSignal, createEffect, For, Show } from 'solid-js';
+import { createSignal, createEffect, For, Index, Show } from 'solid-js';
 import type { NewArtistInput } from '../../../admin/types.js';
-import { detectLanguage } from '../../../admin/lang-detect.js';
+import { ARTIST_LANG_OPTIONS, createArtistForm } from '../../../admin/components/artist-form.js';
 
 export interface ArtistSearchHit {
   id: number;
@@ -15,12 +15,6 @@ export interface ChannelArtistPickerProps {
   onCreateAndLink: (input: NewArtistInput) => void | Promise<void>;
   onCancel: () => void;
 }
-
-const LANG_OPTIONS = [
-  { code: 'ja', label: '日本語' },
-  { code: 'ko', label: '한국어' },
-  { code: 'en', label: 'English' },
-];
 
 export function ChannelArtistPicker(props: ChannelArtistPickerProps) {
   const [mode, setMode] = createSignal<'search' | 'create'>('search');
@@ -44,33 +38,24 @@ export function ChannelArtistPicker(props: ChannelArtistPickerProps) {
     }, 200);
   });
 
-  // Create-mode state
-  const [name, setName] = createSignal('');
-  const [lang, setLang] = createSignal('ja');
-  const [type, setType] = createSignal<'solo' | 'group'>('solo');
+  // Create state (shared with ArtistQuickAdd via the form primitive).
+  const form = createArtistForm();
   const [submitting, setSubmitting] = createSignal(false);
 
-  function onNameInput(v: string) {
-    setName(v);
-    if (v) setLang(detectLanguage(v));
-  }
-
   async function submitCreate() {
-    if (!name().trim() || submitting()) return;
+    if (!form.isValid() || submitting()) return;
     setSubmitting(true);
     try {
-      await props.onCreateAndLink({
-        type: type(),
-        names: [{ name: name().trim(), language: lang(), isMain: true }],
-      });
+      await props.onCreateAndLink(form.buildPayload());
     } finally {
       setSubmitting(false);
     }
   }
 
   function enterCreateMode() {
-    setName(query());
-    if (query()) setLang(detectLanguage(query()));
+    // Seed primary name from the current search query so users don't
+    // retype what they just searched for.
+    form.reset(query().trim());
     setMode('create');
   }
 
@@ -136,17 +121,17 @@ export function ChannelArtistPicker(props: ChannelArtistPickerProps) {
         <div class="kanade-channel-picker__create-row">
           <input
             class="kanade-channel-picker__input kanade-channel-picker__input--grow"
-            placeholder="이름"
+            placeholder="이름 (주 언어)"
             autofocus
-            value={name()}
-            onInput={(e) => onNameInput(e.currentTarget.value)}
+            value={form.primaryName()}
+            onInput={(e) => form.onPrimaryInput(e.currentTarget.value)}
           />
           <select
             class="kanade-channel-picker__select"
-            value={lang()}
-            onChange={(e) => setLang(e.currentTarget.value)}
+            value={form.primaryLang()}
+            onChange={(e) => form.setPrimaryLang(e.currentTarget.value)}
           >
-            <For each={LANG_OPTIONS}>
+            <For each={ARTIST_LANG_OPTIONS}>
               {(l) => <option value={l.code}>{l.label}</option>}
             </For>
           </select>
@@ -154,12 +139,58 @@ export function ChannelArtistPicker(props: ChannelArtistPickerProps) {
 
         <div class="kanade-channel-picker__type">
           <label>
-            <input type="radio" checked={type() === 'solo'} onChange={() => setType('solo')} /> Solo
+            <input type="radio" checked={form.type() === 'solo'} onChange={() => form.setType('solo')} /> Solo
           </label>
           <label>
-            <input type="radio" checked={type() === 'group'} onChange={() => setType('group')} /> Group
+            <input type="radio" checked={form.type() === 'group'} onChange={() => form.setType('group')} /> Group
           </label>
         </div>
+
+        <Show when={form.expanded()}>
+          <Index each={form.secondaries()}>
+            {(s, i) => (
+              <div class="kanade-channel-picker__create-row">
+                <input
+                  class="kanade-channel-picker__input kanade-channel-picker__input--grow"
+                  placeholder={`다른 언어 이름 (${s().language})`}
+                  value={s().name}
+                  onInput={(e) => form.updateSecondary(i, e.currentTarget.value)}
+                />
+                <button
+                  type="button"
+                  class="kanade-channel-picker__back"
+                  onClick={() => form.removeSecondary(i)}
+                  aria-label="이 언어 이름 제거"
+                >×</button>
+              </div>
+            )}
+          </Index>
+          <Show when={form.availableLangs().length > 0}>
+            <div class="kanade-channel-picker__lang-add-row">
+              <For each={form.availableLangs()}>
+                {(l) => (
+                  <button
+                    type="button"
+                    class="kanade-channel-chip--ghost"
+                    onClick={() => form.addSecondary(l.code)}
+                  >
+                    + {l.label}
+                  </button>
+                )}
+              </For>
+            </div>
+          </Show>
+        </Show>
+        <Show when={!form.expanded()}>
+          <button
+            type="button"
+            class="kanade-channel-picker__back"
+            style="align-self: flex-start;"
+            onClick={() => form.setExpanded(true)}
+          >
+            ▸ 다른 언어 이름 추가
+          </button>
+        </Show>
 
         <div class="kanade-channel-picker__actions">
           <button
@@ -172,7 +203,7 @@ export function ChannelArtistPicker(props: ChannelArtistPickerProps) {
           <button
             type="button"
             class="kanade-channel-chip--add"
-            disabled={!name().trim() || submitting()}
+            disabled={!form.isValid() || submitting()}
             onClick={submitCreate}
           >
             생성 & 연결

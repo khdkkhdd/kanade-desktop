@@ -1,4 +1,4 @@
-import { createSignal, createResource, createEffect, Show } from 'solid-js';
+import { batch, createSignal, createResource, createEffect, Show } from 'solid-js';
 import type { RendererContext } from '../../../types/plugins.js';
 import type { WorkSelection, RecordingSelection, RegisterVideoPayload, ArtistCreditInput, NewArtistInput } from '../../../admin/types.js';
 import { Drawer } from '../../../admin/components/Drawer.js';
@@ -79,6 +79,9 @@ export function VideoDrawer(props: VideoDrawerProps) {
   );
   const [submitting, setSubmitting] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+  // Toggled off→on by resetForm() so child sections remount and re-read
+  // their initial state from the (now-reset) parent props.
+  const [mounted, setMounted] = createSignal(true);
 
   // Edit-mode artist editing snapshots + current state.
   const workArtistsBefore: ArtistCreditSnapshot[] = editSeed
@@ -381,6 +384,35 @@ export function VideoDrawer(props: VideoDrawerProps) {
     }
   }
 
+  function resetForm() {
+    const seedWork: WorkSelection | null = editSeed
+      ? { kind: 'existing', id: editSeed.work.id }
+      : null;
+    const seedRecording: RecordingSelection | null = editSeed
+      ? { kind: 'existing', id: editSeed.id }
+      : null;
+    // Pre-seed prevWorkKey so the work→recording-clear effect treats the
+    // programmatic reset as a no-op and doesn't overwrite seedRecording.
+    prevWorkKey = seedWork ? `e:${seedWork.id}` : 'null';
+    batch(() => {
+      setWork(seedWork);
+      setRecording(seedRecording);
+      setIsMainVideo(editSeed ? !!editSeed.isMainVideo : true);
+      setWorkArtistsAfter(
+        workArtistsBefore.map((c) => ({ artistId: c.artistId, role: c.role, isPublic: c.isPublic })),
+      );
+      setRecordingArtistsAfter(
+        recordingArtistsBefore.map((c) => ({ artistId: c.artistId, role: c.role, isPublic: c.isPublic })),
+      );
+      setError(null);
+    });
+    props.onDraftDiscard?.();
+    // Remount children so their uncontrolled local state (EntityPicker query,
+    // create-mode flags, inline title inputs) re-initializes from reset props.
+    setMounted(false);
+    queueMicrotask(() => setMounted(true));
+  }
+
   async function deleteVideo() {
     if (!confirm('이 영상을 DB에서 제거합니다. 연결된 recording/work/artist는 유지됩니다. 계속할까요?')) return;
     const rec = props.initialData?.recordings?.[0];
@@ -397,7 +429,7 @@ export function VideoDrawer(props: VideoDrawerProps) {
         <button
           class="kanade-admin-btn"
           style="margin-right: auto;"
-          onClick={() => { props.onDraftDiscard?.(); props.onClose(); }}
+          onClick={resetForm}
         >
           초기화
         </button>
@@ -423,47 +455,49 @@ export function VideoDrawer(props: VideoDrawerProps) {
       <Show when={error()}>
         <div class="kanade-admin-banner kanade-admin-banner--error">{error()}</div>
       </Show>
-      <WorkSection
-        ctx={props.ctx}
-        value={work()}
-        onChange={setWork}
-        channelHint={channelHint() ?? undefined}
-        initialLabel={initialWorkLabel}
-        initialOriginalLabel={initialWorkOriginalLabel}
-        originalWorkId={editSeed ? editSeed.work.id : undefined}
-        originalArtists={workArtistsForDisplay()}
-        onExistingArtistsChange={props.mode === 'edit' ? setWorkArtistsAfter : undefined}
-      />
-      <Show when={work()}>
-        <RecordingSection
+      <Show when={mounted()}>
+        <WorkSection
           ctx={props.ctx}
-          work={work()!}
-          value={recording()}
-          onChange={setRecording}
+          value={work()}
+          onChange={setWork}
           channelHint={channelHint() ?? undefined}
-          initialLabel={initialRecordingLabel}
-          initialOriginalLabel={initialRecordingOriginalLabel}
-          originalRecordingId={editSeed ? editSeed.id : undefined}
-          originalArtists={recordingArtistsForDisplay()}
-          onExistingArtistsChange={props.mode === 'edit' ? setRecordingArtistsAfter : undefined}
+          initialLabel={initialWorkLabel}
+          initialOriginalLabel={initialWorkOriginalLabel}
+          originalWorkId={editSeed ? editSeed.work.id : undefined}
+          originalArtists={workArtistsForDisplay()}
+          onExistingArtistsChange={props.mode === 'edit' ? setWorkArtistsAfter : undefined}
         />
-      </Show>
-      <Show when={recording()}>
-        <VideoLinkSection
-          videoId={props.videoId}
-          recording={recording()}
-          isMainVideo={isMainVideo()}
-          onChange={setIsMainVideo}
-          lockedAsMain={props.mode === 'edit' && !!editSeed?.isMainVideo}
-        />
-      </Show>
-      <Show when={props.mode === 'edit'}>
-        <div class="kanade-admin-section kanade-admin-section--danger">
-          <div class="kanade-admin-section__title">위험 영역</div>
-          <button class="kanade-admin-btn kanade-admin-btn--danger" onClick={deleteVideo}>
-            이 영상을 DB에서 제거
-          </button>
-        </div>
+        <Show when={work()}>
+          <RecordingSection
+            ctx={props.ctx}
+            work={work()!}
+            value={recording()}
+            onChange={setRecording}
+            channelHint={channelHint() ?? undefined}
+            initialLabel={initialRecordingLabel}
+            initialOriginalLabel={initialRecordingOriginalLabel}
+            originalRecordingId={editSeed ? editSeed.id : undefined}
+            originalArtists={recordingArtistsForDisplay()}
+            onExistingArtistsChange={props.mode === 'edit' ? setRecordingArtistsAfter : undefined}
+          />
+        </Show>
+        <Show when={recording()}>
+          <VideoLinkSection
+            videoId={props.videoId}
+            recording={recording()}
+            isMainVideo={isMainVideo()}
+            onChange={setIsMainVideo}
+            lockedAsMain={props.mode === 'edit' && !!editSeed?.isMainVideo}
+          />
+        </Show>
+        <Show when={props.mode === 'edit'}>
+          <div class="kanade-admin-section kanade-admin-section--danger">
+            <div class="kanade-admin-section__title">위험 영역</div>
+            <button class="kanade-admin-btn kanade-admin-btn--danger" onClick={deleteVideo}>
+              이 영상을 DB에서 제거
+            </button>
+          </div>
+        </Show>
       </Show>
     </Drawer>
   );

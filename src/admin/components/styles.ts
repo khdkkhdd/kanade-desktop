@@ -402,15 +402,18 @@ export function getAdminStyles(): string {
       line-height: 1.4;
     }
 
-    /* Channel widget — blends into YouTube's native chip/button style */
+    /* Channel widget — blends into YouTube's native chip/button style.
+       Block-level so the nested picker can actually fill the panel's inner
+       width. The chip row inside uses its own inline-flex and stays
+       content-sized, which preserves the original chip-bar look. */
     .kanade-channel-widget {
-      display: inline-flex;
+      display: flex;
       flex-direction: column;
       align-items: flex-start;
       gap: 12px;
       color: var(--yt-spec-text-primary, #f1f1f1);
       font-family: "Roboto","Arial",sans-serif;
-      max-width: 100%;
+      width: 100%;
     }
     .kanade-channel-widget__row {
       display: inline-flex;
@@ -515,8 +518,12 @@ export function getAdminStyles(): string {
       border: 1px solid var(--yt-spec-outline, rgba(255,255,255,0.08));
       border-radius: 12px;
       width: 100%;
-      max-width: 560px;
       color: var(--yt-spec-text-primary, #f1f1f1);
+    }
+    .kanade-channel-picker__lang-add-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
     }
     .kanade-channel-picker__input {
       width: 100%;

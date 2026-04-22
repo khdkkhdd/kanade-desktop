@@ -1,223 +1,89 @@
+// Admin plugin for YouTube channel pages — adds a "Kanade" tab alongside
+// the native tab bar so curators can link artists to the current channel.
+//
+// Lifecycle (per page visit):
+//
+//   yt-navigate-finish / load / settings:changed → onNavigate()
+//     1. panel.hide() + remove old Kanade tab           (clean prior state)
+//     2. mark = panel.mark()                            (capture context for guards)
+//     3. if not a channel page: clear state, return
+//     4. await auth check                               → guard via panel.isValid(mark)
+//     5. await YouTube's tab bar render                 → guard again
+//     6. resolve channel id + name → insert Kanade tab + publish to handler
+//
+//   User clicks Kanade tab → handleTabEvent
+//     - Both pointerdown and click block YouTube's native tab delegates
+//       (preventDefault + stopImmediatePropagation) so YouTube doesn't
+//       navigate the URL out from under us.
+//     - show() only runs once per click, on the pointerdown phase. Running
+//       on both phases previously caused our tab-bar mutations from the
+//       first run to re-enter YouTube's MutationObserver and relocate our
+//       tab, so the click phase would then hit a native tab and collapse
+//       the panel via the hide branch below.
+//
+//   User clicks a native tab → same handler, hide branch
+//     - Unselects the Kanade tab visually, then panel.hide().
+//
+// Race-guard rule: wherever an async await precedes a DOM mutation, capture
+// `panel.mark()` first and re-check `panel.isValid(mark)` right after each
+// await. Matches the requestId pattern used in plugins/admin-video/renderer.tsx.
+
 import { ipcRenderer } from 'electron';
-import { render } from 'solid-js/web';
 import type { RendererContext } from '../../types/plugins.js';
 import { injectAdminStyles } from '../../admin/components/styles.js';
-import { ChannelWidget } from './components/ChannelWidget.js';
-
-const KANADE_TAB_ID = 'kanade-admin-channel-tab';
-const KANADE_PANEL_ID = 'kanade-admin-channel-panel';
-
-// Channel identity → UC id cache. Avoids re-extraction (and its DOM-dependent
-// failure modes) when navigating between sub-tabs of the same channel.
-const channelIdCache = new Map<string, string>();
-
-function getChannelIdentity(): string | null {
-  // Strip the sub-tab so /@foo/videos and /@foo/playlists share one cache key.
-  const m = window.location.pathname.match(/^(\/channel\/UC[\w-]+|\/@[^/]+|\/c\/[^/]+|\/user\/[^/]+)/);
-  return m ? m[1] : null;
-}
-
-function extractChannelExternalId(): string | null {
-  const identity = getChannelIdentity();
-
-  // 1. Direct URL match: /channel/UC...
-  const urlMatch = window.location.pathname.match(/^\/channel\/(UC[\w-]+)/);
-  if (urlMatch) {
-    if (identity) channelIdCache.set(identity, urlMatch[1]);
-    return urlMatch[1];
-  }
-
-  // 2. Cache hit — we've already resolved this @handle (or /c/ /user/) before.
-  if (identity && channelIdCache.has(identity)) return channelIdCache.get(identity)!;
-
-  // 3. <meta itemprop="channelId">
-  const meta = document.querySelector('meta[itemprop="channelId"]') as HTMLMetaElement | null;
-  if (meta?.content && /^UC[\w-]{22}$/.test(meta.content)) {
-    if (identity) channelIdCache.set(identity, meta.content);
-    return meta.content;
-  }
-
-  // 4. Fallback: most-frequent /channel/UC... anchor on the page. The current
-  //    channel is referenced by many internal nav links (tabs, breadcrumbs),
-  //    so it dominates in frequency. Studio links are filtered out.
-  const counts = new Map<string, number>();
-  document.querySelectorAll('a[href]').forEach((a) => {
-    const href = a.getAttribute('href') ?? '';
-    if (!href || href.includes('studio.youtube.com')) return;
-    if (!href.startsWith('/channel/') && !href.includes('youtube.com/channel/')) return;
-    const match = href.match(/\/channel\/(UC[\w-]{22})/);
-    if (!match) return;
-    counts.set(match[1], (counts.get(match[1]) ?? 0) + 1);
-  });
-  let winner: string | null = null;
-  let max = 1; // require ≥2 occurrences to be confident
-  for (const [id, n] of counts) {
-    if (n > max) { max = n; winner = id; }
-  }
-
-  if (winner && identity) channelIdCache.set(identity, winner);
-  return winner;
-}
-
-function isChannelPage(): boolean {
-  return /^\/(channel\/|@|c\/|user\/)/.test(window.location.pathname);
-}
-
-function waitForElement(selector: string, timeout = 10000): Promise<Element | null> {
-  const existing = document.querySelector(selector);
-  if (existing) return Promise.resolve(existing);
-  return new Promise((resolve) => {
-    const t = setTimeout(() => { ob.disconnect(); resolve(null); }, timeout);
-    const ob = new MutationObserver(() => {
-      const el = document.querySelector(selector);
-      if (el) { ob.disconnect(); clearTimeout(t); resolve(el); }
-    });
-    // Observe attributes too — YouTube often swaps class markers (e.g.
-    // ytTabShapeLastTab) on existing elements rather than adding new nodes.
-    ob.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class'],
-    });
-  });
-}
-
-function findContentArea(): HTMLElement | null {
-  return document.querySelector('ytd-two-column-browse-results-renderer') as HTMLElement | null;
-}
-
-function pauseVideosIn(container: HTMLElement): void {
-  container.querySelectorAll('video').forEach((v) => {
-    if (!v.paused) v.pause();
-  });
-}
-
-function setTabSelected(tab: HTMLElement, selected: boolean): void {
-  tab.setAttribute('aria-selected', selected ? 'true' : 'false');
-  tab.querySelector('.ytTabShapeTab')?.classList.toggle('ytTabShapeTabSelected', selected);
-  tab.querySelector('.ytTabShapeTabBar')?.classList.toggle('ytTabShapeTabBarSelected', selected);
-}
-
-function deselectAllNativeTabs(tabList: HTMLElement): void {
-  tabList.querySelectorAll('yt-tab-shape[role="tab"]').forEach((tab) => {
-    if ((tab as HTMLElement).id === KANADE_TAB_ID) return;
-    (tab as HTMLElement).setAttribute('aria-selected', 'false');
-    tab.querySelector('.ytTabShapeTab')?.classList.remove('ytTabShapeTabSelected');
-    tab.querySelector('.ytTabShapeTabBar')?.classList.remove('ytTabShapeTabBarSelected');
-  });
-}
-
-function buildKanadeTab(): HTMLElement {
-  const tab = document.createElement('yt-tab-shape');
-  tab.id = KANADE_TAB_ID;
-  tab.setAttribute('role', 'tab');
-  tab.setAttribute('tabindex', '0');
-  tab.className = 'ytTabShapeHost ytTabShapeHostClickable';
-  tab.setAttribute('aria-selected', 'false');
-  tab.setAttribute('tab-title', 'Kanade');
-  tab.innerHTML = `
-    <div class="ytTabShapeTab">Kanade</div>
-    <div class="ytTabShapeTabBar"></div>
-  `;
-  return tab;
-}
-
-let disposePanel: (() => void) | null = null;
-
-async function showKanadePanel(
-  ctx: RendererContext,
-  externalId: string,
-  channelName: string,
-): Promise<void> {
-  // Content area may not be mounted yet if the user clicked the Kanade tab
-  // immediately after SPA navigation — wait briefly before giving up.
-  let content = findContentArea();
-  if (!content) {
-    content = (await waitForElement(
-      'ytd-two-column-browse-results-renderer',
-      2000,
-    )) as HTMLElement | null;
-  }
-  if (!content) return;
-
-  pauseVideosIn(content);
-  content.style.display = 'none';
-
-  disposePanel?.();
-  disposePanel = null;
-  document.getElementById(KANADE_PANEL_ID)?.remove();
-
-  const panel = document.createElement('div');
-  panel.id = KANADE_PANEL_ID;
-  panel.className = 'kanade-channel-panel';
-  const parent = content.parentElement;
-  if (!parent) return;
-  parent.insertBefore(panel, content.nextSibling);
-
-  disposePanel = render(
-    () => (
-      <>
-        <h2 class="kanade-channel-panel__title">이 채널의 아티스트</h2>
-        <p class="kanade-channel-panel__subtitle">
-          연결해 두면 이 채널의 영상 등록 시 해당 아티스트가 자동 추천됩니다.
-        </p>
-        <ChannelWidget ctx={ctx} externalId={externalId} channelName={channelName} />
-      </>
-    ),
-    panel,
-  );
-}
-
-function hideKanadePanel(): void {
-  const content = findContentArea();
-  if (content) content.style.display = '';
-  disposePanel?.();
-  disposePanel = null;
-  document.getElementById(KANADE_PANEL_ID)?.remove();
-}
-
-function cleanup(): void {
-  hideKanadePanel();
-  document.getElementById(KANADE_TAB_ID)?.remove();
-}
+import {
+  extractChannelName,
+  isChannelPage,
+  resolveChannelId,
+} from './channel-id.js';
+import {
+  KANADE_TAB_ID,
+  deselectAllNativeTabs,
+  insertKanadeTab,
+  locateTabBar,
+  setTabSelected,
+} from './tab-dom.js';
+import { createPanelController } from './panel-controller.js';
 
 export function setupRenderer(ctx: RendererContext): void {
   injectAdminStyles();
 
+  const panel = createPanelController(ctx);
   let currentExternalId: string | null = null;
   let currentChannelName = '';
 
-  // Delegate handler — survives tab bar re-renders. YouTube tab logic can
-  // fire on pointerdown BEFORE click, so we listen to both in capture phase
-  // and preempt native handling when our tab is hit.
-  function handleTabActivation(e: Event): void {
+  function removeKanadeTab(): void {
+    document.getElementById(KANADE_TAB_ID)?.remove();
+  }
+
+  function handleTabEvent(e: Event): void {
     const target = (e.target as HTMLElement | null)?.closest('yt-tab-shape') as HTMLElement | null;
     if (!target) return;
     const kanadeTab = document.getElementById(KANADE_TAB_ID);
     if (!kanadeTab) return;
 
     if (target.id === KANADE_TAB_ID) {
+      // Block YouTube on both phases, but run the show effect only once.
       e.preventDefault();
       e.stopImmediatePropagation();
+      if (e.type !== 'pointerdown') return;
       if (!currentExternalId) return;
       const tabList = kanadeTab.parentElement as HTMLElement | null;
       if (tabList) deselectAllNativeTabs(tabList);
       setTabSelected(kanadeTab, true);
-      void showKanadePanel(ctx, currentExternalId, currentChannelName);
+      void panel.show(currentExternalId, currentChannelName);
     } else if (e.type === 'click') {
-      // A native tab was clicked — YouTube will handle navigation.
-      // Only react on click (not pointerdown) so we don't fight YT's
-      // own state machine across both phases.
       setTabSelected(kanadeTab, false);
-      hideKanadePanel();
+      panel.hide();
     }
   }
-  document.addEventListener('pointerdown', handleTabActivation, { capture: true });
-  document.addEventListener('click', handleTabActivation, { capture: true });
+  document.addEventListener('pointerdown', handleTabEvent, { capture: true });
+  document.addEventListener('click', handleTabEvent, { capture: true });
 
   async function onNavigate(): Promise<void> {
-    cleanup();
+    panel.hide();
+    removeKanadeTab();
+    const mark = panel.mark();
 
     if (!isChannelPage()) {
       currentExternalId = null;
@@ -226,44 +92,26 @@ export function setupRenderer(ctx: RendererContext): void {
     }
 
     const authResp = (await ctx.ipc.invoke('check-auth')) as { valid?: boolean } | null;
+    if (!panel.isValid(mark)) return;
     if (!authResp?.valid) {
       currentExternalId = null;
       currentChannelName = '';
       return;
     }
 
-    // Prefer to anchor before YouTube's search tab — it's the only tab that
-    // has .ytTabShapeLastTab WITHOUT .ytTabShapeHostClickable, so it's
-    // unambiguously identifiable even during intermediate tab-bar renders
-    // (where .ytTabShapeLastTab temporarily moves across content tabs).
-    // Shorter timeout: some channel tab bars may not render a search tab,
-    // in which case we fall back to appending.
-    const searchTab = (await waitForElement(
-      '.tabGroupShapeTabs[role="tablist"] > yt-tab-shape.ytTabShapeLastTab:not(.ytTabShapeHostClickable)',
-      3000,
-    )) as HTMLElement | null;
-    const tabList = (searchTab?.parentElement
-      ?? document.querySelector('.tabGroupShapeTabs[role="tablist"]')) as HTMLElement | null;
-    if (!tabList) return;
+    const tabBar = await locateTabBar(3000);
+    if (!panel.isValid(mark)) return;
+    if (!tabBar) return;
 
-    // Extract AFTER DOM is ready — scoped-link fallback needs channel nav to be rendered.
-    const externalId = extractChannelExternalId();
+    // Extract AFTER DOM is ready — the anchor-frequency fallback in
+    // resolveChannelId needs channel nav links rendered.
+    const externalId = resolveChannelId();
     if (!externalId) return;
 
-    const header = document.querySelector('yt-page-header-renderer');
-    const nameEl =
-      header?.querySelector('h1 .yt-core-attributed-string, h1, #text-container #text') ?? null;
-    const channelName = (nameEl as HTMLElement | null)?.textContent?.trim() ?? '';
-
     currentExternalId = externalId;
-    currentChannelName = channelName;
+    currentChannelName = extractChannelName();
 
-    const kanadeTab = buildKanadeTab();
-    if (searchTab && searchTab.parentElement === tabList) {
-      tabList.insertBefore(kanadeTab, searchTab);
-    } else {
-      tabList.appendChild(kanadeTab);
-    }
+    insertKanadeTab(tabBar.tabList, tabBar.anchorBefore);
   }
 
   document.addEventListener('yt-navigate-finish', () => void onNavigate());
