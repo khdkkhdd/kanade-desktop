@@ -61,7 +61,13 @@ export async function resolveSongInfo(
     if (recordings.length !== 1) return fallback;
 
     const rec = recordings[0];
-    const credits = dedupeByArtistPublicId([...rec.artists, ...rec.work.creators]);
+    // Covers credit the performer only — the work creator belongs to the
+    // origin. Originals surface both so the composer/lyricist appears
+    // alongside the vocalist.
+    const allCredits = rec.isOrigin
+      ? [...rec.artists, ...rec.work.creators]
+      : [...rec.artists];
+    const credits = dedupeByArtistPublicId(allCredits);
     const visible = credits.filter((c) => c.isPublic);
     if (visible.length === 0) return fallback;
 

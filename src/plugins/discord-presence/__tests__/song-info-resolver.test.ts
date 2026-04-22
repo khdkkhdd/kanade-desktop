@@ -12,6 +12,7 @@ const snapshotBase = (overrides: Partial<PlayerStateUpdate> = {}): PlayerStateUp
   uiLang: 'ko',
   domTitle: 'DOM Title',
   domChannel: 'DOM Channel',
+  isLive: false,
   ...overrides,
 });
 
@@ -116,6 +117,36 @@ describe('resolveSongInfo', () => {
 
     expect(result.kind).toBe('db');
     expect(result.originUrl).toBe('https://www.youtube.com/watch?v=origin_vid');
+  });
+
+  it('omits work creators from artists on a cover recording', async () => {
+    mockFetchResponses({
+      '/public/videos/youtube/abc123?lang=ko': {
+        data: {
+          video: { platform: 'youtube', externalId: 'abc123' },
+          recordings: [{
+            publicId: PID.rec11,
+            isOrigin: false,
+            titles: [{ language: 'ja', title: 'Cover', isMain: true }],
+            artists: [{ artistPublicId: PID.artist2, name: 'あるふぁきゅん。', role: 'vocal', isPublic: true }],
+            work: {
+              publicId: PID.work100,
+              titles: [{ language: 'ja', title: 'Work', isMain: true }],
+              creators: [{ artistPublicId: PID.artist1, name: '傘村トータ', role: 'composer', isPublic: true }],
+            },
+            isMainVideo: false,
+          }],
+        },
+      },
+      [`/public/works/${PID.work100}/recordings?isOrigin=true&limit=1&lang=ko`]: {
+        data: [], seed: 0, nextOffset: null,
+      },
+    });
+
+    const result = await resolveSongInfo(snapshotBase(), apiBase);
+
+    expect(result.kind).toBe('db');
+    expect(result.artists).toBe('あるふぁきゅん。');
   });
 
   it('falls back when recordings.length === 0', async () => {

@@ -20,6 +20,7 @@ export function buildActivity(song: SongInfo): SetActivity {
     // variation selector) so it's still a single glyph but 2 code units.
     activity.largeImageText = '⏸\uFE0E';
   } else if (
+    !song.isLive &&
     Number.isFinite(song.durationSeconds) &&
     song.durationSeconds > 0
   ) {

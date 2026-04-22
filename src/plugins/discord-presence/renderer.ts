@@ -16,6 +16,15 @@ function extractVideoId(): string | null {
   return getPlayerVideoId();
 }
 
+/**
+ * YouTube live streams often report a finite DVR window for `video.duration`
+ * (typically 1h), so `Number.isFinite` alone misclassifies them as VODs. The
+ * player marks its time display with `.ytp-live` when the head is at live.
+ */
+function detectLiveFromDom(): boolean {
+  return !!document.querySelector('.ytp-time-display.ytp-live');
+}
+
 function waitForElement(selector: string, timeout = 5_000): Promise<Element | null> {
   const existing = document.querySelector(selector);
   if (existing) return Promise.resolve(existing);
@@ -47,6 +56,7 @@ export function setupRenderer(ctx: RendererContext): void {
       uiLang: document.documentElement.lang || 'ko',
       domTitle: extractDomTitle(),
       domChannel: extractDomChannel(),
+      isLive: detectLiveFromDom(),
     };
   }
 

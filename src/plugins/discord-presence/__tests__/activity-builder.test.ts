@@ -14,6 +14,7 @@ const baseSongInfo = (overrides: Partial<SongInfo> = {}): SongInfo => ({
   isPaused: false,
   elapsedSeconds: 30,
   durationSeconds: 180,
+  isLive: false,
   isFallback: false,
   ...overrides,
 });
@@ -54,6 +55,12 @@ describe('buildActivity', () => {
 
   it('omits timestamps for live streams (Infinity duration)', () => {
     const a = buildActivity(baseSongInfo({ durationSeconds: Infinity }));
+    expect(a.startTimestamp).toBeUndefined();
+    expect(a.endTimestamp).toBeUndefined();
+  });
+
+  it('omits timestamps for live streams with finite DVR duration', () => {
+    const a = buildActivity(baseSongInfo({ isLive: true, durationSeconds: 3600 }));
     expect(a.startTimestamp).toBeUndefined();
     expect(a.endTimestamp).toBeUndefined();
   });

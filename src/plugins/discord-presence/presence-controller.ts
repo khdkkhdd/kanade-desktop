@@ -161,6 +161,7 @@ function mergeSongInfo(
     isPaused: snapshot.paused,
     elapsedSeconds: snapshot.currentTime,
     durationSeconds: snapshot.duration,
+    isLive: snapshot.isLive,
     isFallback,
   };
 }

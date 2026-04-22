@@ -4,11 +4,12 @@ export interface PlayerStateUpdate {
   url: string;
   paused: boolean;
   currentTime: number;
-  duration: number;   // Infinity for live streams
+  duration: number;   // may be finite DVR window length for YouTube live
   ended: boolean;
   uiLang: string;
   domTitle: string;
   domChannel: string | null;
+  isLive: boolean;
 }
 
 export type TitleLanguage = 'uilang' | 'main';
@@ -50,6 +51,7 @@ export interface SongInfo {
   videoId: string;
   isPaused: boolean;
   elapsedSeconds: number;
-  durationSeconds: number; // Infinity for live
+  durationSeconds: number; // may be a finite DVR window for YouTube live
+  isLive: boolean;
   isFallback: boolean;
 }

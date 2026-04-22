@@ -27,9 +27,34 @@ export function extractDomChannel(): string | null {
   const data = player?.getVideoData?.();
   if (data?.author) return data.author.trim() || null;
 
+  // On Shorts, getVideoData().author is empty and ytd-watch-metadata often
+  // lingers in DOM with the previous watch page's channel, so that fallback
+  // returns stale data. The Shorts overlay exposes only the @handle link.
+  if (window.location.pathname.startsWith('/shorts/')) {
+    return extractShortsChannelHandle();
+  }
+
   const el = document.querySelector('ytd-watch-metadata ytd-channel-name #text');
   const name = el?.textContent?.trim();
   return name && name.length > 0 ? name : null;
+}
+
+function extractShortsChannelHandle(): string | null {
+  // Shorts overlay anchors specifically link to the channel's /shorts tab
+  // (e.g. "/@nbuna/shorts"), which distinguishes them from the subscription
+  // sidebar's "/@handle" links that stay visible while a Short plays.
+  const vh = window.innerHeight;
+  const links = document.querySelectorAll<HTMLAnchorElement>(
+    'a[href^="/@"][href$="/shorts"], a[href*="/channel/"][href$="/shorts"]',
+  );
+  for (const a of links) {
+    const r = a.getBoundingClientRect();
+    const visible = r.width > 0 && r.height > 0 && r.top < vh && r.bottom > 0;
+    if (!visible) continue;
+    const text = a.textContent?.trim();
+    if (text) return text;
+  }
+  return null;
 }
 
 /**

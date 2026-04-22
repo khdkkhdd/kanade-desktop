@@ -34,6 +34,7 @@ const baseSnapshot = (overrides: Partial<PlayerStateUpdate> = {}): PlayerStateUp
   uiLang: 'ko',
   domTitle: 'First Title',
   domChannel: 'First Channel',
+  isLive: false,
   ...overrides,
 });
 
