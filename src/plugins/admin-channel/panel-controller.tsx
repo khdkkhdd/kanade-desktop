@@ -65,9 +65,9 @@ export function createPanelController(ctx: RendererContext): PanelController {
     let content = findContentArea();
     if (!content) {
       // Content area may not be mounted yet if the tab was clicked right
-      // after SPA navigation — wait briefly. Re-check generation after the
-      // await so a late resolve doesn't paint this channel's widget onto
-      // a page the user has already navigated away from.
+      // after SPA navigation — wait briefly. Re-check generation after
+      // the await so a late resolve doesn't paint this channel's widget
+      // onto a page the user has already navigated away from.
       content = (await waitForElement(CONTENT_SELECTOR, 2000)) as HTMLElement | null;
       if (my !== generation) return;
     }
