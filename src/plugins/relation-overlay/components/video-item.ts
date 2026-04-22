@@ -1,5 +1,5 @@
 import type { ArtistCredit, RecordingListItem } from '../types.js';
-import { renderArtists, externalUrlFor, isSupportedPlatform } from '../utils.js';
+import { renderArtists, externalUrlFor, isSupportedPlatform, niconicoThumbUrl } from '../utils.js';
 
 export interface VideoItemOptions {
   showTitle?: boolean;
@@ -32,9 +32,7 @@ export function createVideoItem(
   link.className = 'kanade-video-item';
 
   const thumbWrap = document.createElement('div');
-  thumbWrap.className = isYoutube
-    ? 'kanade-video-thumb-wrap'
-    : 'kanade-video-thumb-wrap kanade-video-thumb-placeholder';
+  thumbWrap.className = 'kanade-video-thumb-wrap';
 
   if (isYoutube) {
     const thumb = document.createElement('img');
@@ -44,6 +42,21 @@ export function createVideoItem(
     thumb.alt = recording.title;
     thumbWrap.appendChild(thumb);
   } else {
+    const thumbUrl = platform === 'niconico' ? niconicoThumbUrl(externalId) : null;
+    if (thumbUrl) {
+      const thumb = document.createElement('img');
+      thumb.className = 'kanade-video-thumb';
+      thumb.src = thumbUrl;
+      thumb.loading = 'lazy';
+      thumb.alt = recording.title;
+      thumb.onerror = () => {
+        thumb.remove();
+        thumbWrap.classList.add('kanade-video-thumb-placeholder');
+      };
+      thumbWrap.appendChild(thumb);
+    } else {
+      thumbWrap.classList.add('kanade-video-thumb-placeholder');
+    }
     const platformBadge = document.createElement('span');
     platformBadge.className = 'kanade-card-platform';
     platformBadge.textContent = platform;

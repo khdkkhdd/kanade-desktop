@@ -29,3 +29,15 @@ export function externalUrlFor(video: { platform: string; externalId: string }):
   return null;
 }
 
+/**
+ * Niconico thumbnails are served from the nimg CDN keyed on the numeric part
+ * of the video id (sm/nm/so prefix). Unknown prefixes return null so the
+ * caller can fall back to the platform badge placeholder.
+ */
+export function niconicoThumbUrl(externalId: string): string | null {
+  const match = externalId.match(/^(?:sm|nm|so)(\d+)$/);
+  if (!match) return null;
+  const numeric = match[1];
+  return `https://nicovideo.cdn.nimg.jp/thumbnails/${numeric}/${numeric}`;
+}
+

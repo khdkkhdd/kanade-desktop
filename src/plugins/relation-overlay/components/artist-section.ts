@@ -91,11 +91,15 @@ export async function createArtistSection(
   return { subChips, content };
 }
 
-// Combine recording artists + work creators (performers first, then creators),
-// dedup by artistPublicId. Fall back to hidden credits when every credit is
-// is_public=false.
+// For origin recordings, combine recording artists + work creators (performers
+// first, then creators), deduped by artistPublicId. For covers, surface only
+// the cover's own performers — the work creator (composer/lyricist) belongs
+// to the origin, not this cover. Falls back to hidden credits when every
+// credit is is_public=false.
 function collectVisibleCredits(recording: VideoRecording): ArtistCredit[] {
-  const all: ArtistCredit[] = [...recording.artists, ...recording.work.creators];
+  const all: ArtistCredit[] = recording.isOrigin
+    ? [...recording.artists, ...recording.work.creators]
+    : [...recording.artists];
   const byId = new Map<string, ArtistCredit>();
   for (const c of all) {
     const existing = byId.get(c.artistPublicId);
