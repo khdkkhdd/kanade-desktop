@@ -98,6 +98,57 @@ export function getStyles(): string {
     .kanade-content.kanade-content-enter .kanade-video-item:nth-child(7)  { animation-delay: 240ms; }
     .kanade-content.kanade-content-enter .kanade-video-item:nth-child(n+8) { animation-delay: 280ms; }
 
+    /* Wrapper hosting the scroll container + overlay nav buttons. */
+    .kanade-card-list-wrap {
+      position: relative;
+    }
+
+    /* Matches the horizontal-list arrow ytd-button-renderer renders on
+       YouTube: a solid circular button carrying the page's base background
+       color (so light/dark mode follow the host) with a two-layer soft
+       shadow. */
+    .kanade-card-nav {
+      position: absolute;
+      top: calc(50% - 20px);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      padding: 0;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      background-color: var(--yt-spec-base-background, #fff);
+      color: var(--yt-spec-text-primary, #0f0f0f);
+      box-shadow: 0 4px 4px rgba(0, 0, 0, 0.3), 0 0 4px rgba(0, 0, 0, 0.2);
+      transition: opacity 0.15s, background-color 0.15s;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .kanade-card-nav:hover {
+      background-color: var(--yt-spec-mono-filled-hover, #e6e6e6);
+    }
+
+    .kanade-card-nav:active {
+      transform: scale(0.96);
+    }
+
+    .kanade-card-nav.is-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .kanade-card-nav--prev { left: 4px; }
+    .kanade-card-nav--next { right: 4px; }
+
+    .kanade-card-nav svg {
+      pointer-events: none;
+      display: block;
+    }
+
     /* Horizontal card list — this is the actual scroll container */
     .kanade-card-list {
       display: flex;
