@@ -82,7 +82,7 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
   });
 
   function addRow(preset?: Partial<Row>) {
-    const r: Row = { picked: null, creating: false, role: null, isPublic: rows().length === 0, ...preset };
+    const r: Row = { picked: null, creating: false, role: null, isPublic: true, ...preset };
     setRows([...rows(), r]);
   }
 
