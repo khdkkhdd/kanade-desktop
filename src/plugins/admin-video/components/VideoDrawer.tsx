@@ -81,6 +81,13 @@ export function VideoDrawer(props: VideoDrawerProps) {
   );
   const [submitting, setSubmitting] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+  // Edit-mode only: mirrors the server's is_public flag so toggling updates
+  // the UI immediately. New videos created through the drawer default to
+  // true server-side; no need to surface the toggle in create mode.
+  const [isPublic, setIsPublic] = createSignal<boolean>(
+    props.mode === 'edit' ? props.initialData?.video?.isPublic !== false : true,
+  );
+  const [publicBusy, setPublicBusy] = createSignal(false);
   // Toggled off→on by resetForm() so child sections remount and re-read
   // their initial state from the (now-reset) parent props.
   const [mounted, setMounted] = createSignal(true);
@@ -438,6 +445,20 @@ export function VideoDrawer(props: VideoDrawerProps) {
     queueMicrotask(() => setMounted(true));
   }
 
+  async function togglePublic() {
+    if (publicBusy()) return;
+    const next = !isPublic();
+    setPublicBusy(true);
+    setError(null);
+    const r = (await props.ctx.ipc.invoke('set-video-public', {
+      videoId: props.videoId,
+      isPublic: next,
+    })) as any;
+    setPublicBusy(false);
+    if (r?.ok) setIsPublic(next);
+    else setError(r?.error?.message ?? '공개 상태 변경 실패');
+  }
+
   async function deleteVideo() {
     if (!confirm('이 영상을 DB에서 제거합니다. 연결된 recording/work/artist는 유지됩니다. 계속할까요?')) return;
     const rec = props.initialData?.recordings?.[0];
@@ -516,6 +537,23 @@ export function VideoDrawer(props: VideoDrawerProps) {
           />
         </Show>
         <Show when={props.mode === 'edit'}>
+          <div class="kanade-admin-section">
+            <div class="kanade-admin-section__title">공개 상태</div>
+            <div class="kanade-admin-meta">
+              {isPublic()
+                ? '현재 공개 리스트에 노출됩니다.'
+                : '비공개 — 공개 리스트와 메인 영상 후보에서 제외됩니다.'}
+            </div>
+            <button
+              class="kanade-admin-btn"
+              disabled={publicBusy()}
+              onClick={togglePublic}
+            >
+              {publicBusy()
+                ? '변경 중...'
+                : isPublic() ? '비공개로 표시' : '공개로 복원'}
+            </button>
+          </div>
           <div class="kanade-admin-section kanade-admin-section--danger">
             <div class="kanade-admin-section__title">위험 영역</div>
             <button class="kanade-admin-btn kanade-admin-btn--danger" onClick={deleteVideo}>

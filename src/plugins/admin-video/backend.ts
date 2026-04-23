@@ -104,6 +104,21 @@ export function setupBackend(ctx: BackendContext): void {
     return result;
   });
 
+  ctx.ipc.handle('set-video-public', async (...args) => {
+    const { videoId, isPublic } = args[0] as { videoId: string; isPublic: boolean };
+    const r = await client().request(
+      'PATCH',
+      `/admin/videos/youtube/${encodeURIComponent(videoId)}`,
+      { isPublic },
+    );
+    if (r.ok) {
+      for (const w of BrowserWindow.getAllWindows()) {
+        w.webContents.send('admin-video:data-changed', { videoId });
+      }
+    }
+    return r;
+  });
+
   ctx.ipc.handle('delete-video', async (...args) => {
     const { videoId, recordingId, externalVideoId } = args[0] as {
       videoId: string;
