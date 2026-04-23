@@ -39,6 +39,7 @@ export interface AdminVideoData {
     id: number;
     platform: string;
     externalId: string;
+    isPublic: boolean;
   };
   recordings: AdminVideoRecording[];
 }
