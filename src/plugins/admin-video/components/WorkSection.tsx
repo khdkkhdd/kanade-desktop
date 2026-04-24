@@ -5,7 +5,7 @@ import { EntityPicker, type EntitySearchResult } from '../../../admin/components
 import { TitleI18nInput } from '../../../admin/components/TitleI18nInput.js';
 import { normalizeTitles } from '../../../admin/title-utils.js';
 import { formatWithOriginal } from '../../../shared/title-utils.js';
-import { ArtistCreditsSection, type ArtistCreditInitial } from './ArtistCreditsSection.js';
+import { ArtistCreditsSection, type ArtistCreditInitial, type ArtistCreditRow } from './ArtistCreditsSection.js';
 
 type Credit = ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
 
@@ -25,6 +25,14 @@ export interface WorkSectionProps {
   originalArtists?: ArtistCreditInitial[];
   /** Called in edit mode whenever the user mutates the existing work's artists. */
   onExistingArtistsChange?: (next: Credit[]) => void;
+  /** Draft-restore slot for the CREATE-mode ArtistCreditsSection rows. */
+  createArtistRows?: ArtistCreditRow[];
+  /** Emits the full CREATE-mode editor row state (including incomplete rows). */
+  onCreateArtistRowsChange?: (rows: ArtistCreditRow[]) => void;
+  /** Draft-restore slot for the EDIT-mode ArtistCreditsSection rows. */
+  editArtistRows?: ArtistCreditRow[];
+  /** Emits the full EDIT-mode editor row state (including incomplete rows). */
+  onEditArtistRowsChange?: (rows: ArtistCreditRow[]) => void;
 }
 
 export function WorkSection(props: WorkSectionProps) {
@@ -125,6 +133,8 @@ export function WorkSection(props: WorkSectionProps) {
             credits={newArtists()}
             onChange={setNewArtists}
             initial={newArtists()}
+            initialRows={props.createArtistRows}
+            onRowsChange={props.onCreateArtistRowsChange}
             channelHint={props.channelHint}
           />
           <button
@@ -143,6 +153,8 @@ export function WorkSection(props: WorkSectionProps) {
           credits={[]}
           onChange={props.onExistingArtistsChange!}
           initial={props.originalArtists ?? []}
+          initialRows={props.editArtistRows}
+          onRowsChange={props.onEditArtistRowsChange}
           channelHint={props.channelHint}
         />
       </Show>

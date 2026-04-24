@@ -9,6 +9,7 @@ import type { ArtistCreditInitial } from './ArtistCreditsSection.js';
 import { computeArtistDiff, type ArtistCreditSnapshot } from '../diff.js';
 import type { UpdateVideoPayload, ReassignVideoPayload } from '../update.js';
 import type { AdminVideoArtist, AdminVideoData } from '../types.js';
+import type { ArtistCreditRow } from './ArtistCreditsSection.js';
 import { readBridgedChannelId } from '../channel-bridge.js';
 import { findOwnerChannelUc } from '../../../lib/youtube-dom/owner-channels.js';
 
@@ -20,6 +21,14 @@ export interface DraftData {
   isMainVideo: boolean;
   workArtistsAfter: Credit[];
   recordingArtistsAfter: Credit[];
+  // Full editor row state — including mid-edit incomplete rows that don't
+  // pass the submit filter. Kept per-section per-mode so switching between
+  // create and edit doesn't cross-apply state. Optional for backward compat
+  // with older drafts.
+  workCreateArtistRows?: ArtistCreditRow[];
+  workEditArtistRows?: ArtistCreditRow[];
+  recordingCreateArtistRows?: ArtistCreditRow[];
+  recordingEditArtistRows?: ArtistCreditRow[];
 }
 
 export interface VideoDrawerProps {
@@ -136,6 +145,19 @@ export function VideoDrawer(props: VideoDrawerProps) {
       ?? recordingArtistsBefore.map((c) => ({ artistId: c.artistId, role: c.role, isPublic: c.isPublic })),
   );
 
+  // Full row-state snapshots for the ArtistCreditsSection UI, kept per
+  // section/mode so switching doesn't cross-contaminate. Undefined until the
+  // section emits its first rows snapshot, in which case we rely on the
+  // section's default (derived from credits/initial).
+  const [workCreateArtistRows, setWorkCreateArtistRows] =
+    createSignal<ArtistCreditRow[] | undefined>(draft?.workCreateArtistRows);
+  const [workEditArtistRows, setWorkEditArtistRows] =
+    createSignal<ArtistCreditRow[] | undefined>(draft?.workEditArtistRows);
+  const [recordingCreateArtistRows, setRecordingCreateArtistRows] =
+    createSignal<ArtistCreditRow[] | undefined>(draft?.recordingCreateArtistRows);
+  const [recordingEditArtistRows, setRecordingEditArtistRows] =
+    createSignal<ArtistCreditRow[] | undefined>(draft?.recordingEditArtistRows);
+
   // When the user reassigns to a different work, clear the recording selection.
   // Without this reset, recording() keeps pointing at the OLD recording (which
   // belongs to the OLD work); submit then goes down the reassign path but ends
@@ -162,12 +184,16 @@ export function VideoDrawer(props: VideoDrawerProps) {
   let draftInitialized = false;
   createEffect(() => {
     // Read every dependency before the guard so Solid tracks them on future runs.
-    const snapshot = {
+    const snapshot: DraftData = {
       work: work(),
       recording: recording(),
       isMainVideo: isMainVideo(),
       workArtistsAfter: workArtistsAfter(),
       recordingArtistsAfter: recordingArtistsAfter(),
+      workCreateArtistRows: workCreateArtistRows(),
+      workEditArtistRows: workEditArtistRows(),
+      recordingCreateArtistRows: recordingCreateArtistRows(),
+      recordingEditArtistRows: recordingEditArtistRows(),
     };
     if (!draftInitialized) {
       draftInitialized = true;
@@ -416,6 +442,13 @@ export function VideoDrawer(props: VideoDrawerProps) {
       setRecordingArtistsAfter(
         recordingArtistsBefore.map((c) => ({ artistId: c.artistId, role: c.role, isPublic: c.isPublic })),
       );
+      // Drop preserved editor row states so remounted sections derive a
+      // fresh row list from server/initial data instead of restoring stale
+      // mid-edit entries.
+      setWorkCreateArtistRows(undefined);
+      setWorkEditArtistRows(undefined);
+      setRecordingCreateArtistRows(undefined);
+      setRecordingEditArtistRows(undefined);
       setError(null);
     });
     props.onDraftDiscard?.();
@@ -492,6 +525,10 @@ export function VideoDrawer(props: VideoDrawerProps) {
           originalWorkId={editSeed ? editSeed.work.id : undefined}
           originalArtists={workArtistsForDisplay()}
           onExistingArtistsChange={props.mode === 'edit' ? setWorkArtistsAfter : undefined}
+          createArtistRows={workCreateArtistRows()}
+          onCreateArtistRowsChange={setWorkCreateArtistRows}
+          editArtistRows={workEditArtistRows()}
+          onEditArtistRowsChange={setWorkEditArtistRows}
         />
         <Show when={work()}>
           <RecordingSection
@@ -505,6 +542,10 @@ export function VideoDrawer(props: VideoDrawerProps) {
             originalRecordingId={editSeed ? editSeed.id : undefined}
             originalArtists={recordingArtistsForDisplay()}
             onExistingArtistsChange={props.mode === 'edit' ? setRecordingArtistsAfter : undefined}
+            createArtistRows={recordingCreateArtistRows()}
+            onCreateArtistRowsChange={setRecordingCreateArtistRows}
+            editArtistRows={recordingEditArtistRows()}
+            onEditArtistRowsChange={setRecordingEditArtistRows}
           />
         </Show>
         <Show when={recording()}>

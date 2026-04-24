@@ -4,7 +4,7 @@ import type { RecordingSelection, TitleInput, WorkSelection, ArtistCreditInput, 
 import { TitleI18nInput } from '../../../admin/components/TitleI18nInput.js';
 import { normalizeTitles } from '../../../admin/title-utils.js';
 import { formatWithOriginal } from '../../../shared/title-utils.js';
-import { ArtistCreditsSection, type ArtistCreditInitial } from './ArtistCreditsSection.js';
+import { ArtistCreditsSection, type ArtistCreditInitial, type ArtistCreditRow } from './ArtistCreditsSection.js';
 
 type ArtistCreditEntry = ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
 
@@ -25,6 +25,14 @@ export interface RecordingSectionProps {
   originalArtists?: ArtistCreditInitial[];
   /** Called when the user mutates the existing recording's artists. */
   onExistingArtistsChange?: (next: ArtistCreditEntry[]) => void;
+  /** Draft-restore slot for the CREATE-mode ArtistCreditsSection rows. */
+  createArtistRows?: ArtistCreditRow[];
+  /** Emits the full CREATE-mode editor row state (including incomplete rows). */
+  onCreateArtistRowsChange?: (rows: ArtistCreditRow[]) => void;
+  /** Draft-restore slot for the EDIT-mode ArtistCreditsSection rows. */
+  editArtistRows?: ArtistCreditRow[];
+  /** Emits the full EDIT-mode editor row state (including incomplete rows). */
+  onEditArtistRowsChange?: (rows: ArtistCreditRow[]) => void;
 }
 
 type ViewMode = 'list' | 'create' | 'selected';
@@ -150,6 +158,8 @@ export function RecordingSection(props: RecordingSectionProps) {
             credits={[]}
             onChange={props.onExistingArtistsChange!}
             initial={props.originalArtists ?? []}
+            initialRows={props.editArtistRows}
+            onRowsChange={props.onEditArtistRowsChange}
             channelHint={props.channelHint}
           />
         </Show>
@@ -201,6 +211,8 @@ export function RecordingSection(props: RecordingSectionProps) {
             onChange={updateArtists}
             channelHint={props.channelHint}
             initial={artists()}
+            initialRows={props.createArtistRows}
+            onRowsChange={props.onCreateArtistRowsChange}
           />
           <Show when={props.work.kind === 'existing'}>
             <button

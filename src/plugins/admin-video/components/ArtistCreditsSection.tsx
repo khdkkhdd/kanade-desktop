@@ -1,20 +1,21 @@
 import { createSignal, createEffect, For, Index, Show } from 'solid-js';
 import type { RendererContext } from '../../../types/plugins.js';
-import type { ArtistCreditInput, NewArtistInput } from '../../../admin/types.js';
-import { EntityPicker, type EntitySearchResult } from '../../../admin/components/EntityPicker.js';
+import type { EntitySearchResult } from '../../../admin/components/EntityPicker.js';
+import { EntityPicker } from '../../../admin/components/EntityPicker.js';
 import { ArtistQuickAdd } from '../../../admin/components/ArtistQuickAdd.js';
 import { RoleAutocomplete } from '../../../admin/components/RoleAutocomplete.js';
 import { formatWithOriginal } from '../../../shared/title-utils.js';
+import {
+  initialToRow,
+  rowsToCredits,
+  type ArtistCreditInitial,
+  type ArtistCreditRow,
+  type Credit,
+} from './artist-credits-row.js';
 
-type Credit = ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
+export type { ArtistCreditInitial, ArtistCreditRow } from './artist-credits-row.js';
 
-/** Initial row state for the picker. Supports three cases:
- *   - existing artist with known name (edit mode server data)
- *   - existing artist with no name (draft restore — falls back to "Artist #id")
- *   - inline new artist (draft restore mid-creation) */
-export type ArtistCreditInitial =
-  | { artistId: number; displayName?: string; originalName?: string; role: string | null; isPublic: boolean }
-  | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
+type Row = ArtistCreditRow;
 
 export interface ArtistCreditsSectionProps {
   ctx: RendererContext;
@@ -24,40 +25,21 @@ export interface ArtistCreditsSectionProps {
   channelHint?: { artists: Array<{ id: number; displayName: string; originalName?: string }> };
   /** If provided, prefill rows with these existing credits (used in edit mode). */
   initial?: ArtistCreditInitial[];
-}
-
-interface Row {
-  picked: EntitySearchResult | null;
-  creating: boolean;
-  role: string | null;
-  isPublic: boolean;
-  newArtist?: NewArtistInput;
+  /** Draft-restore slot. When present, takes priority over `initial` and carries
+   *  the full UI row state (including mid-edit rows that don't yet pass the
+   *  submit filter). Pair with `onRowsChange` to persist the editor state
+   *  across drawer close/open. */
+  initialRows?: Row[];
+  /** Fires on every internal row mutation with the full row list — including
+   *  incomplete rows. The caller is expected to persist this into the draft
+   *  so `initialRows` can restore it on reopen. `onChange` still fires with
+   *  the filtered submit payload independently. */
+  onRowsChange?: (rows: Row[]) => void;
 }
 
 export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
-  const initialRows: Row[] = (props.initial ?? []).map((e) => {
-    if ('newArtist' in e) {
-      const displayLabel = e.newArtist.names.find((n) => n.isMain)?.name ?? '(new)';
-      return {
-        picked: { id: -1, displayLabel },
-        creating: false,
-        role: e.role,
-        isPublic: e.isPublic,
-        newArtist: e.newArtist,
-      };
-    }
-    return {
-      picked: {
-        id: e.artistId,
-        displayLabel: e.displayName ?? `Artist #${e.artistId}`,
-        originalLabel: e.originalName,
-      },
-      creating: false,
-      role: e.role,
-      isPublic: e.isPublic,
-    };
-  });
-  const [rows, setRows] = createSignal<Row[]>(initialRows);
+  const seededRows: Row[] = props.initialRows ?? (props.initial ?? []).map(initialToRow);
+  const [rows, setRows] = createSignal<Row[]>(seededRows);
   const [hintDismissed, setHintDismissed] = createSignal(false);
 
   async function search(q: string): Promise<EntitySearchResult[]> {
@@ -73,13 +55,18 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
       }));
   }
 
+  // Submit payload: only rows that have resolved to a concrete artist
+  // (existing picker selection or committed newArtist). Incomplete rows are
+  // filtered out so mid-edit state never reaches the server.
   createEffect(() => {
-    const credits: Credit[] = rows().map((r) => {
-      if (r.newArtist) return { newArtist: r.newArtist, role: r.role, isPublic: r.isPublic };
-      if (r.picked) return { artistId: r.picked.id, role: r.role, isPublic: r.isPublic };
-      return { artistId: 0, role: r.role, isPublic: r.isPublic };
-    }).filter((c) => ('newArtist' in c) || (c.artistId > 0));
-    props.onChange(credits);
+    props.onChange(rowsToCredits(rows()));
+  });
+
+  // Draft persistence: full row list including incomplete rows. Pairing this
+  // with an `initialRows` prop lets the caller round-trip editor state across
+  // drawer close/open without losing in-progress entries.
+  createEffect(() => {
+    props.onRowsChange?.(rows());
   });
 
   function addRow(preset?: Partial<Row>) {
