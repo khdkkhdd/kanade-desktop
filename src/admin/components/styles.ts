@@ -2,6 +2,29 @@ export const ADMIN_STYLE_ID = 'kanade-admin-styles';
 
 export function getAdminStyles(): string {
   return `
+    /* YouTube v2_0 dropped the --yt-spec-* tokens we relied on for the
+       YouTube-native surfaces below (channel panel, chip picker). Define our
+       own palette and switch on the host's html[dark] flag. The admin
+       drawer rules above remain hardcoded-dark by design. */
+    html {
+      --kanade-text-primary: #0f0f0f;
+      --kanade-text-secondary: #606060;
+      --kanade-outline: rgba(0,0,0,0.1);
+      --kanade-badge-chip-bg: rgba(0,0,0,0.05);
+      --kanade-general-bg-a: rgba(0,0,0,0.05);
+      --kanade-button-chip-hover: rgba(0,0,0,0.08);
+      --kanade-call-to-action: #065fd4;
+    }
+    html[dark] {
+      --kanade-text-primary: #f1f1f1;
+      --kanade-text-secondary: rgba(255,255,255,0.7);
+      --kanade-outline: rgba(255,255,255,0.2);
+      --kanade-badge-chip-bg: rgba(255,255,255,0.1);
+      --kanade-general-bg-a: rgba(255,255,255,0.08);
+      --kanade-button-chip-hover: rgba(255,255,255,0.15);
+      --kanade-call-to-action: #3ea6ff;
+    }
+
     .kanade-admin-overlay {
       position: fixed;
       inset: 0;
@@ -375,14 +398,13 @@ export function getAdminStyles(): string {
     .kanade-admin-fab--edit:hover { background: #3a3a3a; }
 
     /* Channel tab panel — takes over YouTube's content area when Kanade tab is active.
-       All colors use YouTube's own CSS vars so we adapt to light/dark mode automatically.
-       Fallbacks target dark mode for the rare case vars aren't injected. */
+       Colors adapt to YouTube light/dark via the --kanade-* palette defined above. */
     .kanade-channel-panel {
       max-width: 900px;
       margin: 0 auto;
       padding: 32px 40px 48px;
       font-family: "Roboto","Arial",sans-serif;
-      color: var(--yt-spec-text-primary, #f1f1f1);
+      color: var(--kanade-text-primary);
       animation: kanadeChannelPanelIn 140ms ease-out;
     }
     @keyframes kanadeChannelPanelIn {
@@ -393,11 +415,11 @@ export function getAdminStyles(): string {
       font-size: 20px;
       font-weight: 500;
       margin: 0 0 8px 0;
-      color: var(--yt-spec-text-primary, #f1f1f1);
+      color: var(--kanade-text-primary);
     }
     .kanade-channel-panel__subtitle {
       font-size: 14px;
-      color: var(--yt-spec-text-secondary, rgba(255,255,255,0.65));
+      color: var(--kanade-text-secondary);
       margin: 0 0 24px 0;
       line-height: 1.4;
     }
@@ -411,7 +433,7 @@ export function getAdminStyles(): string {
       flex-direction: column;
       align-items: flex-start;
       gap: 12px;
-      color: var(--yt-spec-text-primary, #f1f1f1);
+      color: var(--kanade-text-primary);
       font-family: "Roboto","Arial",sans-serif;
       width: 100%;
     }
@@ -423,7 +445,7 @@ export function getAdminStyles(): string {
     }
     .kanade-channel-widget__empty {
       font-size: 14px;
-      color: var(--yt-spec-text-secondary, rgba(255,255,255,0.6));
+      color: var(--kanade-text-secondary);
       padding: 0 4px;
     }
     .kanade-channel-chip {
@@ -432,12 +454,12 @@ export function getAdminStyles(): string {
       gap: 2px;
       min-height: 32px;
       padding: 4px 4px 4px 12px;
-      background: var(--yt-spec-badge-chip-background, rgba(255,255,255,0.1));
+      background: var(--kanade-badge-chip-bg);
       border: 0;
       border-radius: 16px;
       font-size: 14px;
       font-weight: 500;
-      color: var(--yt-spec-text-primary, #fff);
+      color: var(--kanade-text-primary);
       line-height: 1.2;
     }
     .kanade-channel-chip__label {
@@ -452,14 +474,14 @@ export function getAdminStyles(): string {
     .kanade-channel-chip__original {
       font-size: 12px;
       font-style: italic;
-      color: var(--yt-spec-text-secondary, rgba(255,255,255,0.55));
+      color: var(--kanade-text-secondary);
       font-weight: 400;
     }
     .kanade-channel-chip__remove {
       width: 24px; height: 24px;
       border: 0;
       background: transparent;
-      color: var(--yt-spec-text-secondary, rgba(255,255,255,0.7));
+      color: var(--kanade-text-secondary);
       border-radius: 50%;
       cursor: pointer;
       font-size: 16px;
@@ -470,8 +492,8 @@ export function getAdminStyles(): string {
       padding: 0;
     }
     .kanade-channel-chip__remove:hover {
-      background: var(--yt-spec-button-chip-background-hover, rgba(255,255,255,0.15));
-      color: var(--yt-spec-text-primary, #fff);
+      background: var(--kanade-button-chip-hover);
+      color: var(--kanade-text-primary);
     }
     .kanade-channel-chip--add {
       display: inline-flex;
@@ -479,16 +501,16 @@ export function getAdminStyles(): string {
       height: 32px;
       padding: 0 14px;
       background: transparent;
-      border: 1px solid var(--yt-spec-call-to-action, #3ea6ff);
+      border: 1px solid var(--kanade-call-to-action);
       border-radius: 16px;
-      color: var(--yt-spec-call-to-action, #3ea6ff);
+      color: var(--kanade-call-to-action);
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
       line-height: 1;
     }
     .kanade-channel-chip--add:hover {
-      background: color-mix(in srgb, var(--yt-spec-call-to-action, #3ea6ff) 12%, transparent);
+      background: color-mix(in srgb, var(--kanade-call-to-action) 12%, transparent);
     }
     .kanade-channel-chip--ghost {
       display: inline-flex;
@@ -496,29 +518,29 @@ export function getAdminStyles(): string {
       height: 32px;
       padding: 0 14px;
       background: transparent;
-      border: 1px solid var(--yt-spec-outline, rgba(255,255,255,0.2));
+      border: 1px solid var(--kanade-outline);
       border-radius: 16px;
-      color: var(--yt-spec-text-primary, rgba(255,255,255,0.85));
+      color: var(--kanade-text-primary);
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
       line-height: 1;
     }
     .kanade-channel-chip--ghost:hover {
-      background: var(--yt-spec-button-chip-background-hover, rgba(255,255,255,0.1));
+      background: var(--kanade-button-chip-hover);
     }
     /* Inline artist picker — YouTube-native tone, used inside the Kanade tab panel.
-       All colors via YouTube CSS vars so light/dark modes are handled automatically. */
+       All colors via the --kanade-* palette so light/dark modes are handled automatically. */
     .kanade-channel-picker {
       display: flex;
       flex-direction: column;
       gap: 14px;
       padding: 20px;
-      background: var(--yt-spec-badge-chip-background, rgba(255,255,255,0.04));
-      border: 1px solid var(--yt-spec-outline, rgba(255,255,255,0.08));
+      background: var(--kanade-badge-chip-bg);
+      border: 1px solid var(--kanade-outline);
       border-radius: 12px;
       width: 100%;
-      color: var(--yt-spec-text-primary, #f1f1f1);
+      color: var(--kanade-text-primary);
     }
     .kanade-channel-picker__lang-add-row {
       display: flex;
@@ -530,17 +552,17 @@ export function getAdminStyles(): string {
       box-sizing: border-box;
       height: 40px;
       padding: 0 14px;
-      background: var(--yt-spec-general-background-a, rgba(255,255,255,0.08));
-      border: 1px solid var(--yt-spec-outline, rgba(255,255,255,0.1));
+      background: var(--kanade-general-bg-a);
+      border: 1px solid var(--kanade-outline);
       border-radius: 8px;
-      color: var(--yt-spec-text-primary, #fff);
+      color: var(--kanade-text-primary);
       font-size: 14px;
       font-family: inherit;
       outline: none;
       transition: border-color 0.12s, background 0.12s;
     }
     .kanade-channel-picker__input:focus {
-      border-color: var(--yt-spec-call-to-action, #3ea6ff);
+      border-color: var(--kanade-call-to-action);
     }
     .kanade-channel-picker__input--grow { flex: 1; }
     .kanade-channel-picker__list {
@@ -559,14 +581,14 @@ export function getAdminStyles(): string {
       background: transparent;
       border: 0;
       border-radius: 8px;
-      color: var(--yt-spec-text-primary, #fff);
+      color: var(--kanade-text-primary);
       font-size: 14px;
       font-family: inherit;
       text-align: left;
       cursor: pointer;
     }
     .kanade-channel-picker__item:hover {
-      background: var(--yt-spec-button-chip-background-hover, rgba(255,255,255,0.08));
+      background: var(--kanade-button-chip-hover);
     }
     .kanade-channel-picker__item-name {
       flex: 1;
@@ -577,7 +599,7 @@ export function getAdminStyles(): string {
     }
     .kanade-channel-picker__item-main {
       font-size: 14px;
-      color: var(--yt-spec-text-primary, #fff);
+      color: var(--kanade-text-primary);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -585,14 +607,14 @@ export function getAdminStyles(): string {
     .kanade-channel-picker__item-original {
       font-size: 12px;
       font-style: italic;
-      color: var(--yt-spec-text-secondary, rgba(255,255,255,0.55));
+      color: var(--kanade-text-secondary);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
     .kanade-channel-picker__item-type {
       font-size: 11px;
-      color: var(--yt-spec-text-secondary, rgba(255,255,255,0.55));
+      color: var(--kanade-text-secondary);
       text-transform: uppercase;
       letter-spacing: 0.4px;
       flex-shrink: 0;
@@ -600,7 +622,7 @@ export function getAdminStyles(): string {
     .kanade-channel-picker__empty {
       padding: 18px 14px;
       text-align: center;
-      color: var(--yt-spec-text-secondary, rgba(255,255,255,0.55));
+      color: var(--kanade-text-secondary);
       font-size: 13px;
     }
     .kanade-channel-picker__create-trigger {
@@ -611,9 +633,9 @@ export function getAdminStyles(): string {
       margin-top: 4px;
       background: transparent;
       border: 0;
-      border-top: 1px solid var(--yt-spec-outline, rgba(255,255,255,0.08));
+      border-top: 1px solid var(--kanade-outline);
       border-radius: 0;
-      color: var(--yt-spec-call-to-action, #3ea6ff);
+      color: var(--kanade-call-to-action);
       font-size: 14px;
       font-weight: 500;
       font-family: inherit;
@@ -621,11 +643,11 @@ export function getAdminStyles(): string {
       cursor: pointer;
     }
     .kanade-channel-picker__create-trigger:hover {
-      background: color-mix(in srgb, var(--yt-spec-call-to-action, #3ea6ff) 8%, transparent);
+      background: color-mix(in srgb, var(--kanade-call-to-action) 8%, transparent);
     }
     .kanade-channel-picker__create-hint {
       font-size: 12px;
-      color: var(--yt-spec-text-secondary, rgba(255,255,255,0.5));
+      color: var(--kanade-text-secondary);
       font-weight: 400;
     }
     .kanade-channel-picker__create-header {
@@ -634,12 +656,12 @@ export function getAdminStyles(): string {
       gap: 12px;
       font-size: 14px;
       font-weight: 500;
-      color: var(--yt-spec-text-primary, rgba(255,255,255,0.9));
+      color: var(--kanade-text-primary);
     }
     .kanade-channel-picker__back {
       background: transparent;
       border: 0;
-      color: var(--yt-spec-call-to-action, #3ea6ff);
+      color: var(--kanade-call-to-action);
       font-size: 13px;
       font-family: inherit;
       cursor: pointer;
@@ -647,7 +669,7 @@ export function getAdminStyles(): string {
       border-radius: 6px;
     }
     .kanade-channel-picker__back:hover {
-      background: color-mix(in srgb, var(--yt-spec-call-to-action, #3ea6ff) 10%, transparent);
+      background: color-mix(in srgb, var(--kanade-call-to-action) 10%, transparent);
     }
     .kanade-channel-picker__create-row {
       display: flex;
@@ -656,10 +678,10 @@ export function getAdminStyles(): string {
     .kanade-channel-picker__select {
       height: 40px;
       padding: 0 12px;
-      background: var(--yt-spec-general-background-a, rgba(255,255,255,0.08));
-      border: 1px solid var(--yt-spec-outline, rgba(255,255,255,0.1));
+      background: var(--kanade-general-bg-a);
+      border: 1px solid var(--kanade-outline);
       border-radius: 8px;
-      color: var(--yt-spec-text-primary, #fff);
+      color: var(--kanade-text-primary);
       font-size: 14px;
       font-family: inherit;
       outline: none;
@@ -670,7 +692,7 @@ export function getAdminStyles(): string {
       gap: 20px;
       align-items: center;
       font-size: 14px;
-      color: var(--yt-spec-text-primary, rgba(255,255,255,0.8));
+      color: var(--kanade-text-primary);
     }
     .kanade-channel-picker__type label {
       display: inline-flex;

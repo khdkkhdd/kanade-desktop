@@ -1,9 +1,30 @@
 export function getStyles(): string {
   return `
+    /* YouTube v2_0 removed the --yt-spec-* design tokens we used to inherit,
+       so we define our own palette and switch on the host's html[dark] flag. */
+    html {
+      --kanade-text-primary: #0f0f0f;
+      --kanade-text-secondary: #606060;
+      --kanade-base-bg: #fff;
+      --kanade-hover-soft: rgba(0,0,0,0.05);
+      --kanade-surface-10: rgba(0,0,0,0.1);
+      --kanade-mono-hover: #e6e6e6;
+      --kanade-scroll-thumb: rgba(0,0,0,0.25);
+    }
+    html[dark] {
+      --kanade-text-primary: #f1f1f1;
+      --kanade-text-secondary: rgba(255,255,255,0.7);
+      --kanade-base-bg: #0f0f0f;
+      --kanade-hover-soft: rgba(255,255,255,0.05);
+      --kanade-surface-10: rgba(255,255,255,0.1);
+      --kanade-mono-hover: #272727;
+      --kanade-scroll-thumb: rgba(255,255,255,0.2);
+    }
+
     .kanade-panel {
       margin-top: 12px;
       font-family: "Roboto", "Arial", sans-serif;
-      color: var(--yt-spec-text-primary, #fff);
+      color: var(--kanade-text-primary);
     }
 
     /* ─── Chip bar (reuses YouTube native chip classes) ─── */
@@ -120,8 +141,8 @@ export function getStyles(): string {
       align-items: center;
       justify-content: center;
       z-index: 2;
-      background-color: var(--yt-spec-base-background, #fff);
-      color: var(--yt-spec-text-primary, #0f0f0f);
+      background-color: var(--kanade-base-bg);
+      color: var(--kanade-text-primary);
       box-shadow: 0 4px 4px rgba(0, 0, 0, 0.3), 0 0 4px rgba(0, 0, 0, 0.2);
       transition: opacity 0.15s, background-color 0.15s;
       -webkit-user-select: none;
@@ -129,7 +150,7 @@ export function getStyles(): string {
     }
 
     .kanade-card-nav:hover {
-      background-color: var(--yt-spec-mono-filled-hover, #e6e6e6);
+      background-color: var(--kanade-mono-hover);
     }
 
     .kanade-card-nav:active {
@@ -158,7 +179,7 @@ export function getStyles(): string {
       scroll-behavior: smooth;
       padding-bottom: 4px;
       scrollbar-width: thin;
-      scrollbar-color: rgba(255,255,255,0.2) transparent;
+      scrollbar-color: var(--kanade-scroll-thumb) transparent;
     }
 
     .kanade-card-list::-webkit-scrollbar {
@@ -170,7 +191,7 @@ export function getStyles(): string {
     }
 
     .kanade-card-list::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.2);
+      background: var(--kanade-scroll-thumb);
       border-radius: 3px;
     }
 
@@ -188,7 +209,7 @@ export function getStyles(): string {
     }
 
     .kanade-video-item:hover {
-      background: var(--yt-spec-10-percent-layer, rgba(255,255,255,0.05));
+      background: var(--kanade-hover-soft);
     }
 
     .kanade-video-thumb-wrap {
@@ -202,12 +223,12 @@ export function getStyles(): string {
       height: 118px;
       border-radius: 8px;
       object-fit: cover;
-      background: var(--yt-spec-10-percent-layer, #333);
+      background: var(--kanade-surface-10);
       display: block;
     }
 
     .kanade-video-thumb-placeholder {
-      background: var(--yt-spec-20-percent-layer, #4a4a4a);
+      background: var(--kanade-surface-10);
       border-radius: 8px;
       display: flex;
       align-items: center;
@@ -251,7 +272,7 @@ export function getStyles(): string {
     .kanade-video-title {
       font-size: 13px;
       font-weight: 500;
-      color: var(--yt-spec-text-primary, #fff);
+      color: var(--kanade-text-primary);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -259,7 +280,7 @@ export function getStyles(): string {
 
     .kanade-video-artist {
       font-size: 12px;
-      color: var(--yt-spec-text-secondary, #aaa);
+      color: var(--kanade-text-secondary);
       margin-top: 2px;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -278,7 +299,7 @@ export function getStyles(): string {
 
     .kanade-empty {
       font-size: 13px;
-      color: var(--yt-spec-text-secondary, #aaa);
+      color: var(--kanade-text-secondary);
       padding: 12px 4px;
     }
   `;
