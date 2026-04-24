@@ -8,12 +8,14 @@ import { formatWithOriginal } from '../../../shared/title-utils.js';
 import {
   initialToRow,
   rowsToCredits,
+  nextLocalArtistIdentity,
   type ArtistCreditInitial,
   type ArtistCreditRow,
   type Credit,
+  type LocalNewArtist,
 } from './artist-credits-row.js';
 
-export type { ArtistCreditInitial, ArtistCreditRow } from './artist-credits-row.js';
+export type { ArtistCreditInitial, ArtistCreditRow, LocalNewArtist } from './artist-credits-row.js';
 
 type Row = ArtistCreditRow;
 
@@ -35,6 +37,11 @@ export interface ArtistCreditsSectionProps {
    *  so `initialRows` can restore it on reopen. `onChange` still fires with
    *  the filtered submit payload independently. */
   onRowsChange?: (rows: Row[]) => void;
+  /** Shared pool of locally-pending artists created earlier in the same
+   *  drawer session (typically from a sibling section). Surfaced in the
+   *  picker search so the user can pick one without re-entering it; the
+   *  submit path dedupes by `tempId` so the backing artist is created once. */
+  localNewArtists?: LocalNewArtist[];
 }
 
 export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
@@ -44,15 +51,43 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
 
   async function search(q: string): Promise<EntitySearchResult[]> {
     const r = (await props.ctx.ipc.invoke('search-artists', { q })) as any;
-    if (!r?.ok) return [];
     const pickedIds = new Set(rows().map((row) => row.picked?.id).filter((id): id is number => id != null));
-    return r.data
-      .filter((a: { id: number }) => !pickedIds.has(a.id))
-      .map((a: { id: number; displayName: string; originalName?: string }) => ({
-        id: a.id,
-        displayLabel: a.displayName,
-        originalLabel: a.originalName,
-      }));
+    const pickedTempIds = new Set(
+      rows().map((row) => row.newArtistTempId).filter((id): id is string => !!id),
+    );
+
+    // Backend results (existing DB artists).
+    const backend: EntitySearchResult[] = r?.ok
+      ? r.data
+          .filter((a: { id: number }) => !pickedIds.has(a.id))
+          .map((a: { id: number; displayName: string; originalName?: string }) => ({
+            id: a.id,
+            displayLabel: a.displayName,
+            originalLabel: a.originalName,
+          }))
+      : [];
+
+    // Locally-pending artists created inline in this session. Match by
+    // name substring (case-insensitive); empty query matches all.
+    const needle = q.trim().toLowerCase();
+    const local: EntitySearchResult[] = (props.localNewArtists ?? [])
+      .filter((la) => !pickedTempIds.has(la.tempId))
+      .filter((la) => {
+        if (!needle) return true;
+        return la.input.names.some((n) => n.name.toLowerCase().includes(needle));
+      })
+      .map((la) => {
+        const main = la.input.names.find((n) => n.isMain) ?? la.input.names[0];
+        return {
+          id: la.localId,
+          displayLabel: main?.name ?? '(new)',
+          subLabel: '🔖 이 세션에서 추가됨',
+          tempId: la.tempId,
+        };
+      });
+
+    // Local entries first so users notice the ones they just created.
+    return [...local, ...backend];
   }
 
   // Submit payload: only rows that have resolved to a concrete artist
@@ -153,8 +188,25 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
                   entityType="artist"
                   value={row().picked}
                   onSelect={(item) => {
-                    if (item) updateRow(i, { picked: item, newArtist: undefined });
-                    else updateRow(i, { picked: null });
+                    if (!item) {
+                      updateRow(i, { picked: null, newArtist: undefined, newArtistTempId: undefined });
+                      return;
+                    }
+                    if (item.tempId) {
+                      // Picking a locally-pending artist created elsewhere in
+                      // the session — reuse its newArtist input + tempId so
+                      // submit dedupes to a single POST /admin/artists.
+                      const pool = (props.localNewArtists ?? []).find((la) => la.tempId === item.tempId);
+                      if (pool) {
+                        updateRow(i, {
+                          picked: item,
+                          newArtist: pool.input,
+                          newArtistTempId: pool.tempId,
+                        });
+                        return;
+                      }
+                    }
+                    updateRow(i, { picked: item, newArtist: undefined, newArtistTempId: undefined });
                   }}
                   onCreateRequested={() => updateRow(i, { creating: true })}
                   allowCreate={true}
@@ -164,10 +216,16 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
               <Show when={row().creating}>
                 <ArtistQuickAdd
                   onSubmit={(artist) => {
+                    const { tempId, localId } = nextLocalArtistIdentity();
                     updateRow(i, {
                       newArtist: artist,
+                      newArtistTempId: tempId,
                       creating: false,
-                      picked: { id: -1, displayLabel: artist.names.find((n) => n.isMain)?.name ?? '(new)' },
+                      picked: {
+                        id: localId,
+                        displayLabel: artist.names.find((n) => n.isMain)?.name ?? '(new)',
+                        tempId,
+                      },
                     });
                   }}
                   onCancel={() => updateRow(i, { creating: false })}

@@ -5,7 +5,7 @@ import { EntityPicker, type EntitySearchResult } from '../../../admin/components
 import { TitleI18nInput } from '../../../admin/components/TitleI18nInput.js';
 import { normalizeTitles } from '../../../admin/title-utils.js';
 import { formatWithOriginal } from '../../../shared/title-utils.js';
-import { ArtistCreditsSection, type ArtistCreditInitial, type ArtistCreditRow } from './ArtistCreditsSection.js';
+import { ArtistCreditsSection, type ArtistCreditInitial, type ArtistCreditRow, type LocalNewArtist } from './ArtistCreditsSection.js';
 
 type Credit = ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
 
@@ -33,6 +33,8 @@ export interface WorkSectionProps {
   editArtistRows?: ArtistCreditRow[];
   /** Emits the full EDIT-mode editor row state (including incomplete rows). */
   onEditArtistRowsChange?: (rows: ArtistCreditRow[]) => void;
+  /** Shared local-artist pool surfaced in both ArtistCreditsSection instances. */
+  localNewArtists?: LocalNewArtist[];
 }
 
 export function WorkSection(props: WorkSectionProps) {
@@ -136,6 +138,7 @@ export function WorkSection(props: WorkSectionProps) {
             initialRows={props.createArtistRows}
             onRowsChange={props.onCreateArtistRowsChange}
             channelHint={props.channelHint}
+            localNewArtists={props.localNewArtists}
           />
           <button
             type="button"
@@ -156,6 +159,7 @@ export function WorkSection(props: WorkSectionProps) {
           initialRows={props.editArtistRows}
           onRowsChange={props.onEditArtistRowsChange}
           channelHint={props.channelHint}
+          localNewArtists={props.localNewArtists}
         />
       </Show>
     </div>

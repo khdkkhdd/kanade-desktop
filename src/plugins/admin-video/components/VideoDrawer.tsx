@@ -10,6 +10,7 @@ import { computeArtistDiff, type ArtistCreditSnapshot } from '../diff.js';
 import type { UpdateVideoPayload, ReassignVideoPayload } from '../update.js';
 import type { AdminVideoArtist, AdminVideoData } from '../types.js';
 import type { ArtistCreditRow } from './ArtistCreditsSection.js';
+import { collectLocalNewArtists } from './artist-credits-row.js';
 import { readBridgedChannelId } from '../channel-bridge.js';
 import { findOwnerChannelUc } from '../../../lib/youtube-dom/owner-channels.js';
 
@@ -157,6 +158,16 @@ export function VideoDrawer(props: VideoDrawerProps) {
     createSignal<ArtistCreditRow[] | undefined>(draft?.recordingCreateArtistRows);
   const [recordingEditArtistRows, setRecordingEditArtistRows] =
     createSignal<ArtistCreditRow[] | undefined>(draft?.recordingEditArtistRows);
+
+  // Shared pool of locally-pending artists, derived from every row source so a
+  // user who inline-created an artist in one section can pick it in another
+  // without a re-entry. Submit path dedupes by tempId to avoid duplicate DB rows.
+  const localNewArtists = () => collectLocalNewArtists([
+    workCreateArtistRows(),
+    workEditArtistRows(),
+    recordingCreateArtistRows(),
+    recordingEditArtistRows(),
+  ]);
 
   // When the user reassigns to a different work, clear the recording selection.
   // Without this reset, recording() keeps pointing at the OLD recording (which
@@ -529,6 +540,7 @@ export function VideoDrawer(props: VideoDrawerProps) {
           onCreateArtistRowsChange={setWorkCreateArtistRows}
           editArtistRows={workEditArtistRows()}
           onEditArtistRowsChange={setWorkEditArtistRows}
+          localNewArtists={localNewArtists()}
         />
         <Show when={work()}>
           <RecordingSection
@@ -546,6 +558,7 @@ export function VideoDrawer(props: VideoDrawerProps) {
             onCreateArtistRowsChange={setRecordingCreateArtistRows}
             editArtistRows={recordingEditArtistRows()}
             onEditArtistRowsChange={setRecordingEditArtistRows}
+            localNewArtists={localNewArtists()}
           />
         </Show>
         <Show when={recording()}>

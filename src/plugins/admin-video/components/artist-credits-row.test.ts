@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   initialToRow,
   rowsToCredits,
+  collectLocalNewArtists,
   type ArtistCreditRow,
 } from './artist-credits-row.js';
 
@@ -102,5 +103,59 @@ describe('rowsToCredits', () => {
     expect(credits).toHaveLength(2);
     expect((credits[0] as any).artistId).toBe(10);
     expect('newArtist' in credits[1]).toBe(true);
+  });
+
+  it('propagates newArtistTempId onto the emitted credit', () => {
+    const rowWithTempId: ArtistCreditRow = {
+      ...completeNew,
+      newArtistTempId: 't42',
+    };
+    const [credit] = rowsToCredits([rowWithTempId]);
+    expect(credit).toMatchObject({ tempId: 't42' });
+  });
+
+  it('omits tempId when the row has none (legacy shape)', () => {
+    const [credit] = rowsToCredits([completeNew]);
+    expect((credit as any).tempId).toBeUndefined();
+  });
+});
+
+describe('collectLocalNewArtists', () => {
+  const make = (tempId: string, name: string, localId: number): ArtistCreditRow => ({
+    picked: { id: localId, displayLabel: name },
+    creating: false,
+    role: null,
+    isPublic: true,
+    newArtist: { type: 'solo', names: [{ name, language: 'ja', isMain: true }] },
+    newArtistTempId: tempId,
+  });
+
+  it('returns empty when no rows have newArtistTempId', () => {
+    expect(collectLocalNewArtists([[
+      { picked: { id: 10, displayLabel: 'X' }, creating: false, role: null, isPublic: true },
+    ]])).toEqual([]);
+  });
+
+  it('collects unique entries across multiple row sources', () => {
+    const result = collectLocalNewArtists([
+      [make('t1', 'A', -1001)],
+      [make('t2', 'B', -1002)],
+    ]);
+    expect(result).toHaveLength(2);
+    expect(result.map((r) => r.tempId).sort()).toEqual(['t1', 't2']);
+  });
+
+  it('dedupes by tempId when the same local artist appears in multiple sources', () => {
+    const result = collectLocalNewArtists([
+      [make('t1', 'Shared', -1001)],
+      [make('t1', 'Shared', -1001)],
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0].tempId).toBe('t1');
+  });
+
+  it('ignores undefined sources', () => {
+    expect(collectLocalNewArtists([undefined, [make('t1', 'A', -1001)], undefined]))
+      .toHaveLength(1);
   });
 });

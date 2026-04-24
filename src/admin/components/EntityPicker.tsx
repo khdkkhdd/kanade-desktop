@@ -7,6 +7,11 @@ export interface EntitySearchResult {
    *  when different from the ko-preferred displayLabel. */
   originalLabel?: string;
   subLabel?: string;
+  /** Set when the entry represents a locally-pending entity (e.g. an
+   *  artist created inline earlier in the same drawer session and not yet
+   *  persisted). Consumers can treat the pick specially — the submit path
+   *  uses it to dedupe artist creation across sections. */
+  tempId?: string;
 }
 
 export interface EntityPickerProps {

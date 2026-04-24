@@ -54,7 +54,7 @@ export type WorkSelection =
   | {
       kind: 'new';
       titles: TitleInput[];
-      artists: Array<ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean }>;
+      artists: Array<ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean; tempId?: string }>;
     };
 
 export type RecordingSelection =
@@ -63,7 +63,7 @@ export type RecordingSelection =
       kind: 'new';
       isOrigin: boolean;
       titles: TitleInput[];
-      artists: Array<ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean }>;
+      artists: Array<ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean; tempId?: string }>;
     };
 
 export interface RegisterVideoPayload {

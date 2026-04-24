@@ -86,6 +86,104 @@ describe('performRegister', () => {
     expect(calls[1].body.artists[0].artistId).toBe(201);
   });
 
+  it('dedupes new artists across work and recording by tempId (one POST /admin/artists, same id in both)', async () => {
+    // Mock responses (order of calls):
+    //  1. POST /admin/artists (shared tempId "t1") → id 42
+    //  2. POST /admin/works                         → id 100
+    //  3. POST /admin/works/100/artists             → ok
+    //  4. POST /admin/recordings                    → id 500
+    const client = mockClient([
+      { ok: true, data: { id: 42 } },
+      { ok: true, data: { id: 100 } },
+      { ok: true, data: {} },
+      { ok: true, data: { id: 500 } },
+    ]);
+    const sharedNew = { type: 'solo' as const, names: [{ name: 'Shared', language: 'ja', isMain: true }] };
+    const r = await performRegister(client, {
+      videoId: 'abc',
+      work: {
+        kind: 'new',
+        titles: [{ title: 'T', language: 'ja', isMain: true }],
+        artists: [{ newArtist: sharedNew, role: 'composer', isPublic: true, tempId: 't1' }],
+      },
+      recording: {
+        kind: 'new',
+        isOrigin: true,
+        titles: [],
+        artists: [{ newArtist: sharedNew, role: 'vocal', isPublic: true, tempId: 't1' }],
+      },
+      isMainVideo: true,
+    });
+    expect(r.ok).toBe(true);
+    const calls = (client as any).__calls;
+    // /admin/artists should be hit exactly once despite tempId appearing in both sections
+    const artistCalls = calls.filter((c: any) => c.path === '/admin/artists');
+    expect(artistCalls).toHaveLength(1);
+    // Work credit and recording credit must both use id 42
+    const workArtistCall = calls.find((c: any) => c.path === '/admin/works/100/artists');
+    expect(workArtistCall.body.artistId).toBe(42);
+    const recordingCall = calls.find((c: any) => c.path === '/admin/recordings');
+    expect(recordingCall.body.artists[0].artistId).toBe(42);
+  });
+
+  it('does not dedupe when tempIds differ (creates separate artists)', async () => {
+    const client = mockClient([
+      { ok: true, data: { id: 10 } },
+      { ok: true, data: { id: 100 } },
+      { ok: true, data: {} },
+      { ok: true, data: { id: 20 } },
+      { ok: true, data: { id: 500 } },
+    ]);
+    const r = await performRegister(client, {
+      videoId: 'abc',
+      work: {
+        kind: 'new',
+        titles: [{ title: 'T', language: 'ja', isMain: true }],
+        artists: [{ newArtist: { type: 'solo', names: [{ name: 'A', language: 'ja', isMain: true }] }, role: 'composer', isPublic: true, tempId: 't1' }],
+      },
+      recording: {
+        kind: 'new',
+        isOrigin: true,
+        titles: [],
+        artists: [{ newArtist: { type: 'solo', names: [{ name: 'B', language: 'ja', isMain: true }] }, role: 'vocal', isPublic: true, tempId: 't2' }],
+      },
+      isMainVideo: true,
+    });
+    expect(r.ok).toBe(true);
+    const artistCalls = (client as any).__calls.filter((c: any) => c.path === '/admin/artists');
+    expect(artistCalls).toHaveLength(2);
+  });
+
+  it('preserves legacy behavior when tempId is absent (creates fresh artist for each new entry)', async () => {
+    const client = mockClient([
+      { ok: true, data: { id: 11 } },
+      { ok: true, data: { id: 100 } },
+      { ok: true, data: {} },
+      { ok: true, data: { id: 12 } },
+      { ok: true, data: { id: 500 } },
+    ]);
+    const sharedNew = { type: 'solo' as const, names: [{ name: 'Dup', language: 'ja', isMain: true }] };
+    const r = await performRegister(client, {
+      videoId: 'abc',
+      work: {
+        kind: 'new',
+        titles: [{ title: 'T', language: 'ja', isMain: true }],
+        artists: [{ newArtist: sharedNew, role: 'composer', isPublic: true }],
+      },
+      recording: {
+        kind: 'new',
+        isOrigin: true,
+        titles: [],
+        artists: [{ newArtist: sharedNew, role: 'vocal', isPublic: true }],
+      },
+      isMainVideo: true,
+    });
+    expect(r.ok).toBe(true);
+    // No tempId -> legacy behavior -> two POST /admin/artists
+    const artistCalls = (client as any).__calls.filter((c: any) => c.path === '/admin/artists');
+    expect(artistCalls).toHaveLength(2);
+  });
+
   it('stops and returns error on first failure', async () => {
     const client = mockClient([
       { ok: false, error: { code: 'VALIDATION', message: 'bad' } },

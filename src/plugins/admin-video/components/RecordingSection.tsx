@@ -4,7 +4,7 @@ import type { RecordingSelection, TitleInput, WorkSelection, ArtistCreditInput, 
 import { TitleI18nInput } from '../../../admin/components/TitleI18nInput.js';
 import { normalizeTitles } from '../../../admin/title-utils.js';
 import { formatWithOriginal } from '../../../shared/title-utils.js';
-import { ArtistCreditsSection, type ArtistCreditInitial, type ArtistCreditRow } from './ArtistCreditsSection.js';
+import { ArtistCreditsSection, type ArtistCreditInitial, type ArtistCreditRow, type LocalNewArtist } from './ArtistCreditsSection.js';
 
 type ArtistCreditEntry = ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
 
@@ -33,6 +33,8 @@ export interface RecordingSectionProps {
   editArtistRows?: ArtistCreditRow[];
   /** Emits the full EDIT-mode editor row state (including incomplete rows). */
   onEditArtistRowsChange?: (rows: ArtistCreditRow[]) => void;
+  /** Shared local-artist pool surfaced in both ArtistCreditsSection instances. */
+  localNewArtists?: LocalNewArtist[];
 }
 
 type ViewMode = 'list' | 'create' | 'selected';
@@ -161,6 +163,7 @@ export function RecordingSection(props: RecordingSectionProps) {
             initialRows={props.editArtistRows}
             onRowsChange={props.onEditArtistRowsChange}
             channelHint={props.channelHint}
+            localNewArtists={props.localNewArtists}
           />
         </Show>
       </Show>
@@ -213,6 +216,7 @@ export function RecordingSection(props: RecordingSectionProps) {
             initial={artists()}
             initialRows={props.createArtistRows}
             onRowsChange={props.onCreateArtistRowsChange}
+            localNewArtists={props.localNewArtists}
           />
           <Show when={props.work.kind === 'existing'}>
             <button
