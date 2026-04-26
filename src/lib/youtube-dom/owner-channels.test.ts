@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { collectOwnerChannels } from './owner-channels.js';
+import { collectOwnerChannels, extractOwnerLabel } from './owner-channels.js';
 
 function makeDoc(html: string): Document {
   return new JSDOM(`<!DOCTYPE html><html><body>${html}</body></html>`).window.document;
@@ -108,5 +108,111 @@ describe('collectOwnerChannels', () => {
     expect(collectOwnerChannels(doc)).toEqual([
       { ucId: 'UCaaaaaaaaaaaaaaaaaaaaaa', name: 'A' },
     ]);
+  });
+
+  it('matches anchors with absolute URLs (href contains /channel/UC…)', () => {
+    const doc = makeDoc(`
+      <ytd-video-owner-renderer>
+        <a href="https://www.youtube.com/channel/UCaaaaaaaaaaaaaaaaaaaaaa">A</a>
+      </ytd-video-owner-renderer>
+    `);
+    expect(collectOwnerChannels(doc)).toEqual([
+      { ucId: 'UCaaaaaaaaaaaaaaaaaaaaaa', name: 'A' },
+    ]);
+  });
+
+  it('extracts UC ids from description-body @handle anchors and trims leading slashes', () => {
+    const doc = makeDoc(`
+      <ytd-expandable-video-description-body-renderer>
+        <span>
+          <a href="/channel/UCYRSuz5cmJeSNnGB7jedITg">/ @marumochi_official</a>
+          <a href="/channel/UC3ql_EU4JnaE3Rh3cqbHu6g">/ @kotoha_ktnh</a>
+        </span>
+      </ytd-expandable-video-description-body-renderer>
+    `);
+    expect(collectOwnerChannels(doc)).toEqual([
+      { ucId: 'UCYRSuz5cmJeSNnGB7jedITg', name: '@marumochi_official' },
+      { ucId: 'UC3ql_EU4JnaE3Rh3cqbHu6g', name: '@kotoha_ktnh' },
+    ]);
+  });
+
+  it('skips anchors inside button-view-model (structured-description meta buttons)', () => {
+    const doc = makeDoc(`
+      <ytd-expandable-video-description-body-renderer>
+        <a href="/channel/UC3ql_EU4JnaE3Rh3cqbHu6g">@kotoha_ktnh</a>
+      </ytd-expandable-video-description-body-renderer>
+      <div id="structured-description">
+        <button-view-model>
+          <a href="/channel/UC-9-kyTW8ZkZNDHQJ6FgpwQ">음악</a>
+        </button-view-model>
+        <button-view-model>
+          <a href="/channel/UC3ql_EU4JnaE3Rh3cqbHu6g/videos">동영상</a>
+        </button-view-model>
+      </div>
+    `);
+    expect(collectOwnerChannels(doc)).toEqual([
+      { ucId: 'UC3ql_EU4JnaE3Rh3cqbHu6g', name: '@kotoha_ktnh' },
+    ]);
+  });
+
+  it('combines owner area and description body, deduping by UC', () => {
+    const doc = makeDoc(`
+      <ytd-video-owner-renderer>
+        <a href="/channel/UCYRSuz5cmJeSNnGB7jedITg">marumochi</a>
+      </ytd-video-owner-renderer>
+      <ytd-expandable-video-description-body-renderer>
+        <a href="/channel/UCYRSuz5cmJeSNnGB7jedITg">/ @marumochi_official</a>
+        <a href="/channel/UC3ql_EU4JnaE3Rh3cqbHu6g">/ @kotoha_ktnh</a>
+      </ytd-expandable-video-description-body-renderer>
+    `);
+    expect(collectOwnerChannels(doc)).toEqual([
+      { ucId: 'UCYRSuz5cmJeSNnGB7jedITg', name: 'marumochi' },
+      { ucId: 'UC3ql_EU4JnaE3Rh3cqbHu6g', name: '@kotoha_ktnh' },
+    ]);
+  });
+});
+
+describe('extractOwnerLabel', () => {
+  it('returns null when owner area is empty', () => {
+    expect(extractOwnerLabel(makeDoc(''))).toBeNull();
+  });
+
+  it('returns the single anchor textContent when owner area has one labelled anchor', () => {
+    const doc = makeDoc(`
+      <ytd-video-owner-renderer>
+        <a href="/channel/UCabcdefghijklmnopqrstuv">米津玄師</a>
+      </ytd-video-owner-renderer>
+    `);
+    expect(extractOwnerLabel(doc)).toBe('米津玄師');
+  });
+
+  it('returns the multi-creator label even when the anchor href is javascript:void(0)', () => {
+    const doc = makeDoc(`
+      <ytd-video-owner-renderer>
+        <a href="" tabindex="-1"></a>
+        <a href="javascript:void(0)">Kotoha 및 星川サラ / Sara Hoshikawa</a>
+      </ytd-video-owner-renderer>
+    `);
+    expect(extractOwnerLabel(doc)).toBe('Kotoha 및 星川サラ / Sara Hoshikawa');
+  });
+
+  it('joins multiple text-bearing anchors with ", "', () => {
+    const doc = makeDoc(`
+      <ytd-video-owner-renderer>
+        <a href="/channel/UCa">A</a>
+        <a href="/channel/UCb">B</a>
+      </ytd-video-owner-renderer>
+    `);
+    expect(extractOwnerLabel(doc)).toBe('A, B');
+  });
+
+  it('ignores anchors with empty textContent', () => {
+    const doc = makeDoc(`
+      <ytd-video-owner-renderer>
+        <a href="/channel/UCa"></a>
+        <a href="/channel/UCa">米津玄師</a>
+      </ytd-video-owner-renderer>
+    `);
+    expect(extractOwnerLabel(doc)).toBe('米津玄師');
   });
 });

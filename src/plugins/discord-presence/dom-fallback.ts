@@ -1,4 +1,4 @@
-import { collectOwnerChannels } from '../../lib/youtube-dom/owner-channels.js';
+import { extractOwnerLabel } from '../../lib/youtube-dom/owner-channels.js';
 
 /**
  * YouTube's `document.title` sometimes flips early to the "next up" video's
@@ -21,20 +21,17 @@ export function extractDomTitle(): string {
 }
 
 /**
- * Extracts the channel label for Discord presence's fallback artist line.
- * Joins collab/multi-channel uploads with ", " so "by YouTube" no longer
- * appears on videos with multiple credited owner channels. Shorts use a
- * dedicated handle anchor because the watch page DOM stays stale during
+ * Resolves the fallback artist label for Discord presence. Delegates to
+ * `extractOwnerLabel`, which captures multi-creator owner-area labels
+ * verbatim (YouTube already pre-joins them in a single anchor). Shorts use
+ * a dedicated handle anchor because the watch page DOM stays stale during
  * shorts playback.
  */
 export function extractDomChannel(): string | null {
   if (typeof window !== 'undefined' && window.location?.pathname?.startsWith('/shorts/')) {
     return extractShortsChannelHandle();
   }
-
-  const owners = collectOwnerChannels();
-  if (owners.length === 0) return null;
-  return owners.map((o) => o.name).join(', ');
+  return extractOwnerLabel();
 }
 
 function extractShortsChannelHandle(): string | null {
