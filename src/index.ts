@@ -8,7 +8,7 @@ import { loadAllMainPlugins, unloadAllMainPlugins } from './loader/main.js';
 import { relationOverlayMain } from './plugins/relation-overlay/main.js';
 import { adminVideoMain } from './plugins/admin-video/main.js';
 import { adminChannelMain } from './plugins/admin-channel/main.js';
-import { discordPresenceMain } from './plugins/discord-presence/index.js';
+import { discordPresenceMain } from './plugins/discord-presence/main.js';
 import { applyPresenceConfigChange } from './plugins/discord-presence/backend.js';
 
 function removeCSP(): void {
