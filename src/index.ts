@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, Menu, session, shell } from 'electron';
 import path from 'node:path';
 import { store, getPresenceConfig } from './config/store.js';
+import { isSafeWebUrl } from './lib/url-guard.js';
 import type { PresenceConfig } from './config/store.js';
 import { setupAutoUpdater } from './auto-updater.js';
 import { loadAllMainPlugins, unloadAllMainPlugins } from './loader/main.js';
@@ -120,15 +121,13 @@ function createWindow(): BrowserWindow {
   return win;
 }
 
-function isSafeWebUrl(url: string | undefined | null): url is string {
-  if (!url) return false;
-  return url.startsWith('http://') || url.startsWith('https://');
-}
-
 function setupIPC(win: BrowserWindow): void {
-  // Navigation change from renderer. Only remember http(s) URLs so internal
-  // file:// navigations (e.g. the Settings window) can't poison `lastUrl`.
-  ipcMain.on('navigation:changed', (_event, data: { url: string; videoId: string | null }) => {
+  // Navigation change from renderer. Only listen to the main window's
+  // webContents (other BrowserWindows like Settings can't poison lastUrl)
+  // and double-check the URL via isSafeWebUrl which rejects loopback dev
+  // hosts on top of non-http(s) protocols.
+  ipcMain.on('navigation:changed', (event, data: { url: string; videoId: string | null }) => {
+    if (event.sender !== win.webContents) return;
     if (isSafeWebUrl(data.url)) {
       store.set('lastUrl', data.url);
     }
