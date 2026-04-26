@@ -2,6 +2,7 @@ import type { RendererContext } from '../../types/plugins.js';
 import type { PlayerStateUpdate } from './types.js';
 import { RENDERER_TIMEUPDATE_MIN_MS } from './constants.js';
 import { extractDomTitle, extractDomChannel, getPlayerVideoId } from './dom-fallback.js';
+import { getLocale } from '../../i18n/index.js';
 
 /**
  * Use URL's `v=` parameter as primary source — matches what overlay and API
@@ -53,7 +54,7 @@ export function setupRenderer(ctx: RendererContext): void {
       currentTime: video.currentTime,
       duration: video.duration,
       ended: video.ended,
-      uiLang: document.documentElement.lang || 'ko',
+      uiLang: getLocale(),
       domTitle: extractDomTitle(),
       domChannel: extractDomChannel(),
       isLive: detectLiveFromDom(),

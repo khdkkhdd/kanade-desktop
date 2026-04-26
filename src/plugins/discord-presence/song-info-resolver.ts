@@ -1,10 +1,11 @@
-import { pickTitle, pickMainTitle } from '../../shared/title-utils.js';
+import { pickTitle, pickMainTitle, formatWithOriginal } from '../../shared/title-utils.js';
 import { dedupeByArtistPublicId } from './utils.js';
 import type { PlayerStateUpdate, ResolvedSongInfo, TitleLanguage } from './types.js';
 
 interface ApiArtist {
   artistPublicId: string;
   name: string;
+  originalName: string;
   role: string | null;
   isPublic: boolean;
 }
@@ -75,8 +76,8 @@ export async function resolveSongInfo(
     const title =
       titleLanguage === 'main'
         ? pickMainTitle(titleSource)
-        : pickTitle(titleSource, uiLang);
-    const artists = visible.map((c) => c.name).join(', ');
+        : formatWithOriginal(pickTitle(titleSource, uiLang), pickMainTitle(titleSource));
+    const artists = visible.map((c) => formatWithOriginal(c.name, c.originalName)).join(', ');
     const originUrl = rec.isOrigin
       ? null
       : await fetchOriginMainVideoUrl(apiBase, rec.work.publicId, uiLang);

@@ -56,11 +56,11 @@ describe('resolveSongInfo', () => {
             publicId: PID.rec10,
             isOrigin: true,
             titles: [{ language: 'ko', title: '한국어제목', isMain: false }, { language: 'ja', title: 'JA', isMain: true }],
-            artists: [{ artistPublicId: PID.artist1, name: '傘村トータ', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist1, name: '傘村トータ', originalName: '傘村トータ', role: 'vocal', isPublic: true }],
             work: {
               publicId: PID.work100,
               titles: [{ language: 'ja', title: 'Work', isMain: true }],
-              creators: [{ artistPublicId: PID.artist1, name: '傘村トータ', role: 'composer', isPublic: true }],
+              creators: [{ artistPublicId: PID.artist1, name: '傘村トータ', originalName: '傘村トータ', role: 'composer', isPublic: true }],
             },
             isMainVideo: true,
           }],
@@ -71,7 +71,7 @@ describe('resolveSongInfo', () => {
     const result = await resolveSongInfo(snapshotBase(), apiBase);
 
     expect(result.kind).toBe('db');
-    expect(result.title).toBe('한국어제목');
+    expect(result.title).toBe('한국어제목 (JA)');
     expect(result.artists).toBe('傘村トータ');
     expect(result.originUrl).toBeNull();
     expect(result.thumbnailUrl).toBe('https://i.ytimg.com/vi/abc123/hqdefault.jpg');
@@ -87,11 +87,11 @@ describe('resolveSongInfo', () => {
             publicId: PID.rec11,
             isOrigin: false,
             titles: [{ language: 'ja', title: 'Cover', isMain: true }],
-            artists: [{ artistPublicId: PID.artist2, name: 'あるふぁきゅん。', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist2, name: 'あるふぁきゅん。', originalName: 'あるふぁきゅん。', role: 'vocal', isPublic: true }],
             work: {
               publicId: PID.work100,
               titles: [{ language: 'ja', title: 'Work', isMain: true }],
-              creators: [{ artistPublicId: PID.artist1, name: '傘村トータ', role: 'composer', isPublic: true }],
+              creators: [{ artistPublicId: PID.artist1, name: '傘村トータ', originalName: '傘村トータ', role: 'composer', isPublic: true }],
             },
             isMainVideo: false,
           }],
@@ -128,11 +128,11 @@ describe('resolveSongInfo', () => {
             publicId: PID.rec11,
             isOrigin: false,
             titles: [{ language: 'ja', title: 'Cover', isMain: true }],
-            artists: [{ artistPublicId: PID.artist2, name: 'あるふぁきゅん。', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist2, name: 'あるふぁきゅん。', originalName: 'あるふぁきゅん。', role: 'vocal', isPublic: true }],
             work: {
               publicId: PID.work100,
               titles: [{ language: 'ja', title: 'Work', isMain: true }],
-              creators: [{ artistPublicId: PID.artist1, name: '傘村トータ', role: 'composer', isPublic: true }],
+              creators: [{ artistPublicId: PID.artist1, name: '傘村トータ', originalName: '傘村トータ', role: 'composer', isPublic: true }],
             },
             isMainVideo: false,
           }],
@@ -188,7 +188,7 @@ describe('resolveSongInfo', () => {
             publicId: PID.rec10,
             isOrigin: true,
             titles: [{ language: 'ja', title: 'T', isMain: true }],
-            artists: [{ artistPublicId: PID.artist1, name: 'Hidden', role: null, isPublic: false }],
+            artists: [{ artistPublicId: PID.artist1, name: 'Hidden', originalName: 'Hidden', role: null, isPublic: false }],
             work: { publicId: PID.work100, titles: [], creators: [] },
             isMainVideo: false,
           }],
@@ -231,11 +231,11 @@ describe('resolveSongInfo', () => {
             publicId: PID.rec10,
             isOrigin: true,
             titles: [{ language: 'ja', title: 'T', isMain: true }],
-            artists: [{ artistPublicId: PID.artist1, name: 'SameArtist', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist1, name: 'SameArtist', originalName: 'SameArtist', role: 'vocal', isPublic: true }],
             work: {
               publicId: PID.work100,
               titles: [],
-              creators: [{ artistPublicId: PID.artist1, name: 'SameArtist', role: 'composer', isPublic: true }],
+              creators: [{ artistPublicId: PID.artist1, name: 'SameArtist', originalName: 'SameArtist', role: 'composer', isPublic: true }],
             },
             isMainVideo: true,
           }],
@@ -257,8 +257,8 @@ describe('resolveSongInfo', () => {
             isOrigin: true,
             titles: [{ language: 'ja', title: 'T', isMain: true }],
             artists: [
-              { artistPublicId: PID.artist1, name: 'A', role: 'vocal', isPublic: true },
-              { artistPublicId: PID.artist2, name: 'B', role: 'vocal', isPublic: true },
+              { artistPublicId: PID.artist1, name: 'A', originalName: 'A', role: 'vocal', isPublic: true },
+              { artistPublicId: PID.artist2, name: 'B', originalName: 'B', role: 'vocal', isPublic: true },
             ],
             work: { publicId: PID.work100, titles: [], creators: [] },
             isMainVideo: true,
@@ -280,7 +280,7 @@ describe('resolveSongInfo', () => {
             publicId: PID.rec10,
             isOrigin: true,
             titles: [],
-            artists: [{ artistPublicId: PID.artist1, name: '初音ミク', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist1, name: '初音ミク', originalName: '初音ミク', role: 'vocal', isPublic: true }],
             work: {
               publicId: PID.work100,
               titles: [
@@ -288,7 +288,7 @@ describe('resolveSongInfo', () => {
                 { language: 'ja', title: 'モニタリング', isMain: true },
                 { language: 'ko', title: '모니터링', isMain: false },
               ],
-              creators: [{ artistPublicId: PID.artist2, name: 'DECO*27', role: 'composer', isPublic: true }],
+              creators: [{ artistPublicId: PID.artist2, name: 'DECO*27', originalName: 'DECO*27', role: 'composer', isPublic: true }],
             },
             isMainVideo: true,
           }],
@@ -298,7 +298,7 @@ describe('resolveSongInfo', () => {
 
     const result = await resolveSongInfo(snapshotBase({ uiLang: 'ko' }), apiBase);
     expect(result.kind).toBe('db');
-    expect(result.title).toBe('모니터링');
+    expect(result.title).toBe('모니터링 (モニタリング)');
   });
 
   it('work.titles lang mismatch → uses isMain', async () => {
@@ -310,7 +310,7 @@ describe('resolveSongInfo', () => {
             publicId: PID.rec10,
             isOrigin: true,
             titles: [],
-            artists: [{ artistPublicId: PID.artist1, name: 'A', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist1, name: 'A', originalName: 'A', role: 'vocal', isPublic: true }],
             work: {
               publicId: PID.work100,
               titles: [
@@ -339,7 +339,7 @@ describe('resolveSongInfo', () => {
             publicId: PID.rec10,
             isOrigin: false,
             titles: [{ language: 'ko', title: 'Cover한국어', isMain: true }],
-            artists: [{ artistPublicId: PID.artist1, name: 'A', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist1, name: 'A', originalName: 'A', role: 'vocal', isPublic: true }],
             work: {
               publicId: PID.work100,
               titles: [{ language: 'ko', title: 'Work한국어', isMain: true }],
@@ -369,7 +369,7 @@ describe('resolveSongInfo', () => {
             publicId: PID.rec10,
             isOrigin: true,
             titles: [],
-            artists: [{ artistPublicId: PID.artist1, name: 'A', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist1, name: 'A', originalName: 'A', role: 'vocal', isPublic: true }],
             work: {
               publicId: PID.work100,
               titles: [
@@ -397,7 +397,7 @@ describe('resolveSongInfo', () => {
             publicId: PID.rec10,
             isOrigin: true,
             titles: [{ language: 'en', title: 'CoverEN', isMain: true }],
-            artists: [{ artistPublicId: PID.artist1, name: 'A', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist1, name: 'A', originalName: 'A', role: 'vocal', isPublic: true }],
             work: {
               publicId: PID.work100,
               titles: [{ language: 'ja', title: 'Work JA', isMain: true }],
@@ -422,7 +422,7 @@ describe('resolveSongInfo', () => {
             publicId: PID.rec11,
             isOrigin: false,
             titles: [{ language: 'ja', title: 'Cover', isMain: true }],
-            artists: [{ artistPublicId: PID.artist2, name: 'X', role: 'vocal', isPublic: true }],
+            artists: [{ artistPublicId: PID.artist2, name: 'X', originalName: 'X', role: 'vocal', isPublic: true }],
             work: { publicId: PID.work100, titles: [], creators: [] },
             isMainVideo: false,
           }],
@@ -433,5 +433,100 @@ describe('resolveSongInfo', () => {
     const result = await resolveSongInfo(snapshotBase(), apiBase);
     expect(result.kind).toBe('db');
     expect(result.originUrl).toBeNull();
+  });
+
+  it('formats title as "picked (main)" in uilang mode when picked !== main', async () => {
+    mockFetchResponses({
+      '/public/videos/youtube/abc123?lang=ko': {
+        data: {
+          video: { platform: 'youtube', externalId: 'abc123' },
+          recordings: [{
+            publicId: PID.rec10,
+            isOrigin: true,
+            titles: [
+              { language: 'ja', title: 'モニタリング', isMain: true },
+              { language: 'ko', title: '모니터링', isMain: false },
+            ],
+            artists: [{ artistPublicId: PID.artist1, name: 'A', originalName: 'A', role: 'vocal', isPublic: true }],
+            work: { publicId: PID.work100, titles: [], creators: [] },
+            isMainVideo: true,
+          }],
+        },
+      },
+    });
+
+    const result = await resolveSongInfo(snapshotBase({ uiLang: 'ko' }), apiBase);
+    expect(result.title).toBe('모니터링 (モニタリング)');
+  });
+
+  it("keeps single title in main mode (titleLanguage='main')", async () => {
+    mockFetchResponses({
+      '/public/videos/youtube/abc123?lang=ko': {
+        data: {
+          video: { platform: 'youtube', externalId: 'abc123' },
+          recordings: [{
+            publicId: PID.rec10,
+            isOrigin: true,
+            titles: [
+              { language: 'ja', title: 'モニタリング', isMain: true },
+              { language: 'ko', title: '모니터링', isMain: false },
+            ],
+            artists: [{ artistPublicId: PID.artist1, name: 'A', originalName: 'A', role: 'vocal', isPublic: true }],
+            work: { publicId: PID.work100, titles: [], creators: [] },
+            isMainVideo: true,
+          }],
+        },
+      },
+    });
+
+    const result = await resolveSongInfo(snapshotBase({ uiLang: 'ko' }), apiBase, 'main');
+    expect(result.title).toBe('モニタリング');
+  });
+
+  it('uses single title in uilang mode when picked === main (no translation in user lang)', async () => {
+    mockFetchResponses({
+      '/public/videos/youtube/abc123?lang=ko': {
+        data: {
+          video: { platform: 'youtube', externalId: 'abc123' },
+          recordings: [{
+            publicId: PID.rec10,
+            isOrigin: true,
+            titles: [
+              { language: 'ja', title: 'モニタリング', isMain: true },
+            ],
+            artists: [{ artistPublicId: PID.artist1, name: 'A', originalName: 'A', role: 'vocal', isPublic: true }],
+            work: { publicId: PID.work100, titles: [], creators: [] },
+            isMainVideo: true,
+          }],
+        },
+      },
+    });
+
+    const result = await resolveSongInfo(snapshotBase({ uiLang: 'ko' }), apiBase);
+    expect(result.title).toBe('モニタリング');
+  });
+
+  it('joins artists as "name (originalName)" in uilang mode', async () => {
+    mockFetchResponses({
+      '/public/videos/youtube/abc123?lang=ko': {
+        data: {
+          video: { platform: 'youtube', externalId: 'abc123' },
+          recordings: [{
+            publicId: PID.rec10,
+            isOrigin: true,
+            titles: [{ language: 'ko', title: '제목', isMain: true }],
+            artists: [
+              { artistPublicId: PID.artist1, name: '하츠네 미쿠', originalName: '初音ミク', role: 'vocal', isPublic: true },
+              { artistPublicId: PID.artist2, name: 'DECO*27', originalName: 'DECO*27', role: 'composer', isPublic: true },
+            ],
+            work: { publicId: PID.work100, titles: [], creators: [] },
+            isMainVideo: true,
+          }],
+        },
+      },
+    });
+
+    const result = await resolveSongInfo(snapshotBase({ uiLang: 'ko' }), apiBase);
+    expect(result.artists).toBe('하츠네 미쿠 (初音ミク), DECO*27');
   });
 });
