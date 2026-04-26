@@ -1,40 +1,68 @@
 // Resolves the YouTube channel external ID (UC...) for the current page.
 //
 // YouTube's SPA does not refresh canonical / og:url / ytInitialData when
-// transitioning between two channel pages — they keep pointing at the
-// channel that was active at the initial page load. So DOM sources are
-// only trustworthy for the handle that was in the URL when the page first
-// loaded; any subsequent SPA-nav to a different channel puts us in a
-// "stale" state that the caller must resolve by forcing a full reload.
+// transitioning between pages — they keep pointing at whatever URL was
+// active at the initial page load. DOM sources are only trustworthy for
+// that initial URL's channel; any subsequent SPA-nav puts us in a "stale"
+// state that the caller must resolve by forcing a full reload.
+//
+// Channel URL forms YouTube serves:
+//   /channel/UC...        — canonical, ID is in the URL itself
+//   /@handle              — modern handle URL
+//   /c/customname         — legacy custom URL
+//   /user/legacyname      — legacy user URL
+//   /CustomName           — grandfathered bare vanity URL (some old channels;
+//                           e.g. /Luciaaa_Sings). Indistinguishable from
+//                           non-channel routes by path alone, so detection
+//                           leans on canonical or DOM chrome.
 
 const UC_IN_PATH = /\/channel\/(UC[\w-]{22})(?:\/|$|\?)/;
 
-function currentHandle(): string | null {
-  return window.location.pathname.match(/^\/@([^/]+)/)?.[1] ?? null;
+/** Stable key identifying the *channel* of the current path (not its
+ *  subroute), used to detect SPA navigation between distinct channels. */
+function currentPathKey(): string | null {
+  const path = window.location.pathname;
+  const uc = path.match(/^\/channel\/(UC[\w-]+)/);
+  if (uc) return `uc:${uc[1]}`;
+  const handle = path.match(/^\/@([^/]+)/);
+  if (handle) return `h:${handle[1]}`;
+  const cOrUser = path.match(/^\/(c|user)\/([^/]+)/);
+  if (cOrUser) return `${cOrUser[1]}:${cOrUser[2]}`;
+  // Bare first segment — covers vanity-URL channels and also non-channel
+  // routes (/watch, /results, ...). Comparison is still correct: a stable
+  // key for whatever the page is, so SPA-nav between pages flips it.
+  const bare = path.match(/^\/([^/]+)/);
+  if (bare) return `b:${bare[1]}`;
+  return null;
 }
 
-/** The URL's @handle at the moment preload ran. Refreshes on `load` in
- *  case preload observed a blank/transitional URL first. */
-let pageLoadHandle: string | null = currentHandle();
+/** The page's channel key at initial load. Refreshes on `load` in case
+ *  preload observed a blank/transitional URL first. */
+let pageLoadKey: string | null = currentPathKey();
 if (typeof window !== 'undefined') {
   window.addEventListener('load', () => {
-    if (pageLoadHandle === null) pageLoadHandle = currentHandle();
+    if (pageLoadKey === null) pageLoadKey = currentPathKey();
   });
 }
 
 export function isChannelPage(): boolean {
-  return /^\/(channel\/|@|c\/|user\/)/.test(window.location.pathname);
+  if (/^\/(channel\/|@|c\/|user\/)/.test(window.location.pathname)) return true;
+  // Bare vanity URL fallback. canonical is accurate on a fresh load but
+  // stale across SPA-nav from a non-channel page; the channel tab-bar
+  // element catches the SPA-nav case once the new page's chrome renders.
+  const canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+  if (canonical?.href.match(/\/channel\/UC[\w-]{22}/)) return true;
+  return document.querySelector('.tabGroupShapeTabs[role="tablist"]') !== null;
 }
 
-/** True when the URL's @handle can't be trusted against the DOM sources.
- *  Two cases: the handle changed since initial load, OR we loaded on a
- *  non-channel page (watch, search, …) and SPA-navved into a channel,
- *  so canonical/og:url still reflect that prior page. */
+/** True when DOM sources (canonical, og:url) can't be trusted against the
+ *  current URL — i.e. the page's channel changed since initial load, so
+ *  canonical still reflects the previous page. */
 export function isStaleAfterSpaNav(): boolean {
-  const handle = currentHandle();
-  if (!handle) return false;
-  if (pageLoadHandle === null) return true;
-  return handle !== pageLoadHandle;
+  const key = currentPathKey();
+  if (!key) return false;
+  if (pageLoadKey === null) return true;
+  return key !== pageLoadKey;
 }
 
 export function resolveChannelId(): string | null {
