@@ -5,6 +5,7 @@ import { adminVideo } from './plugins/admin-video/index.js';
 import { adminChannel } from './plugins/admin-channel/index.js';
 import { discordPresence } from './plugins/discord-presence/index.js';
 import { urlPrompt } from './plugins/url-prompt/index.js';
+import { setLocale, detectLocale, type Locale } from './i18n/index.js';
 
 
 contextBridge.exposeInMainWorld('kanade', {
@@ -55,4 +56,18 @@ const plugins = {
   'discord-presence': discordPresence,
   'url-prompt': urlPrompt,
 };
-loadAllRendererPlugins(plugins);
+
+async function initLocale(): Promise<void> {
+  try {
+    const settings = await ipcRenderer.invoke('settings:get');
+    if (settings?.locale) setLocale(settings.locale);
+  } catch (e) {
+    console.warn('[kanade] i18n init failed:', e);
+  }
+}
+
+ipcRenderer.on('i18n:locale-changed', (_e, newLocale: Locale | null) => {
+  setLocale(newLocale ?? detectLocale());
+});
+
+void initLocale().then(() => loadAllRendererPlugins(plugins));
