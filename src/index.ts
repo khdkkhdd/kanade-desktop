@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, Menu, session, shell } from 'electron';
 import path from 'node:path';
 import { store, getPresenceConfig } from './config/store.js';
 import { isSafeWebUrl } from './lib/url-guard.js';
-import type { PresenceConfig } from './config/store.js';
+import type { PresenceConfig, Locale } from './config/store.js';
 import { setupAutoUpdater } from './auto-updater.js';
 import { loadAllMainPlugins, unloadAllMainPlugins } from './loader/main.js';
 import { relationOverlayMain } from './plugins/relation-overlay/main.js';
@@ -224,12 +224,19 @@ function setupSettingsIPC(): void {
       adminApiKey: k.adminApiKey,
       apiBase: k.apiBase,
       presence: getPresenceConfig(),
+      locale: k.locale ?? null,
     };
   });
-  ipcMain.handle('settings:save', (_e, v: { adminApiKey: string; apiBase: string; presence: PresenceConfig }) => {
+  ipcMain.handle('settings:save', (_e, v: {
+    adminApiKey: string;
+    apiBase: string;
+    presence: PresenceConfig;
+    locale: Locale | null;
+  }) => {
     store.set('kanade', v);
     for (const w of BrowserWindow.getAllWindows()) {
       w.webContents.send('settings:changed', v);
+      w.webContents.send('i18n:locale-changed', v.locale);
     }
     // Propagate config change to main-side plugins (settings:changed only flows Main→Renderer, so Main can't receive it)
     applyPresenceConfigChange(v.presence);
