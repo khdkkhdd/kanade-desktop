@@ -6,6 +6,7 @@ import type {
   VideoRecording,
 } from '../types.js';
 import { createListSection } from './list-section.js';
+import { formatWithOriginal } from '../utils.js';
 import { t } from '../../../i18n/index.js';
 
 const PAGE_LIMIT = 20;
@@ -84,7 +85,10 @@ export async function createArtistSection(
     }
   }
 
-  const initialChips: SubChipDef[] = credits.map((c) => ({ artistPublicId: c.artistPublicId, name: c.name }));
+  const initialChips: SubChipDef[] = credits.map((c) => ({
+    artistPublicId: c.artistPublicId,
+    name: formatWithOriginal(c.name, c.originalName),
+  }));
   for (const def of initialChips) addSubChip(def);
   if (initialChips.length > 0) await activateChip(initialChips[0]);
 
@@ -201,6 +205,9 @@ async function loadRelatedChips(
 
   const relations = raw?.data ?? [];
   for (const rel of relations) {
-    addSubChip({ artistPublicId: rel.artist.publicId, name: rel.artist.name });
+    addSubChip({
+      artistPublicId: rel.artist.publicId,
+      name: formatWithOriginal(rel.artist.name, rel.artist.originalName),
+    });
   }
 }

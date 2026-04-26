@@ -22,6 +22,7 @@ export interface TitleEntry {
 export interface ArtistCredit {
   artistPublicId: string;
   name: string;
+  originalName: string;
   role: string | null;
   isPublic: boolean;
 }
@@ -54,7 +55,9 @@ export interface RecordingListItem {
   publicId: string;
   isOrigin: boolean;
   title: string;
+  originalTitle: string;
   workTitle: string;
+  workOriginalTitle: string;
   workPublicId: string;
   artists: ArtistCredit[];
   workCreators: ArtistCredit[];
@@ -80,7 +83,7 @@ export interface RecordingVideo {
 export interface ArtistRelation {
   type: string;
   direction: 'outgoing' | 'incoming';
-  artist: { publicId: string; name: string; type: string };
+  artist: { publicId: string; name: string; originalName: string; type: string };
 }
 
 // ─── IPC Request shapes ──────────────────────────────────

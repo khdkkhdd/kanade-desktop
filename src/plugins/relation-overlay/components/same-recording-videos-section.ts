@@ -1,6 +1,13 @@
 import type { RendererContext } from '../../../types/plugins.js';
 import type { ArtistCredit, RecordingVideo, VideoRecording } from '../types.js';
-import { pickTitle, renderArtists, externalUrlFor, isSupportedPlatform } from '../utils.js';
+import {
+  pickTitle,
+  pickMainTitle,
+  formatWithOriginal,
+  renderArtists,
+  externalUrlFor,
+  isSupportedPlatform,
+} from '../utils.js';
 
 // Merge performers + work creators for origin recordings — mirrors the logic
 // in video-item.ts so "empty recording_artists on an origin" still shows the
@@ -38,8 +45,8 @@ export async function createSameRecordingVideosSection(
   const root = document.createElement('div');
   root.className = 'kanade-card-list';
 
-  const title =
-    recording.titles.length > 0 ? pickTitle(recording.titles, lang) : pickTitle(recording.work.titles, lang);
+  const titles = recording.titles.length > 0 ? recording.titles : recording.work.titles;
+  const title = formatWithOriginal(pickTitle(titles, lang), pickMainTitle(titles));
   const credits = recording.isOrigin
     ? mergeCredits(recording.artists, recording.work.creators)
     : recording.artists;

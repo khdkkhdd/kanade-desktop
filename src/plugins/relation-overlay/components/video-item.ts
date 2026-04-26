@@ -1,5 +1,11 @@
 import type { ArtistCredit, RecordingListItem } from '../types.js';
-import { renderArtists, externalUrlFor, isSupportedPlatform, niconicoThumbUrl } from '../utils.js';
+import {
+  renderArtists,
+  externalUrlFor,
+  isSupportedPlatform,
+  niconicoThumbUrl,
+  formatWithOriginal,
+} from '../utils.js';
 
 export interface VideoItemOptions {
   showTitle?: boolean;
@@ -69,7 +75,9 @@ export function createVideoItem(
   if (showTitle) {
     const title = document.createElement('div');
     title.className = 'kanade-video-title';
-    title.textContent = recording.title || recording.workTitle;
+    title.textContent = recording.title
+      ? formatWithOriginal(recording.title, recording.originalTitle)
+      : formatWithOriginal(recording.workTitle, recording.workOriginalTitle);
     info.appendChild(title);
   }
 
