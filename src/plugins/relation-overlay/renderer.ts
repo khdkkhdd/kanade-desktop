@@ -2,6 +2,7 @@ import { ipcRenderer } from 'electron';
 import type { RendererContext } from '../../types/plugins.js';
 import type { VideoResponse } from './types.js';
 import { createPanel, removePanel } from './components/panel.js';
+import { setLocale, detectLocale, type Locale } from '../../i18n/index.js';
 
 function extractVideoId(): string | null {
   const param = new URLSearchParams(window.location.search).get('v');
@@ -95,6 +96,11 @@ export function setupRenderer(ctx: RendererContext): void {
     void onNavigate(true);
   });
   ipcRenderer.on('settings:changed', () => {
+    currentVideoId = null;
+    void onNavigate(true);
+  });
+  ipcRenderer.on('i18n:locale-changed', (_event, newLocale: Locale | null) => {
+    setLocale(newLocale ?? detectLocale());
     currentVideoId = null;
     void onNavigate(true);
   });
