@@ -24,6 +24,7 @@ declare global {
     kanadeSettings: {
       get: () => Promise<SettingsShape>;
       save: (v: SettingsShape) => Promise<void>;
+      onLocaleChanged: (callback: (locale: Locale | null) => void) => void;
     };
   }
 }
@@ -47,6 +48,14 @@ function App() {
     setTimeoutMin(v.presence?.activityTimeoutMinutes ?? 10);
     setTitleLang(v.presence?.titleLanguage ?? 'uilang');
     setAppLocale(v.locale ?? null);
+
+    // Sync page-context i18n state — preload's setLocale doesn't reach this V8 context
+    setLocale(v.locale ?? detectLocale());
+
+    // Live update for when user (or another window) changes locale
+    window.kanadeSettings.onLocaleChanged((newLocale) => {
+      setLocale(newLocale ?? detectLocale());
+    });
   });
 
   async function save() {
