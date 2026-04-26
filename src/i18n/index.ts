@@ -1,4 +1,5 @@
 import * as i18n from '@solid-primitives/i18n';
+import { createSignal } from 'solid-js';
 import { ko, en, ja, type Locale, type RawDictionary } from './dictionaries.js';
 
 export type { Locale } from './dictionaries.js';
@@ -36,18 +37,20 @@ export function detectLocale(): Locale {
   return 'en';
 }
 
-let currentLocale: Locale = typeof window === 'undefined' ? 'en' : detectLocale();
+const initial: Locale = typeof window === 'undefined' ? 'en' : detectLocale();
+const [locale, setLocaleSignal] = createSignal<Locale>(initial);
 
-export function setLocale(locale: Locale): void {
-  currentLocale = locale;
+export function setLocale(newLocale: Locale): void {
+  setLocaleSignal(newLocale);
 }
 
 export function getLocale(): Locale {
-  return currentLocale;
+  return locale();
 }
 
 /**
- * Translator bound to the current locale. Accessor-based so future callers
- * can wire it into a Solid signal if reactive switching becomes needed.
+ * Translator bound to the current locale signal. Because the accessor reads
+ * `locale()`, any SolidJS reactive scope calling `t(...)` automatically
+ * re-runs when `setLocale()` is invoked.
  */
-export const t = i18n.translator(() => flattened[currentLocale]);
+export const t = i18n.translator(() => flattened[locale()]);
