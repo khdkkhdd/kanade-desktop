@@ -77,7 +77,10 @@ export async function resolveSongInfo(
       titleLanguage === 'main'
         ? pickMainTitle(titleSource)
         : formatWithOriginal(pickTitle(titleSource, uiLang), pickMainTitle(titleSource));
-    const artists = visible.map((c) => formatWithOriginal(c.name, c.originalName)).join(', ');
+    const artists =
+      titleLanguage === 'main'
+        ? visible.map((c) => c.originalName).join(', ')
+        : visible.map((c) => formatWithOriginal(c.name, c.originalName)).join(', ');
     const originUrl = rec.isOrigin
       ? null
       : await fetchOriginMainVideoUrl(apiBase, rec.work.publicId, uiLang);

@@ -1,3 +1,4 @@
+import { ipcRenderer } from 'electron';
 import type { RendererContext } from '../../types/plugins.js';
 import type { PlayerStateUpdate } from './types.js';
 import { RENDERER_TIMEUPDATE_MIN_MS } from './constants.js';
@@ -113,4 +114,10 @@ export function setupRenderer(ctx: RendererContext): void {
   document.addEventListener('yt-page-data-updated', () => dispatch());
 
   window.addEventListener('load', () => { void rebindVideo(); });
+
+  // Re-dispatch on locale change so Discord activity language updates
+  // immediately, not on the next video event.
+  ipcRenderer.on('i18n:locale-changed', () => {
+    dispatch();
+  });
 }

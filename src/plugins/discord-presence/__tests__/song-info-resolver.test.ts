@@ -529,4 +529,28 @@ describe('resolveSongInfo', () => {
     const result = await resolveSongInfo(snapshotBase({ uiLang: 'ko' }), apiBase);
     expect(result.artists).toBe('하츠네 미쿠 (初音ミク), DECO*27');
   });
+
+  it("uses originalName only for artists in main mode (titleLanguage='main')", async () => {
+    mockFetchResponses({
+      '/public/videos/youtube/abc123?lang=ko': {
+        data: {
+          video: { platform: 'youtube', externalId: 'abc123' },
+          recordings: [{
+            publicId: PID.rec10,
+            isOrigin: true,
+            titles: [{ language: 'ja', title: 'モニタリング', isMain: true }],
+            artists: [
+              { artistPublicId: PID.artist1, name: '하츠네 미쿠', originalName: '初音ミク', role: 'vocal', isPublic: true },
+              { artistPublicId: PID.artist2, name: 'DECO*27', originalName: 'DECO*27', role: 'composer', isPublic: true },
+            ],
+            work: { publicId: PID.work100, titles: [], creators: [] },
+            isMainVideo: true,
+          }],
+        },
+      },
+    });
+
+    const result = await resolveSongInfo(snapshotBase({ uiLang: 'ko' }), apiBase, 'main');
+    expect(result.artists).toBe('初音ミク, DECO*27');
+  });
 });
