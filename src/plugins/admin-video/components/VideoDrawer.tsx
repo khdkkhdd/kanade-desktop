@@ -274,9 +274,13 @@ export function VideoDrawer(props: VideoDrawerProps) {
     if (!c) return undefined;
     const r = (await props.ctx.ipc.invoke('get-channel-hint', { externalId: c })) as any;
     if (!r?.ok || !r.data) return undefined;
-    const rawArtists = (r.data.artists ?? []) as Array<{ artistId: number; displayName: string }>;
+    const rawArtists = (r.data.artists ?? []) as Array<{ artistId: number; displayName: string; originalName?: string }>;
     return {
-      artists: rawArtists.map((a) => ({ id: a.artistId, displayName: a.displayName })),
+      artists: rawArtists.map((a) => ({
+        id: a.artistId,
+        displayName: a.displayName,
+        originalName: a.originalName,
+      })),
     };
   });
 

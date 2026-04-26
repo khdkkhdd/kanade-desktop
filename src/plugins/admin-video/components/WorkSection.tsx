@@ -4,6 +4,7 @@ import type { WorkSelection, TitleInput, ArtistCreditInput, NewArtistInput } fro
 import { EntityPicker, type EntitySearchResult } from '../../../admin/components/EntityPicker.js';
 import { TitleI18nInput } from '../../../admin/components/TitleI18nInput.js';
 import { normalizeTitles } from '../../../admin/title-utils.js';
+import { formatWithOriginal } from '../../../shared/title-utils.js';
 import { ArtistCreditsSection, type ArtistCreditInitial } from './ArtistCreditsSection.js';
 
 type Credit = ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
@@ -12,7 +13,7 @@ export interface WorkSectionProps {
   ctx: RendererContext;
   value: WorkSelection | null;
   onChange: (v: WorkSelection | null) => void;
-  channelHint?: { artists: Array<{ id: number; displayName: string }> };
+  channelHint?: { artists: Array<{ id: number; displayName: string; originalName?: string }> };
   /** Display label for pre-selected existing work (edit mode). */
   initialLabel?: string;
   /** Original (isMain-language) label rendered as dim secondary when different from initialLabel. */
@@ -53,13 +54,18 @@ export function WorkSection(props: WorkSectionProps) {
       id: number;
       displayTitle: string;
       originalTitle?: string;
-      artists?: Array<{ displayName: string; role: string | null }>;
+      artists?: Array<{ displayName: string; originalName?: string; role: string | null }>;
     }) => ({
       id: w.id,
       displayLabel: w.displayTitle,
       originalLabel: w.originalTitle,
       subLabel: (w.artists ?? []).length > 0
-        ? w.artists!.map((a) => (a.role ? `${a.displayName} (${a.role})` : a.displayName)).join(', ')
+        ? w.artists!
+            .map((a) => {
+              const name = formatWithOriginal(a.displayName, a.originalName);
+              return a.role ? `${name} (${a.role})` : name;
+            })
+            .join(', ')
         : undefined,
     }));
   }

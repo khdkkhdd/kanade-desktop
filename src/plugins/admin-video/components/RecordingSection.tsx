@@ -3,6 +3,7 @@ import type { RendererContext } from '../../../types/plugins.js';
 import type { RecordingSelection, TitleInput, WorkSelection, ArtistCreditInput, NewArtistInput } from '../../../admin/types.js';
 import { TitleI18nInput } from '../../../admin/components/TitleI18nInput.js';
 import { normalizeTitles } from '../../../admin/title-utils.js';
+import { formatWithOriginal } from '../../../shared/title-utils.js';
 import { ArtistCreditsSection, type ArtistCreditInitial } from './ArtistCreditsSection.js';
 
 type ArtistCreditEntry = ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
@@ -12,7 +13,7 @@ export interface RecordingSectionProps {
   work: WorkSelection;
   value: RecordingSelection | null;
   onChange: (v: RecordingSelection | null) => void;
-  channelHint?: { artists: Array<{ id: number; displayName: string }> };
+  channelHint?: { artists: Array<{ id: number; displayName: string; originalName?: string }> };
   /** Display label for pre-selected existing recording (edit mode). */
   initialLabel?: string;
   /** Original (isMain-language) label shown as dim secondary when different from initialLabel. */
@@ -166,7 +167,10 @@ export function RecordingSection(props: RecordingSectionProps) {
                   <Show when={r.artists.length > 0}>
                     <span class="kanade-admin-list__item-sub">
                       {r.artists
-                        .map((a) => (a.role ? `${a.displayName} (${a.role})` : a.displayName))
+                        .map((a) => {
+                          const name = formatWithOriginal(a.displayName, a.originalName);
+                          return a.role ? `${name} (${a.role})` : name;
+                        })
                         .join(', ')}
                     </span>
                   </Show>

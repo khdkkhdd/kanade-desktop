@@ -4,6 +4,7 @@ import type { ArtistCreditInput, NewArtistInput } from '../../../admin/types.js'
 import { EntityPicker, type EntitySearchResult } from '../../../admin/components/EntityPicker.js';
 import { ArtistQuickAdd } from '../../../admin/components/ArtistQuickAdd.js';
 import { RoleAutocomplete } from '../../../admin/components/RoleAutocomplete.js';
+import { formatWithOriginal } from '../../../shared/title-utils.js';
 
 type Credit = ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
 
@@ -20,7 +21,7 @@ export interface ArtistCreditsSectionProps {
   context: 'work' | 'recording';
   credits: Credit[];
   onChange: (next: Credit[]) => void;
-  channelHint?: { artists: Array<{ id: number; displayName: string }> };
+  channelHint?: { artists: Array<{ id: number; displayName: string; originalName?: string }> };
   /** If provided, prefill rows with these existing credits (used in edit mode). */
   initial?: ArtistCreditInitial[];
 }
@@ -94,13 +95,17 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
     setRows(rows().filter((_, idx) => idx !== i));
   }
 
-  function acceptHint(artist: { id: number; displayName: string }) {
+  function acceptHint(artist: { id: number; displayName: string; originalName?: string }) {
     // Channel ↔ artist linkage carries no role information, so we can't
     // assume the hinted artist is a vocalist (a channel may belong to a
     // composer or a group with mixed roles). Leave role blank and let the
     // admin pick it — matches the manual-add default.
     addRow({
-      picked: { id: artist.id, displayLabel: artist.displayName },
+      picked: {
+        id: artist.id,
+        displayLabel: artist.displayName,
+        originalLabel: artist.originalName,
+      },
       role: null,
       isPublic: true,
     });
@@ -135,7 +140,7 @@ export function ArtistCreditsSection(props: ArtistCreditsSectionProps) {
                       class="kanade-admin-btn kanade-admin-btn--primary"
                       onClick={() => acceptHint(artist)}
                     >
-                      + {artist.displayName}
+                      + {formatWithOriginal(artist.displayName, artist.originalName)}
                     </button>
                   )}
                 </For>
