@@ -10,7 +10,7 @@ import { computeArtistDiff, type ArtistCreditSnapshot } from '../diff.js';
 import type { UpdateVideoPayload, ReassignVideoPayload } from '../update.js';
 import type { AdminVideoArtist, AdminVideoData } from '../types.js';
 import { readBridgedChannelId } from '../channel-bridge.js';
-import { collectOwnerChannels } from '../../../lib/youtube-dom/owner-channels.js';
+import { findOwnerChannelUc } from '../../../lib/youtube-dom/owner-channels.js';
 
 type Credit = ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
 
@@ -237,66 +237,47 @@ export function VideoDrawer(props: VideoDrawerProps) {
         ?? initialWorkOriginalLabel)
     : undefined;
 
-  // YouTube exposes the current video's channel id through several paths, and
-  // the meta tag we used to rely on is no longer present on modern watch pages.
-  // Probe the ones that survive SPA navigation in priority order.
-  const channelExternalIds = (): string[] => {
-    // owner-channels 의 모든 UC 우선. 없으면 main-world 브리지 / legacy meta 보강.
-    const owners = collectOwnerChannels();
-    const ucs = owners.map((o) => o.ucId).filter((u): u is string => u !== null);
+  // Resolve the uploader's UC channel id. Owner anchor hrefs come first
+  // because they survive SPA navigation reliably; fall back to the main-world
+  // bridge (videoDetails.channelId) and finally the legacy <meta> tag.
+  const channelExternalId = (): string => {
+    const fromOwner = findOwnerChannelUc();
+    if (fromOwner) return fromOwner;
 
     const bridged = readBridgedChannelId();
-    if (bridged && !ucs.includes(bridged)) ucs.push(bridged);
+    if (bridged) return bridged;
 
-    if (ucs.length === 0) {
-      // Legacy <meta itemprop="channelId">.
-      const meta = document.querySelector('meta[itemprop="channelId"]') as HTMLMetaElement | null;
-      if (meta?.content && /^UC[\w-]{22}$/.test(meta.content)) ucs.push(meta.content);
-    }
+    const meta = document.querySelector('meta[itemprop="channelId"]') as HTMLMetaElement | null;
+    if (meta?.content && /^UC[\w-]{22}$/.test(meta.content)) return meta.content;
 
-    return ucs;
+    return '';
   };
 
-  // Poll for up to 5s — owner anchors render asynchronously and collab
-  // videos sometimes surface a second channel after the first. We always
-  // poll (not just when initially empty) and only update the signal when
-  // the discovered channel set actually changes, so the resource doesn't
-  // refetch on every tick.
-  const [cids, setCids] = createSignal(channelExternalIds());
-  const interval = setInterval(() => {
-    const next = channelExternalIds();
-    const prev = cids();
-    if (next.length !== prev.length || next.some((u, i) => u !== prev[i])) {
-      setCids(next);
-    }
-  }, 200);
-  const timeout = setTimeout(() => clearInterval(interval), 5000);
-  onCleanup(() => {
-    clearInterval(interval);
-    clearTimeout(timeout);
-  });
-
-  const [channelHint] = createResource(cids, async (list) => {
-    if (!list || list.length === 0) return undefined;
-    const responses = await Promise.all(
-      list.map(async (c) => {
-        const r = (await props.ctx.ipc.invoke('get-channel-hint', { externalId: c })) as any;
-        if (!r?.ok || !r.data) return [] as Array<{ artistId: number; displayName: string }>;
-        return (r.data.artists ?? []) as Array<{ artistId: number; displayName: string }>;
-      }),
-    );
-    // Union by artistId, preserve first-seen order.
-    const seen = new Set<number>();
-    const merged: Array<{ id: number; displayName: string }> = [];
-    for (const arr of responses) {
-      for (const a of arr) {
-        if (seen.has(a.artistId)) continue;
-        seen.add(a.artistId);
-        merged.push({ id: a.artistId, displayName: a.displayName });
+  // Poll for up to 5s while the owner chip / bridge dataset is still mounting.
+  const [cid, setCid] = createSignal(channelExternalId());
+  if (!cid()) {
+    const interval = setInterval(() => {
+      const v = channelExternalId();
+      if (v) {
+        setCid(v);
+        clearInterval(interval);
       }
-    }
-    if (merged.length === 0) return undefined;
-    return { artists: merged };
+    }, 200);
+    const timeout = setTimeout(() => clearInterval(interval), 5000);
+    onCleanup(() => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    });
+  }
+
+  const [channelHint] = createResource(cid, async (c) => {
+    if (!c) return undefined;
+    const r = (await props.ctx.ipc.invoke('get-channel-hint', { externalId: c })) as any;
+    if (!r?.ok || !r.data) return undefined;
+    const rawArtists = (r.data.artists ?? []) as Array<{ artistId: number; displayName: string }>;
+    return {
+      artists: rawArtists.map((a) => ({ id: a.artistId, displayName: a.displayName })),
+    };
   });
 
   // A new work needs at least one title (and exactly one flagged isMain) —
