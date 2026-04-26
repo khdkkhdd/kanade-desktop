@@ -1,4 +1,5 @@
 import Store from 'electron-store';
+import type { Locale } from '../i18n/dictionaries.js';
 
 interface WindowState {
   width: number;
@@ -21,6 +22,7 @@ interface KanadeConfig {
   adminApiKey: string;
   apiBase: string;
   presence: PresenceConfig;
+  locale: Locale | null;
 }
 
 interface StoreSchema {
@@ -46,6 +48,7 @@ const store = new Store<StoreSchema>({
       adminApiKey: '',
       apiBase: process.env.KANADE_API_BASE ?? 'http://localhost:3000/api/v1',
       presence: DEFAULT_PRESENCE_CONFIG,
+      locale: null,
     },
   },
 });
@@ -60,5 +63,15 @@ export function getPresenceConfig(): PresenceConfig {
   return { ...DEFAULT_PRESENCE_CONFIG, ...saved };
 }
 
+/**
+ * Returns the user's chosen locale, or null if they have not chosen one.
+ * Existing user configs without the `locale` field fall through `?? null`,
+ * letting callers fall back to auto-detect.
+ */
+export function getLocaleSetting(): Locale | null {
+  const k = store.get('kanade');
+  return k.locale ?? null;
+}
+
 export { store };
-export type { WindowState, StoreSchema, KanadeConfig, PresenceConfig, TitleLanguage };
+export type { WindowState, StoreSchema, KanadeConfig, PresenceConfig, TitleLanguage, Locale };
