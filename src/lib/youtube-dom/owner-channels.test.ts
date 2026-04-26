@@ -71,4 +71,42 @@ describe('collectOwnerChannels', () => {
       { ucId: null, name: 'Alpha' },
     ]);
   });
+
+  it('falls back to #owner anchors when ytd-video-owner-renderer is empty', () => {
+    const doc = makeDoc(`
+      <div id="owner">
+        <a href="/channel/UCcccccccccccccccccccccc">Cee</a>
+      </div>
+    `);
+    expect(collectOwnerChannels(doc)).toEqual([
+      { ucId: 'UCcccccccccccccccccccccc', name: 'Cee' },
+    ]);
+  });
+
+  it('augments DOM-anchor result with movie_player.getVideoData().author when no anchors found', () => {
+    const dom = new JSDOM('<!DOCTYPE html><html><body><div id="movie_player"></div></body></html>');
+    const doc = dom.window.document;
+    const player = doc.getElementById('movie_player') as HTMLElement & {
+      getVideoData?: () => { author?: string };
+    };
+    player.getVideoData = () => ({ author: 'PlayerAuthor' });
+    expect(collectOwnerChannels(doc)).toEqual([
+      { ucId: null, name: 'PlayerAuthor' },
+    ]);
+  });
+
+  it('does not add player author when DOM anchors already present', () => {
+    const dom = new JSDOM(`<!DOCTYPE html><html><body>
+      <ytd-video-owner-renderer><a href="/channel/UCaaaaaaaaaaaaaaaaaaaaaa">A</a></ytd-video-owner-renderer>
+      <div id="movie_player"></div>
+    </body></html>`);
+    const doc = dom.window.document;
+    const player = doc.getElementById('movie_player') as HTMLElement & {
+      getVideoData?: () => { author?: string };
+    };
+    player.getVideoData = () => ({ author: 'A-different-author' });
+    expect(collectOwnerChannels(doc)).toEqual([
+      { ucId: 'UCaaaaaaaaaaaaaaaaaaaaaa', name: 'A' },
+    ]);
+  });
 });
