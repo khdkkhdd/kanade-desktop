@@ -1,3 +1,5 @@
+import { collectOwnerChannels } from '../../lib/youtube-dom/owner-channels.js';
+
 /**
  * YouTube's `document.title` sometimes flips early to the "next up" video's
  * title in a Mix autoplay queue, creating a window where it disagrees with
@@ -19,24 +21,20 @@ export function extractDomTitle(): string {
 }
 
 /**
- * Extracts the channel name. Prefers the player's getVideoData().author, and
- * falls back to the ytd-channel-name element.
+ * Extracts the channel label for Discord presence's fallback artist line.
+ * Joins collab/multi-channel uploads with ", " so "by YouTube" no longer
+ * appears on videos with multiple credited owner channels. Shorts use a
+ * dedicated handle anchor because the watch page DOM stays stale during
+ * shorts playback.
  */
 export function extractDomChannel(): string | null {
-  const player = getMoviePlayer();
-  const data = player?.getVideoData?.();
-  if (data?.author) return data.author.trim() || null;
-
-  // On Shorts, getVideoData().author is empty and ytd-watch-metadata often
-  // lingers in DOM with the previous watch page's channel, so that fallback
-  // returns stale data. The Shorts overlay exposes only the @handle link.
-  if (window.location.pathname.startsWith('/shorts/')) {
+  if (typeof window !== 'undefined' && window.location?.pathname?.startsWith('/shorts/')) {
     return extractShortsChannelHandle();
   }
 
-  const el = document.querySelector('ytd-watch-metadata ytd-channel-name #text');
-  const name = el?.textContent?.trim();
-  return name && name.length > 0 ? name : null;
+  const owners = collectOwnerChannels();
+  if (owners.length === 0) return null;
+  return owners.map((o) => o.name).join(', ');
 }
 
 function extractShortsChannelHandle(): string | null {
