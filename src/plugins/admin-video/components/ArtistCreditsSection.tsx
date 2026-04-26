@@ -20,7 +20,7 @@ export interface ArtistCreditsSectionProps {
   context: 'work' | 'recording';
   credits: Credit[];
   onChange: (next: Credit[]) => void;
-  channelHint?: { channelExternalId: string; artists: Array<{ id: number; displayName: string }> };
+  channelHint?: { artists: Array<{ id: number; displayName: string }> };
   /** If provided, prefill rows with these existing credits (used in edit mode). */
   initial?: ArtistCreditInitial[];
 }

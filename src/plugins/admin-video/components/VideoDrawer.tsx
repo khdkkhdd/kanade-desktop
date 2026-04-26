@@ -286,7 +286,6 @@ export function VideoDrawer(props: VideoDrawerProps) {
     // downstream section/banner components can stay framework-generic.
     const rawArtists = (r.data.artists ?? []) as Array<{ artistId: number; displayName: string }>;
     return {
-      channelExternalId: c,
       artists: rawArtists.map((a) => ({ id: a.artistId, displayName: a.displayName })),
     };
   });

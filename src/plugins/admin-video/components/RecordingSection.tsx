@@ -12,7 +12,7 @@ export interface RecordingSectionProps {
   work: WorkSelection;
   value: RecordingSelection | null;
   onChange: (v: RecordingSelection | null) => void;
-  channelHint?: { channelExternalId: string; artists: Array<{ id: number; displayName: string }> };
+  channelHint?: { artists: Array<{ id: number; displayName: string }> };
   /** Display label for pre-selected existing recording (edit mode). */
   initialLabel?: string;
   /** Original (isMain-language) label shown as dim secondary when different from initialLabel. */

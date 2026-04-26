@@ -12,7 +12,7 @@ export interface WorkSectionProps {
   ctx: RendererContext;
   value: WorkSelection | null;
   onChange: (v: WorkSelection | null) => void;
-  channelHint?: { channelExternalId: string; artists: Array<{ id: number; displayName: string }> };
+  channelHint?: { artists: Array<{ id: number; displayName: string }> };
   /** Display label for pre-selected existing work (edit mode). */
   initialLabel?: string;
   /** Original (isMain-language) label rendered as dim secondary when different from initialLabel. */
