@@ -257,17 +257,15 @@ export function VideoDrawer(props: VideoDrawerProps) {
     return ucs;
   };
 
-  const channelExternalId = (): string => channelExternalIds()[0] ?? '';
-
-  // Poll for up to 5s until the channel id surfaces — the bridge writes the
-  // data attribute asynchronously, and watch pages occasionally render the
-  // owner chip after the drawer has already mounted.
-  const [cid, setCid] = createSignal(channelExternalId());
-  if (!cid()) {
+  // Poll for up to 5s until at least one channel id surfaces — the bridge
+  // writes the dataset attribute asynchronously, and watch pages occasionally
+  // render the owner chip after the drawer has already mounted.
+  const [cids, setCids] = createSignal(channelExternalIds());
+  if (cids().length === 0) {
     const interval = setInterval(() => {
-      const v = channelExternalId();
-      if (v) {
-        setCid(v);
+      const v = channelExternalIds();
+      if (v.length > 0) {
+        setCids(v);
         clearInterval(interval);
       }
     }, 200);
@@ -278,16 +276,27 @@ export function VideoDrawer(props: VideoDrawerProps) {
     });
   }
 
-  const [channelHint] = createResource(cid, async (c) => {
-    if (!c) return undefined;
-    const r = (await props.ctx.ipc.invoke('get-channel-hint', { externalId: c })) as any;
-    if (!r?.ok || !r.data) return undefined;
-    // Server returns `{ artistId, displayName }`; normalise to `id` so the
-    // downstream section/banner components can stay framework-generic.
-    const rawArtists = (r.data.artists ?? []) as Array<{ artistId: number; displayName: string }>;
-    return {
-      artists: rawArtists.map((a) => ({ id: a.artistId, displayName: a.displayName })),
-    };
+  const [channelHint] = createResource(cids, async (list) => {
+    if (!list || list.length === 0) return undefined;
+    const responses = await Promise.all(
+      list.map(async (c) => {
+        const r = (await props.ctx.ipc.invoke('get-channel-hint', { externalId: c })) as any;
+        if (!r?.ok || !r.data) return [] as Array<{ artistId: number; displayName: string }>;
+        return (r.data.artists ?? []) as Array<{ artistId: number; displayName: string }>;
+      }),
+    );
+    // Union by artistId, preserve first-seen order.
+    const seen = new Set<number>();
+    const merged: Array<{ id: number; displayName: string }> = [];
+    for (const arr of responses) {
+      for (const a of arr) {
+        if (seen.has(a.artistId)) continue;
+        seen.add(a.artistId);
+        merged.push({ id: a.artistId, displayName: a.displayName });
+      }
+    }
+    if (merged.length === 0) return undefined;
+    return { artists: merged };
   });
 
   // A new work needs at least one title (and exactly one flagged isMain) —
