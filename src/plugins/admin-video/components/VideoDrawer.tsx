@@ -10,6 +10,7 @@ import { computeArtistDiff, type ArtistCreditSnapshot } from '../diff.js';
 import type { UpdateVideoPayload, ReassignVideoPayload } from '../update.js';
 import type { AdminVideoArtist, AdminVideoData } from '../types.js';
 import { readBridgedChannelId } from '../channel-bridge.js';
+import { collectOwnerChannels } from '../../../lib/youtube-dom/owner-channels.js';
 
 type Credit = ArtistCreditInput | { newArtist: NewArtistInput; role: string | null; isPublic: boolean };
 
@@ -239,38 +240,24 @@ export function VideoDrawer(props: VideoDrawerProps) {
   // YouTube exposes the current video's channel id through several paths, and
   // the meta tag we used to rely on is no longer present on modern watch pages.
   // Probe the ones that survive SPA navigation in priority order.
-  const channelExternalId = () => {
-    const ucRe = /^UC[\w-]{22}$/;
-    const pickUc = (href: string | null | undefined): string | null => {
-      if (!href) return null;
-      const m = href.match(/\/channel\/(UC[\w-]{22})/);
-      return m ? m[1] : null;
-    };
+  const channelExternalIds = (): string[] => {
+    // owner-channels 의 모든 UC 우선. 없으면 main-world 브리지 / legacy meta 보강.
+    const owners = collectOwnerChannels();
+    const ucs = owners.map((o) => o.ucId).filter((u): u is string => u !== null);
 
-    // 1. Main-world bridge — ytInitialPlayerResponse.videoDetails.channelId,
-    // verified fresh by videoId match. Works even when the owner element
-    // only exposes /@handle anchors.
     const bridged = readBridgedChannelId();
-    if (bridged) return bridged;
+    if (bridged && !ucs.includes(bridged)) ucs.push(bridged);
 
-    // 2. ytd-video-owner-renderer anchor — present once the owner chip
-    // renders. Some channels' owner anchors only carry /@handle, in which
-    // case we fall through.
-    const owner = document.querySelector('ytd-video-owner-renderer a[href*="/channel/"]') as HTMLAnchorElement | null;
-    const fromOwner = pickUc(owner?.href ?? owner?.getAttribute('href'));
-    if (fromOwner) return fromOwner;
+    if (ucs.length === 0) {
+      // Legacy <meta itemprop="channelId">.
+      const meta = document.querySelector('meta[itemprop="channelId"]') as HTMLMetaElement | null;
+      if (meta?.content && /^UC[\w-]{22}$/.test(meta.content)) ucs.push(meta.content);
+    }
 
-    // 3. Generic #owner fallback.
-    const alt = document.querySelector('#owner a[href*="/channel/"]') as HTMLAnchorElement | null;
-    const fromAlt = pickUc(alt?.href ?? alt?.getAttribute('href'));
-    if (fromAlt) return fromAlt;
-
-    // 4. Legacy <meta itemprop="channelId">.
-    const meta = document.querySelector('meta[itemprop="channelId"]') as HTMLMetaElement | null;
-    if (meta?.content && ucRe.test(meta.content)) return meta.content;
-
-    return '';
+    return ucs;
   };
+
+  const channelExternalId = (): string => channelExternalIds()[0] ?? '';
 
   // Poll for up to 5s until the channel id surfaces — the bridge writes the
   // data attribute asynchronously, and watch pages occasionally render the
