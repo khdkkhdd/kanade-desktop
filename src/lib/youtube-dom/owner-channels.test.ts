@@ -33,4 +33,42 @@ describe('collectOwnerChannels', () => {
       { ucId: null, name: '米津玄師' },
     ]);
   });
+
+  it('returns multiple distinct channels in DOM order', () => {
+    const doc = makeDoc(`
+      <ytd-video-owner-renderer>
+        <a href="/channel/UCaaaaaaaaaaaaaaaaaaaaaa">A</a>
+        <a href="/channel/UCbbbbbbbbbbbbbbbbbbbbbb">B</a>
+      </ytd-video-owner-renderer>
+    `);
+    expect(collectOwnerChannels(doc)).toEqual([
+      { ucId: 'UCaaaaaaaaaaaaaaaaaaaaaa', name: 'A' },
+      { ucId: 'UCbbbbbbbbbbbbbbbbbbbbbb', name: 'B' },
+    ]);
+  });
+
+  it('dedupes anchors that share the same UC id (e.g. handle + channel link to same channel)', () => {
+    const doc = makeDoc(`
+      <ytd-video-owner-renderer>
+        <a href="/channel/UCaaaaaaaaaaaaaaaaaaaaaa">米津玄師</a>
+        <a href="/@yonezu">米津玄師</a>
+        <a href="/channel/UCaaaaaaaaaaaaaaaaaaaaaa">米津玄師</a>
+      </ytd-video-owner-renderer>
+    `);
+    expect(collectOwnerChannels(doc)).toEqual([
+      { ucId: 'UCaaaaaaaaaaaaaaaaaaaaaa', name: '米津玄師' },
+    ]);
+  });
+
+  it('dedupes by name when no UC ids are available', () => {
+    const doc = makeDoc(`
+      <ytd-video-owner-renderer>
+        <a href="/@a">Alpha</a>
+        <a href="/@a-mirror">Alpha</a>
+      </ytd-video-owner-renderer>
+    `);
+    expect(collectOwnerChannels(doc)).toEqual([
+      { ucId: null, name: 'Alpha' },
+    ]);
+  });
 });

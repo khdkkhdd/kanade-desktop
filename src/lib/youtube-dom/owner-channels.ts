@@ -16,6 +16,25 @@ function extractUcFromHref(href: string | null | undefined): string | null {
   return m && UC_RE.test(m[1]) ? m[1] : null;
 }
 
+function dedupe(items: OwnerChannel[]): OwnerChannel[] {
+  const seenUc = new Set<string>();
+  const seenName = new Set<string>();
+  const out: OwnerChannel[] = [];
+  for (const it of items) {
+    if (it.ucId) {
+      if (seenUc.has(it.ucId)) continue;
+      seenUc.add(it.ucId);
+      seenName.add(it.name);
+      out.push(it);
+    } else {
+      if (seenName.has(it.name)) continue;
+      seenName.add(it.name);
+      out.push(it);
+    }
+  }
+  return out;
+}
+
 /**
  * Collects every plausible owner-channel anchor visible on the current
  * watch page DOM. Used by Discord Presence (display) and Admin Video
@@ -23,7 +42,7 @@ function extractUcFromHref(href: string | null | undefined): string | null {
  * for unit tests.
  */
 export function collectOwnerChannels(doc: Document = document): OwnerChannel[] {
-  const result: OwnerChannel[] = [];
+  const raw: OwnerChannel[] = [];
   const anchors = doc.querySelectorAll<HTMLAnchorElement>(
     'ytd-video-owner-renderer a[href^="/channel/"], ytd-video-owner-renderer a[href^="/@"]',
   );
@@ -31,7 +50,7 @@ export function collectOwnerChannels(doc: Document = document): OwnerChannel[] {
     const name = a.textContent?.trim();
     if (!name) continue;
     const ucId = extractUcFromHref(a.getAttribute('href'));
-    result.push({ ucId, name });
+    raw.push({ ucId, name });
   }
-  return result;
+  return dedupe(raw);
 }
