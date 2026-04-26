@@ -127,6 +127,89 @@ describe('PresenceController', () => {
     expect(discord.setActivity).not.toHaveBeenCalled();
   });
 
+  it('invalidate(videoId) clears cache and re-resolves when current', async () => {
+    const { discord, timerManager } = makeServices();
+
+    // First fetch returns fallback (404) — second fetch returns DB result.
+    let callCount = 0;
+    global.fetch = vi.fn(async () => {
+      callCount += 1;
+      if (callCount === 1) {
+        return { ok: false, status: 404, json: async () => null } as Response;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: {
+            video: { platform: 'youtube', externalId: 'vid1' },
+            recordings: [{
+              publicId: 'rc_aaaaaaaaa',
+              isOrigin: true,
+              titles: [{ language: 'ko', title: 'Fresh DB Title', isMain: true }],
+              artists: [{ artistPublicId: 'ar_aaaaaaaaa', name: 'Fresh DB Artist', role: 'vocal', isPublic: true }],
+              work: { publicId: 'wk_aaaaaaaaa', titles: [], creators: [] },
+              isMainVideo: true,
+            }],
+          },
+        }),
+      } as Response;
+    });
+
+    const controller = new PresenceController(
+      discord,
+      timerManager,
+      () => 'http://api',
+      () => config,
+    );
+
+    // Initial play — first resolve hits the 404, caches the fallback.
+    await controller.onPlayerStateUpdate(baseSnapshot({ domTitle: 'Fallback Title', domChannel: 'Fallback Chan' }));
+    await vi.advanceTimersByTimeAsync(1500);
+    await vi.runOnlyPendingTimersAsync();
+
+    expect(discord.setActivity).toHaveBeenCalled();
+    const firstActivity = (discord.setActivity as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(firstActivity.details).toBe('Fallback Title');
+    expect(callCount).toBe(1);
+
+    // Admin-video registered the video in DB → invalidate the cache.
+    (discord.setActivity as ReturnType<typeof vi.fn>).mockClear();
+    controller.invalidate('vid1');
+
+    // Re-resolve runs immediately (no settle delay because videoId didn't change).
+    await vi.runOnlyPendingTimersAsync();
+
+    expect(callCount).toBe(2);
+    expect(discord.setActivity).toHaveBeenCalled();
+    const refreshedActivity = (discord.setActivity as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0];
+    expect(refreshedActivity.details).toBe('Fresh DB Title');
+  });
+
+  it('invalidate(videoId) for non-current video only drops cache', async () => {
+    const { discord, timerManager } = makeServices();
+    const controller = new PresenceController(
+      discord,
+      timerManager,
+      () => 'http://api',
+      () => config,
+    );
+
+    await controller.onPlayerStateUpdate(baseSnapshot({ videoId: 'vid1' }));
+    await vi.advanceTimersByTimeAsync(1500);
+    await vi.runOnlyPendingTimersAsync();
+
+    const fetchCallsBefore = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.length;
+    (discord.setActivity as ReturnType<typeof vi.fn>).mockClear();
+
+    // Invalidating a different videoId should not trigger any re-fetch.
+    controller.invalidate('vid-other');
+    await vi.runOnlyPendingTimersAsync();
+
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBe(fetchCallsBefore);
+    expect(discord.setActivity).not.toHaveBeenCalled();
+  });
+
   it('metaChanged does not fire on videoChanged (covered by videoChanged trigger)', async () => {
     const { discord, timerManager } = makeServices();
     const controller = new PresenceController(

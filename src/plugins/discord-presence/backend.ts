@@ -26,6 +26,13 @@ export function setupBackend(ctx: BackendContext): void {
   ctx.ipc.on('clear-player', () => {
     controller?.onClearPlayer();
   });
+
+  // Renderer forwards the cross-plugin `admin-video:data-changed` broadcast
+  // here so we can drop the cached resolution and re-fetch fresh DB data.
+  ctx.ipc.on('invalidate-presence', (...args: unknown[]) => {
+    const payload = args[0] as { videoId?: string } | undefined;
+    if (payload?.videoId) controller?.invalidate(payload.videoId);
+  });
 }
 
 /**

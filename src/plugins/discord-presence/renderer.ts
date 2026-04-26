@@ -120,4 +120,11 @@ export function setupRenderer(ctx: RendererContext): void {
   ipcRenderer.on('i18n:locale-changed', () => {
     dispatch();
   });
+
+  // When admin-video registers/updates DB rows, forward the videoId to our
+  // backend so it can drop the stale cached resolution. Uses raw ipcRenderer
+  // because the broadcast is cross-plugin (no plugin: prefix).
+  ipcRenderer.on('admin-video:data-changed', (_e, payload: { videoId?: string }) => {
+    if (payload?.videoId) ctx.ipc.send('invalidate-presence', payload);
+  });
 }

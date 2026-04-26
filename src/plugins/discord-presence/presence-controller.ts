@@ -76,6 +76,24 @@ export class PresenceController {
     this.discord.clearActivity();
   }
 
+  /**
+   * Drop the cached resolution for `videoId`. If it's the currently-playing
+   * video, immediately re-fetch from the server so the activity reflects the
+   * fresh DB state (e.g. after admin-video registers the video). Without this,
+   * the controller would keep emitting the stale fallback result until the
+   * user navigates to a different video.
+   */
+  invalidate(videoId: string): void {
+    this.cache.delete(videoId);
+    if (videoId === this.currentVideoId) {
+      if (this.pendingResolveTimer) {
+        clearTimeout(this.pendingResolveTimer);
+        this.pendingResolveTimer = null;
+      }
+      void this.resolvePending(videoId);
+    }
+  }
+
   private async resolvePending(videoId: string): Promise<void> {
     this.pendingResolveTimer = null;
     if (videoId !== this.currentVideoId) return;
