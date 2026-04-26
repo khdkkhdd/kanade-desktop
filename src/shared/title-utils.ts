@@ -27,3 +27,11 @@ export function pickMainTitle(titles: TitleEntry[]): string {
   if (main) return main.title;
   return titles[0].title;
 }
+
+export function formatWithOriginal(
+  displayed: string,
+  original: string | undefined | null,
+): string {
+  if (!original || displayed === original) return displayed;
+  return `${displayed} (${original})`;
+}
