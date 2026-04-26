@@ -2,7 +2,7 @@ import { ipcRenderer } from 'electron';
 import type { RendererContext } from '../../types/plugins.js';
 import type { VideoResponse } from './types.js';
 import { createPanel, removePanel } from './components/panel.js';
-import { setLocale, detectLocale, type Locale } from '../../i18n/index.js';
+import { setLocale, getLocale, detectLocale, type Locale } from '../../i18n/index.js';
 
 function extractVideoId(): string | null {
   const param = new URLSearchParams(window.location.search).get('v');
@@ -57,7 +57,7 @@ export function setupRenderer(ctx: RendererContext): void {
 
     removePanel();
 
-    const lang = document.documentElement.lang || 'ko';
+    const lang = getLocale();
 
     const raw = (await ctx.ipc.invoke('fetch-video', {
       videoId,
