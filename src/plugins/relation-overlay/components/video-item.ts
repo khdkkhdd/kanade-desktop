@@ -34,6 +34,10 @@ export function createVideoItem(
   const { platform, externalId } = recording.mainVideo;
   const isYoutube = platform === 'youtube';
 
+  const displayTitle = recording.title
+    ? formatWithOriginal(recording.title, recording.originalTitle)
+    : formatWithOriginal(recording.workTitle, recording.workOriginalTitle);
+
   const link = document.createElement('a');
   link.className = 'kanade-video-item';
 
@@ -45,7 +49,7 @@ export function createVideoItem(
     thumb.className = 'kanade-video-thumb';
     thumb.src = `https://i.ytimg.com/vi/${externalId}/mqdefault.jpg`;
     thumb.loading = 'lazy';
-    thumb.alt = recording.title;
+    thumb.alt = displayTitle;
     thumbWrap.appendChild(thumb);
   } else {
     const thumbUrl = platform === 'niconico' ? niconicoThumbUrl(externalId) : null;
@@ -54,7 +58,7 @@ export function createVideoItem(
       thumb.className = 'kanade-video-thumb';
       thumb.src = thumbUrl;
       thumb.loading = 'lazy';
-      thumb.alt = recording.title;
+      thumb.alt = displayTitle;
       thumb.onerror = () => {
         thumb.remove();
         thumbWrap.classList.add('kanade-video-thumb-placeholder');
@@ -75,9 +79,7 @@ export function createVideoItem(
   if (showTitle) {
     const title = document.createElement('div');
     title.className = 'kanade-video-title';
-    title.textContent = recording.title
-      ? formatWithOriginal(recording.title, recording.originalTitle)
-      : formatWithOriginal(recording.workTitle, recording.workOriginalTitle);
+    title.textContent = displayTitle;
     info.appendChild(title);
   }
 
