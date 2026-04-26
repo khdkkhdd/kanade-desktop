@@ -257,24 +257,24 @@ export function VideoDrawer(props: VideoDrawerProps) {
     return ucs;
   };
 
-  // Poll for up to 5s until at least one channel id surfaces — the bridge
-  // writes the dataset attribute asynchronously, and watch pages occasionally
-  // render the owner chip after the drawer has already mounted.
+  // Poll for up to 5s — owner anchors render asynchronously and collab
+  // videos sometimes surface a second channel after the first. We always
+  // poll (not just when initially empty) and only update the signal when
+  // the discovered channel set actually changes, so the resource doesn't
+  // refetch on every tick.
   const [cids, setCids] = createSignal(channelExternalIds());
-  if (cids().length === 0) {
-    const interval = setInterval(() => {
-      const v = channelExternalIds();
-      if (v.length > 0) {
-        setCids(v);
-        clearInterval(interval);
-      }
-    }, 200);
-    const timeout = setTimeout(() => clearInterval(interval), 5000);
-    onCleanup(() => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    });
-  }
+  const interval = setInterval(() => {
+    const next = channelExternalIds();
+    const prev = cids();
+    if (next.length !== prev.length || next.some((u, i) => u !== prev[i])) {
+      setCids(next);
+    }
+  }, 200);
+  const timeout = setTimeout(() => clearInterval(interval), 5000);
+  onCleanup(() => {
+    clearInterval(interval);
+    clearTimeout(timeout);
+  });
 
   const [channelHint] = createResource(cids, async (list) => {
     if (!list || list.length === 0) return undefined;
