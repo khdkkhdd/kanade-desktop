@@ -33,6 +33,13 @@ export function setupBackend(ctx: BackendContext): void {
     const payload = args[0] as { videoId?: string } | undefined;
     if (payload?.videoId) controller?.invalidate(payload.videoId);
   });
+
+  // Locale change wipes every cached resolution (each was fetched in the old
+  // uiLang). Renderer dispatches `update-player-state` first so the controller's
+  // lastSnapshot.uiLang is fresh when `resolvePending` runs.
+  ctx.ipc.on('invalidate-all-presence', () => {
+    controller?.invalidateAll();
+  });
 }
 
 /**

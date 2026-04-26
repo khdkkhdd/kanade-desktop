@@ -94,6 +94,28 @@ export class PresenceController {
     }
   }
 
+  /**
+   * Wipe the entire cache and immediately re-resolve the current video.
+   * Used when the app locale changes — every cached entry was resolved against
+   * the previous uiLang and would otherwise stay stale until each video is
+   * revisited. No settle delay because this is user-initiated, not a Mix
+   * transition where the snapshot might still be mid-flight.
+   *
+   * Caller (renderer's `i18n:locale-changed`) must dispatch a fresh
+   * `update-player-state` BEFORE sending invalidate-all-presence so that
+   * `resolvePending` reads `lastSnapshot` with the new uiLang.
+   */
+  invalidateAll(): void {
+    this.cache.clear();
+    if (this.currentVideoId) {
+      if (this.pendingResolveTimer) {
+        clearTimeout(this.pendingResolveTimer);
+        this.pendingResolveTimer = null;
+      }
+      void this.resolvePending(this.currentVideoId);
+    }
+  }
+
   private async resolvePending(videoId: string): Promise<void> {
     this.pendingResolveTimer = null;
     if (videoId !== this.currentVideoId) return;

@@ -116,9 +116,12 @@ export function setupRenderer(ctx: RendererContext): void {
   window.addEventListener('load', () => { void rebindVideo(); });
 
   // Re-dispatch on locale change so Discord activity language updates
-  // immediately, not on the next video event.
+  // immediately, not on the next video event. Order matters: dispatch first
+  // (refreshes backend's lastSnapshot.uiLang), then invalidate-all-presence
+  // (wipes per-video cache + re-resolves with the new lang).
   ipcRenderer.on('i18n:locale-changed', () => {
     dispatch();
+    ctx.ipc.send('invalidate-all-presence');
   });
 
   // When admin-video registers/updates DB rows, forward the videoId to our

@@ -210,6 +210,95 @@ describe('PresenceController', () => {
     expect(discord.setActivity).not.toHaveBeenCalled();
   });
 
+  it('invalidateAll() clears cache and re-resolves current video with fresh lastSnapshot', async () => {
+    const { discord, timerManager } = makeServices();
+
+    // First fetch (uiLang=ko) returns the ko title; second fetch (uiLang=en
+    // after locale change) returns the en title. Same videoId — proves the
+    // re-resolve actually re-fetches with the updated lang.
+    let callCount = 0;
+    global.fetch = vi.fn(async (url: string) => {
+      callCount += 1;
+      const isKo = url.includes('lang=ko');
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: {
+            video: { platform: 'youtube', externalId: 'vid1' },
+            recordings: [{
+              publicId: 'rc_aaaaaaaaa',
+              isOrigin: true,
+              titles: [{ language: isKo ? 'ko' : 'en', title: isKo ? 'KO Title' : 'EN Title', isMain: true }],
+              artists: [{ artistPublicId: 'ar_aaaaaaaaa', name: isKo ? 'KO Artist' : 'EN Artist', role: 'vocal', isPublic: true }],
+              work: { publicId: 'wk_aaaaaaaaa', titles: [], creators: [] },
+              isMainVideo: true,
+            }],
+          },
+        }),
+      } as Response;
+    }) as unknown as typeof fetch;
+
+    const controller = new PresenceController(
+      discord,
+      timerManager,
+      () => 'http://api',
+      () => config,
+    );
+
+    // Initial play with uiLang=ko — caches the ko-resolved entry.
+    await controller.onPlayerStateUpdate(baseSnapshot({ uiLang: 'ko' }));
+    await vi.advanceTimersByTimeAsync(1500);
+    await vi.runOnlyPendingTimersAsync();
+
+    expect(callCount).toBe(1);
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]).toContain('lang=ko');
+    const firstActivity = (discord.setActivity as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(firstActivity.details).toBe('KO Title');
+
+    // Renderer's i18n:locale-changed handler dispatches a fresh snapshot first,
+    // updating lastSnapshot.uiLang → 'en'. Same videoId, so this hits the cache
+    // path and would NOT re-fetch on its own.
+    (discord.setActivity as ReturnType<typeof vi.fn>).mockClear();
+    await controller.onPlayerStateUpdate(baseSnapshot({ uiLang: 'en', currentTime: 1 }));
+
+    // Cache hit: still showing the stale ko title at this point.
+    expect(callCount).toBe(1);
+
+    // Now the invalidate-all-presence IPC arrives → wipe cache + re-resolve.
+    controller.invalidateAll();
+    await vi.runOnlyPendingTimersAsync();
+
+    // Second fetch fired, this time with the new uiLang.
+    expect(callCount).toBe(2);
+    const secondFetchUrl = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[1][0];
+    expect(secondFetchUrl).toContain('lang=en');
+
+    // Activity reflects the en-resolved title.
+    expect(discord.setActivity).toHaveBeenCalled();
+    const refreshedActivity = (discord.setActivity as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0];
+    expect(refreshedActivity.details).toBe('EN Title');
+  });
+
+  it('invalidateAll() with no current video is a no-op', async () => {
+    const { discord, timerManager } = makeServices();
+    const controller = new PresenceController(
+      discord,
+      timerManager,
+      () => 'http://api',
+      () => config,
+    );
+
+    const fetchSpy = global.fetch as ReturnType<typeof vi.fn>;
+    const callsBefore = fetchSpy.mock.calls.length;
+
+    controller.invalidateAll();
+    await vi.runOnlyPendingTimersAsync();
+
+    expect(fetchSpy.mock.calls.length).toBe(callsBefore);
+    expect(discord.setActivity).not.toHaveBeenCalled();
+  });
+
   it('metaChanged does not fire on videoChanged (covered by videoChanged trigger)', async () => {
     const { discord, timerManager } = makeServices();
     const controller = new PresenceController(
