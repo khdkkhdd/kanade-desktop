@@ -68,6 +68,14 @@ describe('RealtimeClient', () => {
     expect(mockUntrack).toHaveBeenCalled();
     expect(mockSupabase.removeChannel).toHaveBeenCalled();
   });
+
+  it('throws on double connect without disconnect', async () => {
+    const c = new RealtimeClient();
+    await c.connect('x', { memberKey: 'me', displayName: 'n', joinedAt: 0, isHost: true });
+    await expect(
+      c.connect('y', { memberKey: 'me', displayName: 'n', joinedAt: 0, isHost: true })
+    ).rejects.toThrow(/Already connected/);
+  });
 });
 
 describe('RealtimeClient — env validation', () => {
