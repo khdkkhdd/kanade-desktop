@@ -11,6 +11,10 @@ export default defineConfig({
       },
       outDir: 'dist/main',
     },
+    define: {
+      'process.env.SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL ?? ''),
+      'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY ?? ''),
+    },
   },
   preload: {
     plugins: [solid({ extensions: ['.tsx', '.jsx'] })],

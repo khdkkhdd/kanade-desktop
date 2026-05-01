@@ -18,11 +18,16 @@ interface PresenceConfig {
   titleLanguage: TitleLanguage;
 }
 
+interface SessionConfig {
+  displayName: string;
+}
+
 interface KanadeConfig {
   adminApiKey: string;
   apiBase: string;
   presence: PresenceConfig;
   locale: Locale | null;
+  session: SessionConfig;
 }
 
 interface StoreSchema {
@@ -39,6 +44,10 @@ export const DEFAULT_PRESENCE_CONFIG: PresenceConfig = {
   titleLanguage: 'uilang',
 };
 
+export const DEFAULT_SESSION_CONFIG: SessionConfig = {
+  displayName: '',
+};
+
 const store = new Store<StoreSchema>({
   defaults: {
     windowState: { width: 1280, height: 800, isMaximized: false },
@@ -49,6 +58,7 @@ const store = new Store<StoreSchema>({
       apiBase: process.env.KANADE_API_BASE ?? 'http://localhost:3000/api/v1',
       presence: DEFAULT_PRESENCE_CONFIG,
       locale: null,
+      session: DEFAULT_SESSION_CONFIG,
     },
   },
 });
@@ -73,5 +83,14 @@ export function getLocaleSetting(): Locale | null {
   return k.locale ?? null;
 }
 
+/**
+ * Returns the session display name.
+ * Existing user configs predate this field, so `?.` guards against undefined.
+ */
+export function getSessionDisplayName(): string {
+  const k = store.get('kanade');
+  return k.session?.displayName ?? '';
+}
+
 export { store };
-export type { WindowState, StoreSchema, KanadeConfig, PresenceConfig, TitleLanguage, Locale };
+export type { WindowState, StoreSchema, KanadeConfig, PresenceConfig, TitleLanguage, Locale, SessionConfig };
