@@ -10,6 +10,3 @@ export const DRIFT_CORRECT_THRESHOLD_S = 0.5;
 export const CHAT_BUFFER_MAX = 50;
 export const TS_SKEW_REJECT_MS = 5 * 60 * 1000;
 export const JOIN_SNAPSHOT_TIMEOUT_MS = 5_000;
-
-export const SUPABASE_URL = process.env.SUPABASE_URL ?? '';
-export const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ?? '';
