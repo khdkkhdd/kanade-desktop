@@ -10,6 +10,7 @@ import { adminVideoMain } from './plugins/admin-video/main.js';
 import { adminChannelMain } from './plugins/admin-channel/main.js';
 import { discordPresenceMain } from './plugins/discord-presence/main.js';
 import { applyPresenceConfigChange } from './plugins/discord-presence/backend.js';
+import { sessionRoomMain } from './plugins/session-room/main.js';
 
 function removeCSP(): void {
   session.defaultSession.webRequest.onHeadersReceived(
@@ -115,6 +116,7 @@ function createWindow(): BrowserWindow {
     'admin-video': adminVideoMain,
     'admin-channel': adminChannelMain,
     'discord-presence': discordPresenceMain,
+    'session-room': sessionRoomMain,
   };
   loadAllMainPlugins(plugins, win, ipcMain);
 

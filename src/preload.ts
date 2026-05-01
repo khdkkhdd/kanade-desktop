@@ -5,6 +5,7 @@ import { adminVideo } from './plugins/admin-video/index.js';
 import { adminChannel } from './plugins/admin-channel/index.js';
 import { discordPresence } from './plugins/discord-presence/index.js';
 import { urlPrompt } from './plugins/url-prompt/index.js';
+import { sessionRoom } from './plugins/session-room/index.js';
 import { setLocale, detectLocale, type Locale } from './i18n/index.js';
 
 
@@ -21,6 +22,11 @@ contextBridge.exposeInMainWorld('kanade', {
     isYouTubeMusic: () => location.hostname === 'music.youtube.com',
   },
 });
+
+const kanadeMode = (process.argv.find((a) => a.startsWith('--kanade-mode=')) ?? '').split('=')[1] || 'browse';
+const kanadeRoom = (process.argv.find((a) => a.startsWith('--kanade-room=')) ?? '').split('=')[1] || '';
+contextBridge.exposeInMainWorld('kanadeMode', kanadeMode);
+contextBridge.exposeInMainWorld('kanadeRoom', kanadeRoom);
 
 // YouTube navigation detection (runs on every page load)
 function extractVideoId(): string | null {
@@ -55,6 +61,7 @@ const plugins = {
   'admin-channel': adminChannel,
   'discord-presence': discordPresence,
   'url-prompt': urlPrompt,
+  'session-room': sessionRoom,
 };
 
 async function initLocale(): Promise<void> {

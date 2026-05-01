@@ -13,5 +13,7 @@ declare global {
         isYouTubeMusic: () => boolean;
       };
     };
+    kanadeMode: 'browse' | 'session';
+    kanadeRoom: string;
   }
 }
