@@ -65,14 +65,14 @@ export const ko = {
     permissionAll: '모두',
     invalidRoomCodeFormat: '6자 코드 (영문 소문자/숫자) 가 아님',
 
-    bannerTitle: '{name} Room ({count}명)',
+    bannerTitle: '{{name}} Room ({{count}}명)',
     bannerShowWindow: '세션 창 보기',
     bannerLeave: '세션 나가기',
 
     toastAddSuccess: '큐에 추가됨',
-    toastAddCooldown: '{sec}초 후 다시 추가 가능',
+    toastAddCooldown: '{{sec}}초 후 다시 추가 가능',
     toastAddPermissionDenied: 'Host 만 추가 가능',
-    toastHostChanged: '{name} 가 새 호스트입니다',
+    toastHostChanged: '{{name}} 가 새 호스트입니다',
     toastSessionClosed: '호스트가 세션을 닫았습니다',
 
     tabsQueue: '큐',
@@ -138,14 +138,14 @@ export const en: typeof ko = {
     permissionAll: 'All',
     invalidRoomCodeFormat: 'Not a 6-char code (lowercase letters/digits)',
 
-    bannerTitle: "{name}'s Room ({count})",
+    bannerTitle: "{{name}}'s Room ({{count}})",
     bannerShowWindow: 'Show Session',
     bannerLeave: 'Leave',
 
     toastAddSuccess: 'Added to queue',
-    toastAddCooldown: 'Wait {sec}s',
+    toastAddCooldown: 'Wait {{sec}}s',
     toastAddPermissionDenied: 'Host only',
-    toastHostChanged: '{name} is the new host',
+    toastHostChanged: '{{name}} is the new host',
     toastSessionClosed: 'Host closed the session',
 
     tabsQueue: 'Queue',
@@ -211,14 +211,14 @@ export const ja: typeof ko = {
     permissionAll: '全員',
     invalidRoomCodeFormat: '6 文字コード (英小文字/数字) ではありません',
 
-    bannerTitle: '{name}のRoom（{count}名）',
+    bannerTitle: '{{name}}のRoom（{{count}}名）',
     bannerShowWindow: 'セッション表示',
     bannerLeave: '退出',
 
     toastAddSuccess: 'キューに追加',
-    toastAddCooldown: '{sec}秒後に追加可',
+    toastAddCooldown: '{{sec}}秒後に追加可',
     toastAddPermissionDenied: 'ホストのみ',
-    toastHostChanged: '{name}が新しいホストです',
+    toastHostChanged: '{{name}}が新しいホストです',
     toastSessionClosed: 'ホストがセッションを終了しました',
 
     tabsQueue: 'キュー',

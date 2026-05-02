@@ -53,4 +53,4 @@ export function getLocale(): Locale {
  * `locale()`, any SolidJS reactive scope calling `t(...)` automatically
  * re-runs when `setLocale()` is invoked.
  */
-export const t = i18n.translator(() => flattened[locale()]);
+export const t = i18n.translator(() => flattened[locale()], i18n.resolveTemplate);
