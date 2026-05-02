@@ -6,6 +6,21 @@ import { RoomController } from './room-controller.js';
 import { createSessionWindow } from './session-window.js';
 import { setupIpc } from './ipc.js';
 
+function toIpcState(store: SessionStateStore) {
+  const s = store.get();
+  return {
+    room: s.room,
+    myMemberKey: s.myMemberKey,
+    isHost: s.isHost,
+    members: Array.from(s.members.values()),
+    queue: s.queue,
+    currentItemId: s.currentItemId,
+    permission: s.permission,
+    lastPlayerState: s.lastPlayerState,
+    chatMessages: s.chatMessages,
+  };
+}
+
 export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   const store = new SessionStateStore();
   const realtime = new RealtimeClient();
@@ -22,6 +37,16 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
 
   const controller = new RoomController({ store, realtime, openSessionWindow, closeSessionWindow });
   setupIpc({ ctx, controller, store });
+
+  realtime.onPresence((members) => {
+    store.setMembers(members);
+    ctx.ipc.send('state-changed', toIpcState(store));
+  });
+
+  realtime.onEvent((event) => {
+    // PR3+ will populate handlers (queue ops, chat, player state, permission change, drift check)
+    ctx.ipc.send('event', event);
+  });
 
   console.log('[session-room] main plugin initialized');
 }
