@@ -27,6 +27,10 @@ const kanadeMode = (process.argv.find((a) => a.startsWith('--kanade-mode=')) ?? 
 const kanadeRoom = (process.argv.find((a) => a.startsWith('--kanade-room=')) ?? '').split('=')[1] || '';
 contextBridge.exposeInMainWorld('kanadeMode', kanadeMode);
 contextBridge.exposeInMainWorld('kanadeRoom', kanadeRoom);
+// contextBridge only exposes to the main world. Plugin renderers run in the
+// isolated (preload) world, so also stash on the isolated globalThis.
+(globalThis as Record<string, unknown>).kanadeMode = kanadeMode;
+(globalThis as Record<string, unknown>).kanadeRoom = kanadeRoom;
 
 // YouTube navigation detection (runs on every page load)
 function extractVideoId(): string | null {
