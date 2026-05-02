@@ -28,7 +28,7 @@ export function setupAddToQueueButtons(ctx: RendererContext, sessionActive: () =
     btn.className = 'kanade-add-queue';
     btn.textContent = '+큐';
     btn.style.cssText =
-      'position:absolute;top:8px;right:8px;z-index:10;padding:4px 8px;background:rgba(0,0,0,0.7);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;';
+      'position:absolute;top:8px;right:8px;z-index:100;padding:4px 8px;background:rgba(0,0,0,0.7);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;';
 
     btn.addEventListener('click', async (ev) => {
       ev.preventDefault();

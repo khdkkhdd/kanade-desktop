@@ -14,10 +14,11 @@ export interface IpcDeps {
   store: SessionStateStore;
   queue: QueueManager;
   realtime: RealtimeClient;
+  pushState: () => void;
 }
 
 export function setupIpc(deps: IpcDeps): void {
-  const { ctx, controller, store } = deps;
+  const { ctx, controller, store, pushState } = deps;
 
   ctx.ipc.handle('create', async (args) => {
     const a = args as { displayName: string; initialVideoId: string | null };
@@ -67,6 +68,7 @@ export function setupIpc(deps: IpcDeps): void {
     const s = store.get();
     if (!s.isHost) throw new Error('host only');
     store.setPermission(a.mode);
+    pushState();
     await deps.realtime.broadcast({
       type: 'PERMISSION_CHANGE',
       payload: { mode: a.mode },

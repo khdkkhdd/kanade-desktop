@@ -8,6 +8,7 @@ import { canAddSong } from '../shared/rate-limit.js';
 interface QueueManagerDeps {
   store: SessionStateStore;
   broadcast: (event: SessionEvent) => Promise<void>;
+  pushState: () => void;
 }
 
 export class QueueManager {
@@ -36,18 +37,27 @@ export class QueueManager {
 
     this.deps.store.addQueueItem(item);
     this.deps.store.setMyLastAddAt(item.addedAt);
+    this.deps.pushState();
 
-    await this.deps.broadcast({
-      type: 'QUEUE_OP',
-      payload: { op: 'add', item },
-      senderMemberKey: adderKey,
-    });
+    try {
+      await this.deps.broadcast({
+        type: 'QUEUE_OP',
+        payload: { op: 'add', item },
+        senderMemberKey: adderKey,
+      });
+    } catch (e) {
+      // Broadcast failed — keep local optimistic state but reset rate-limit
+      // so the user can retry immediately.
+      this.deps.store.setMyLastAddAt(0);
+      throw e;
+    }
     return item;
   }
 
   async removeLocal(itemId: string): Promise<void> {
     const s = this.deps.store.get();
     this.deps.store.removeQueueItem(itemId);
+    this.deps.pushState();
     await this.deps.broadcast({
       type: 'QUEUE_OP',
       payload: { op: 'remove', itemId },
@@ -60,6 +70,7 @@ export class QueueManager {
     const sorted = s.queue;
     const newScore = computeReorderScore(sorted, itemId, toIndex);
     this.deps.store.reorderQueueItem(itemId, newScore);
+    this.deps.pushState();
     await this.deps.broadcast({
       type: 'QUEUE_OP',
       payload: { op: 'reorder', itemId, toIndex },
@@ -70,6 +81,7 @@ export class QueueManager {
   async setCurrentLocal(itemId: string | null): Promise<void> {
     const s = this.deps.store.get();
     this.deps.store.setCurrentItem(itemId);
+    this.deps.pushState();
     await this.deps.broadcast({
       type: 'QUEUE_OP',
       payload: { op: 'set-current', itemId },
@@ -80,6 +92,7 @@ export class QueueManager {
   async clearLocal(): Promise<void> {
     const s = this.deps.store.get();
     this.deps.store.clearQueue();
+    this.deps.pushState();
     await this.deps.broadcast({
       type: 'QUEUE_OP',
       payload: { op: 'clear' },

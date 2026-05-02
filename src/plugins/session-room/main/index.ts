@@ -1,4 +1,5 @@
 // src/plugins/session-room/main/index.ts
+import { BrowserWindow } from 'electron';
 import type { BackendContext } from '../../../types/plugins.js';
 import { SessionStateStore } from './session-state.js';
 import { RealtimeClient } from './realtime-client.js';
@@ -11,6 +12,19 @@ import { toIpcState } from './state-projection.js';
 export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   const store = new SessionStateStore();
   const realtime = new RealtimeClient();
+
+  const broadcastState = (): void => {
+    const payload = toIpcState(store);
+    for (const w of BrowserWindow.getAllWindows()) {
+      w.webContents.send('plugin:session-room:state-changed', payload);
+    }
+  };
+
+  const broadcastEvent = (event: unknown): void => {
+    for (const w of BrowserWindow.getAllWindows()) {
+      w.webContents.send('plugin:session-room:event', event);
+    }
+  };
 
   let sessionWin: import('electron').BrowserWindow | null = null;
   const openSessionWindow = (opts: { roomCode: string; initialUrl: string }) => {
@@ -29,15 +43,15 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   };
 
   const controller = new RoomController({ store, realtime, openSessionWindow, closeSessionWindow });
-  const queueMgr = new QueueManager({ store, broadcast: realtime.broadcast.bind(realtime) });
-  setupIpc({ ctx, controller, store, queue: queueMgr, realtime });
+  const queueMgr = new QueueManager({ store, broadcast: realtime.broadcast.bind(realtime), pushState: broadcastState });
+  setupIpc({ ctx, controller, store, queue: queueMgr, realtime, pushState: broadcastState });
 
   realtime.onPresence((members) => {
     console.log(
       `[session-room] presence: ${members.length} member(s) — ${members.map((m) => `${m.displayName}${m.isHost ? '★' : ''}`).join(', ')}`,
     );
     store.setMembers(members);
-    ctx.ipc.send('state-changed', toIpcState(store));
+    broadcastState();
   });
 
   realtime.onEvent(async (event) => {
@@ -51,8 +65,8 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
     } catch (e) {
       console.warn('[session-room] inbound event handler failed', event.type, e);
     }
-    ctx.ipc.send('event', event);
-    ctx.ipc.send('state-changed', toIpcState(store));
+    broadcastEvent(event);
+    broadcastState();
   });
 
   realtime.onStatus((status) => {

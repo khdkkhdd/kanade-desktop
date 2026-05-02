@@ -5,6 +5,7 @@ import { SessionStateStore } from './session-state.js';
 describe('QueueManager', () => {
   let store: SessionStateStore;
   let broadcast: ReturnType<typeof vi.fn>;
+  let pushState: ReturnType<typeof vi.fn>;
   let mgr: QueueManager;
 
   beforeEach(() => {
@@ -13,7 +14,8 @@ describe('QueueManager', () => {
     store.initRoom({ code: 'x', myMemberKey: 'me', isHost: true });
     store.setMembers([{ memberKey: 'me', displayName: 'me', joinedAt: 0, isHost: true }]);
     broadcast = vi.fn().mockResolvedValue(undefined);
-    mgr = new QueueManager({ store, broadcast: broadcast as never });
+    pushState = vi.fn();
+    mgr = new QueueManager({ store, broadcast: broadcast as never, pushState });
   });
 
   afterEach(() => {
@@ -82,5 +84,20 @@ describe('QueueManager', () => {
     await mgr.addLocal({ videoId: 'v1', videoTitle: 't', channelName: 'c', videoDuration: 200 });
     await expect(mgr.addLocal({ videoId: 'v2', videoTitle: 't', channelName: 'c', videoDuration: 200 }))
       .rejects.toThrow(/rate-limit:/);
+  });
+
+  it('addLocal calls pushState after store mutation', async () => {
+    await mgr.addLocal({ videoId: 'v1', videoTitle: 't', channelName: 'c', videoDuration: 200 });
+    expect(pushState).toHaveBeenCalledTimes(1);
+  });
+
+  it('addLocal resets myLastAddAt and re-throws when broadcast fails', async () => {
+    const err = new Error('network error');
+    broadcast.mockRejectedValueOnce(err);
+    await expect(
+      mgr.addLocal({ videoId: 'v1', videoTitle: 't', channelName: 'c', videoDuration: 200 }),
+    ).rejects.toThrow('network error');
+    // Rate-limit sentinel reset so user can retry immediately
+    expect(store.get().myLastAddAt).toBe(0);
   });
 });

@@ -64,13 +64,21 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
   const root = document.createElement('div');
   document.body.appendChild(root);
 
-  const initial = (await ctx.ipc.invoke('getState').catch((e) => {
-    console.warn('[session-room] getState failed', e);
-    return {};
-  })) as Record<string, unknown>;
-  const [state, setState] = createSignal<PanelState>(toPanelState(initial));
+  let bootstrapped = false;
+  const [state, setState] = createSignal<PanelState>(toPanelState({}));
 
-  ctx.ipc.on('state-changed', (s) => setState(toPanelState(s as Record<string, unknown>)));
+  ctx.ipc.on('state-changed', (s) => {
+    bootstrapped = true;
+    setState(toPanelState(s as Record<string, unknown>));
+  });
+
+  void ctx.ipc.invoke('getState').then(
+    (s) => {
+      if (bootstrapped) return;
+      setState(toPanelState(s as Record<string, unknown>));
+    },
+    (e) => console.warn('[session-room] getState failed', e),
+  );
 
   render(() => <SessionPanel ctx={ctx} state={state} />, root);
 
