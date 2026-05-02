@@ -4,7 +4,7 @@ import type { RoomController } from './room-controller.js';
 import type { SessionStateStore } from './session-state.js';
 import type { QueueManager } from './queue-manager.js';
 import type { RealtimeClient } from './realtime-client.js';
-import type { PermissionMode } from '../shared/types.js';
+import type { PermissionMode, PlayerState } from '../shared/types.js';
 import { getSessionDisplayName } from '../../../config/store.js';
 import { toIpcState } from './state-projection.js';
 
@@ -73,6 +73,22 @@ export function setupIpc(deps: IpcDeps): void {
       type: 'PERMISSION_CHANGE',
       payload: { mode: a.mode },
       senderMemberKey: s.myMemberKey,
+    });
+  });
+
+  ctx.ipc.on('player.broadcastState', (state) => {
+    const s = deps.store.get();
+    if (!s.isHost) return;
+    deps.realtime.broadcast({ type: 'PLAYER_STATE', payload: state as PlayerState });
+    deps.store.setPlayerState(state as PlayerState);
+  });
+
+  ctx.ipc.on('player.driftCheck', (payload) => {
+    const s = deps.store.get();
+    if (!s.isHost) return;
+    deps.realtime.broadcast({
+      type: 'DRIFT_CHECK',
+      payload: payload as { videoId: string; position: number; ts: number },
     });
   });
 }
