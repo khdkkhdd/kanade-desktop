@@ -46,11 +46,32 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   const queueMgr = new QueueManager({ store, broadcast: realtime.broadcast.bind(realtime), pushState: broadcastState });
   setupIpc({ ctx, controller, store, queue: queueMgr, realtime, pushState: broadcastState });
 
+  let previousMemberKeys = new Set<string>();
   realtime.onPresence((members) => {
     console.log(
       `[session-room] presence: ${members.length} member(s) — ${members.map((m) => `${m.displayName}${m.isHost ? '★' : ''}`).join(', ')}`,
     );
     store.setMembers(members);
+
+    const newKeys = new Set(members.map((m) => m.memberKey));
+    const me = store.get().myMemberKey;
+    const newcomers = [...newKeys].filter((k) => !previousMemberKeys.has(k));
+    previousMemberKeys = newKeys;
+
+    if (store.get().isHost && newcomers.some((k) => k !== me)) {
+      setTimeout(() => {
+        const lps = store.get().lastPlayerState;
+        if (lps) {
+          const now = Date.now();
+          const updatedPosition = lps.isPlaying ? lps.position + (now - lps.ts) / 1000 : lps.position;
+          void realtime.broadcast({ type: 'PLAYER_STATE', payload: { ...lps, position: updatedPosition, ts: now } })
+            .catch((e) => console.warn('[session-room] catch-up player broadcast failed', e));
+        }
+        void queueMgr.broadcastSnapshot()
+          .catch((e) => console.warn('[session-room] catch-up snapshot broadcast failed', e));
+      }, 200);
+    }
+
     broadcastState();
   });
 
