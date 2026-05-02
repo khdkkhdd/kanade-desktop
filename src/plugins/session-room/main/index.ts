@@ -30,7 +30,7 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
 
   const controller = new RoomController({ store, realtime, openSessionWindow, closeSessionWindow });
   const queueMgr = new QueueManager({ store, broadcast: realtime.broadcast.bind(realtime) });
-  setupIpc({ ctx, controller, store, queue: queueMgr });
+  setupIpc({ ctx, controller, store, queue: queueMgr, realtime });
 
   realtime.onPresence((members) => {
     console.log(
@@ -44,6 +44,9 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
     try {
       if (event.type === 'QUEUE_OP') {
         await queueMgr.applyOp(event.payload, event.senderMemberKey);
+      } else if (event.type === 'PERMISSION_CHANGE') {
+        const sender = store.get().members.get(event.senderMemberKey);
+        if (sender?.isHost) store.setPermission(event.payload.mode);
       }
     } catch (e) {
       console.warn('[session-room] inbound event handler failed', event.type, e);

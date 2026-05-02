@@ -3,6 +3,8 @@ import type { BackendContext } from '../../../types/plugins.js';
 import type { RoomController } from './room-controller.js';
 import type { SessionStateStore } from './session-state.js';
 import type { QueueManager } from './queue-manager.js';
+import type { RealtimeClient } from './realtime-client.js';
+import type { PermissionMode } from '../shared/types.js';
 import { getSessionDisplayName } from '../../../config/store.js';
 import { toIpcState } from './state-projection.js';
 
@@ -11,6 +13,7 @@ export interface IpcDeps {
   controller: RoomController;
   store: SessionStateStore;
   queue: QueueManager;
+  realtime: RealtimeClient;
 }
 
 export function setupIpc(deps: IpcDeps): void {
@@ -58,4 +61,16 @@ export function setupIpc(deps: IpcDeps): void {
   });
 
   ctx.ipc.handle('queue.clear', async () => deps.queue.clearLocal());
+
+  ctx.ipc.handle('permission.set', async (args) => {
+    const a = args as { mode: PermissionMode };
+    const s = store.get();
+    if (!s.isHost) throw new Error('host only');
+    store.setPermission(a.mode);
+    await deps.realtime.broadcast({
+      type: 'PERMISSION_CHANGE',
+      payload: { mode: a.mode },
+      senderMemberKey: s.myMemberKey,
+    });
+  });
 }
