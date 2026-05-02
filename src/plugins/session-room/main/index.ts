@@ -41,8 +41,12 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   });
 
   realtime.onEvent(async (event) => {
-    if (event.type === 'QUEUE_OP') {
-      await queueMgr.applyOp(event.payload, event.senderMemberKey);
+    try {
+      if (event.type === 'QUEUE_OP') {
+        await queueMgr.applyOp(event.payload, event.senderMemberKey);
+      }
+    } catch (e) {
+      console.warn('[session-room] inbound event handler failed', event.type, e);
     }
     ctx.ipc.send('event', event);
     ctx.ipc.send('state-changed', toIpcState(store));
