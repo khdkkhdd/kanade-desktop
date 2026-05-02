@@ -1,4 +1,4 @@
-import { createSignal, Show } from 'solid-js';
+import { createSignal, For, Show } from 'solid-js';
 import type { RendererContext } from '../../../../types/plugins.js';
 import type { QueueItem, ItemId, PermissionMode, MemberKey, Member } from '../../shared/types.js';
 import { QueueTab } from './QueueTab.jsx';
@@ -36,20 +36,22 @@ export function SessionPanel(props: { ctx: RendererContext; state: () => PanelSt
             isHost={props.state().isHost}
             myMemberKey={props.state().myMemberKey}
             permission={props.state().permission}
-            onRemove={(id) => { void props.ctx.ipc.invoke('queue.remove', { itemId: id }).catch(console.warn); }}
-            onReorder={(id, toIndex) => { void props.ctx.ipc.invoke('queue.reorder', { itemId: id, toIndex }).catch(console.warn); }}
-            onClear={() => { void props.ctx.ipc.invoke('queue.clear').catch(console.warn); }}
-            onSetCurrent={(id) => { void props.ctx.ipc.invoke('queue.setCurrent', { itemId: id }).catch(console.warn); }}
-            onPermissionChange={(mode) => { void props.ctx.ipc.invoke('permission.set', { mode }).catch(console.warn); }}
+            onRemove={(id) => { void props.ctx.ipc.invoke('queue.remove', { itemId: id }).catch((e) => console.warn('[session-room] queue.remove failed', e)); }}
+            onReorder={(id, toIndex) => { void props.ctx.ipc.invoke('queue.reorder', { itemId: id, toIndex }).catch((e) => console.warn('[session-room] queue.reorder failed', e)); }}
+            onClear={() => { void props.ctx.ipc.invoke('queue.clear').catch((e) => console.warn('[session-room] queue.clear failed', e)); }}
+            onSetCurrent={(id) => { void props.ctx.ipc.invoke('queue.setCurrent', { itemId: id }).catch((e) => console.warn('[session-room] queue.setCurrent failed', e)); }}
+            onPermissionChange={(mode) => { void props.ctx.ipc.invoke('permission.set', { mode }).catch((e) => console.warn('[session-room] permission.set failed', e)); }}
           />
         </Show>
         <Show when={tab() === 'chat'}>
           <div>채팅 (PR6)</div>
         </Show>
         <div class="kanade-presence">
-          {props.state().members.map((m) => (
-            <span class={m.isHost ? 'host' : ''}>{m.isHost ? '👑 ' : ''}{m.displayName}</span>
-          ))}
+          <For each={props.state().members}>
+            {(m) => (
+              <span class={m.isHost ? 'host' : ''}>{m.isHost ? '👑 ' : ''}{m.displayName}</span>
+            )}
+          </For>
         </div>
       </Show>
     </div>
