@@ -193,6 +193,56 @@ function installAppMenu(getMainWin: () => BrowserWindow | null): void {
     { role: 'editMenu' },
     { role: 'viewMenu' },
     {
+      label: 'Session',
+      submenu: [
+        {
+          label: '새 세션 시작...',
+          accelerator: process.platform === 'darwin' ? 'Cmd+Shift+S' : 'Ctrl+Shift+S',
+          click: () => {
+            const main = getMainWin();
+            main?.webContents.send('plugin:session-room:open-create-dialog');
+          },
+        },
+        {
+          label: '세션 참여...',
+          accelerator: process.platform === 'darwin' ? 'Cmd+Shift+J' : 'Ctrl+Shift+J',
+          click: () => {
+            const main = getMainWin();
+            main?.webContents.send('plugin:session-room:open-join-dialog');
+          },
+        },
+        { type: 'separator' },
+        {
+          id: 'session-copy-code',
+          label: '세션 코드 복사',
+          enabled: false,
+          click: () => {
+            const main = getMainWin();
+            main?.webContents.send('plugin:session-room:copy-code');
+          },
+        },
+        {
+          id: 'session-show',
+          label: '세션 창 보기',
+          enabled: false,
+          click: () => {
+            const main = getMainWin();
+            main?.webContents.send('plugin:session-room:show-session-window');
+          },
+        },
+        {
+          id: 'session-leave',
+          label: '세션 나가기',
+          enabled: false,
+          accelerator: process.platform === 'darwin' ? 'Cmd+Shift+L' : 'Ctrl+Shift+L',
+          click: () => {
+            const main = getMainWin();
+            main?.webContents.send('plugin:session-room:leave');
+          },
+        },
+      ],
+    },
+    {
       label: 'History',
       submenu: [
         {
