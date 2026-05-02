@@ -2,6 +2,7 @@
 import type { BackendContext } from '../../../types/plugins.js';
 import type { RoomController } from './room-controller.js';
 import type { SessionStateStore } from './session-state.js';
+import { getSessionDisplayName } from '../../../config/store.js';
 
 export interface IpcDeps {
   ctx: BackendContext;
@@ -29,6 +30,10 @@ export function setupIpc(deps: IpcDeps): void {
   ctx.ipc.handle('leave', async () => {
     await controller.leaveSession();
     return {};
+  });
+
+  ctx.ipc.handle('getDisplayName', () => {
+    return getSessionDisplayName();
   });
 
   ctx.ipc.handle('getState', () => {
