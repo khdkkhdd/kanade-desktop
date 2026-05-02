@@ -3,6 +3,7 @@ import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
 import type { RendererContext } from '../../../types/plugins.js';
 import { CreateDialog, JoinDialog } from './dialogs.jsx';
+import { setupAddToQueueButtons } from './add-to-queue-button.js';
 
 export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   if ((window as unknown as { kanadeMode?: string }).kanadeMode === 'session') {
@@ -22,6 +23,7 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   document.body.appendChild(root);
 
   const [createOpen, setCreateOpen] = createSignal(false);
+  const [sessionActive, setSessionActive] = createSignal(false);
   const [joinOpen, setJoinOpen] = createSignal(false);
   const [defaultName, setDefaultName] = createSignal('');
   const [clipboardCode, setClipboardCode] = createSignal('');
@@ -55,6 +57,16 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   ctx.ipc.on('open-join-dialog', () => {
     void Promise.all([refreshDisplayName(), tryReadClipboard()]).then(() => setJoinOpen(true));
   });
+
+  ctx.ipc.on('state-changed', (state) => {
+    setSessionActive(!!(state as { room: unknown }).room);
+  });
+
+  void ctx.ipc.invoke('getState').then((state) => {
+    setSessionActive(!!(state as { room: unknown }).room);
+  });
+
+  setupAddToQueueButtons(ctx, sessionActive);
 
   function getCurrentVideoId(): string | null {
     const m = location.href.match(/[?&]v=([\w-]{11})/);
