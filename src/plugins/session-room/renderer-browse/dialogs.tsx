@@ -1,5 +1,5 @@
 // src/plugins/session-room/renderer-browse/dialogs.tsx
-import { createSignal, Show } from 'solid-js';
+import { createSignal, createEffect, Show } from 'solid-js';
 import { isValidRoomCode } from '../shared/room-code.js';
 import { t } from '../../../i18n/index.js';
 import type { PermissionMode } from '../shared/types.js';
@@ -26,6 +26,10 @@ export function CreateDialog(props: CreateDialogProps) {
   const [permission, setPermission] = createSignal<PermissionMode>('playlist');
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal('');
+
+  createEffect(() => {
+    if (props.open) setName(props.defaultDisplayName);
+  });
 
   const submit = async () => {
     setError('');
@@ -89,6 +93,13 @@ export function JoinDialog(props: JoinDialogProps) {
   const [code, setCode] = createSignal(props.defaultCode ?? '');
   const [error, setError] = createSignal('');
   const [busy, setBusy] = createSignal(false);
+
+  createEffect(() => {
+    if (props.open) {
+      setName(props.defaultDisplayName);
+      setCode(props.defaultCode ?? '');
+    }
+  });
 
   const submit = async () => {
     setError('');

@@ -23,8 +23,10 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
       const txt = (await navigator.clipboard.readText()).trim();
       if (/^[0-9a-z]{6}$/.test(txt)) setClipboardCode(txt);
       else setClipboardCode('');
-    } catch {
-      // clipboard read denied — silently ignore
+    } catch (e) {
+      // clipboard read denied or unavailable — keep clipboardCode empty
+      console.warn('[session-room] clipboard read failed', e);
+      setClipboardCode('');
     }
   };
 
@@ -32,7 +34,8 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
     try {
       const name = (await ctx.ipc.invoke('getDisplayName')) as string;
       setDefaultName(name ?? '');
-    } catch {
+    } catch (e) {
+      console.warn('[session-room] getDisplayName failed', e);
       setDefaultName('');
     }
   };
