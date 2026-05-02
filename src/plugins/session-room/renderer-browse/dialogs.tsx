@@ -32,6 +32,7 @@ export function CreateDialog(props: CreateDialogProps) {
   });
 
   const submit = async () => {
+    if (busy()) return;
     setError('');
     setBusy(true);
     try {
@@ -46,7 +47,7 @@ export function CreateDialog(props: CreateDialogProps) {
 
   return (
     <Show when={props.open}>
-      <div style={backdropStyle} onClick={props.onClose}>
+      <div style={backdropStyle} onClick={() => { if (!busy()) props.onClose(); }}>
         <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
           <h2 style="margin: 0 0 8px 0; font-size: 18px;">{t('session.dialogStartTitle')}</h2>
           <label style={labelStyle}>{t('session.displayNameLabel')}</label>
@@ -102,6 +103,7 @@ export function JoinDialog(props: JoinDialogProps) {
   });
 
   const submit = async () => {
+    if (busy()) return;
     setError('');
     if (!isValidRoomCode(code())) {
       setError(t('session.invalidRoomCodeFormat'));
@@ -120,7 +122,7 @@ export function JoinDialog(props: JoinDialogProps) {
 
   return (
     <Show when={props.open}>
-      <div style={backdropStyle} onClick={props.onClose}>
+      <div style={backdropStyle} onClick={() => { if (!busy()) props.onClose(); }}>
         <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
           <h2 style="margin: 0 0 8px 0; font-size: 18px;">{t('session.dialogJoinTitle')}</h2>
           <label style={labelStyle}>{t('session.displayNameLabel')}</label>

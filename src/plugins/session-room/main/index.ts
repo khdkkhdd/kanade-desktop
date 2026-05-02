@@ -28,7 +28,13 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   let sessionWin: import('electron').BrowserWindow | null = null;
   const openSessionWindow = (opts: { roomCode: string; initialUrl: string }) => {
     sessionWin = createSessionWindow(opts);
-    sessionWin.on('closed', () => { sessionWin = null; });
+    sessionWin.on('closed', () => {
+      sessionWin = null;
+      if (realtime.isConnected()) {
+        void controller.leaveSession().catch((e) =>
+          console.warn('[session-room] auto-leave on window close failed', e));
+      }
+    });
   };
   const closeSessionWindow = () => {
     if (sessionWin) sessionWin.close();
