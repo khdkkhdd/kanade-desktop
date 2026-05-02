@@ -9,6 +9,14 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
     return; // skip in session window
   }
 
+  // preload runs before document.body exists. Wait until DOM is ready before
+  // mounting the overlay root.
+  if (!document.body) {
+    await new Promise<void>((resolve) => {
+      document.addEventListener('DOMContentLoaded', () => resolve(), { once: true });
+    });
+  }
+
   const root = document.createElement('div');
   root.id = 'kanade-session-overlay';
   document.body.appendChild(root);
