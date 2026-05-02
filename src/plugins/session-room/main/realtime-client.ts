@@ -5,6 +5,8 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../shared/supabase-env.js';
 
 type EventListener = (event: SessionEvent) => void;
 type PresenceListener = (members: PresenceMeta[]) => void;
+export type RealtimeStatus = 'CONNECTED' | 'DISCONNECTED' | 'ERROR' | 'TIMED_OUT';
+type StatusListener = (status: RealtimeStatus) => void;
 
 /**
  * Wraps Supabase Realtime channel + presence for collaborative-listening sessions.
@@ -17,14 +19,16 @@ type PresenceListener = (members: PresenceMeta[]) => void;
  * resolves may see the broadcast land before its own presence appears in remote
  * presence sync — tolerated since downstream layers do not gate on member-map.
  *
- * Post-connect channel errors (network drop, etc.) are currently console-warned
- * but not surfaced. PR2 will add onStatus listener when reconnect UX is built.
+ * Channel status (CONNECTED / DISCONNECTED / ERROR / TIMED_OUT) is surfaced via
+ * onStatus(listener) — both the initial subscribe transition and post-connect
+ * status changes (network drops, reconnects) flow through the same channel.
  */
 export class RealtimeClient {
   private supabase: SupabaseClient;
   private channel: RealtimeChannel | null = null;
   private eventListeners: EventListener[] = [];
   private presenceListeners: PresenceListener[] = [];
+  private statusListeners: StatusListener[] = [];
   private currentTrack: PresenceMeta | null = null;
 
   constructor() {
@@ -71,20 +75,26 @@ export class RealtimeClient {
     await new Promise<void>((resolve, reject) => {
       let settled = false;
       this.channel!.subscribe((status) => {
-        if (settled) {
-          // Post-connect status changes (errors, reconnects) are silently dropped
-          // for now. PR2 will add an onStatus listener when reconnect UX is built.
-          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-            console.warn('[session-room] post-connect channel status:', status);
-          }
-          return;
-        }
         if (status === 'SUBSCRIBED') {
-          settled = true;
-          resolve();
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          settled = true;
-          reject(new Error(`Channel status: ${status}`));
+          this.emitStatus('CONNECTED');
+          if (!settled) {
+            settled = true;
+            resolve();
+          }
+        } else if (status === 'CHANNEL_ERROR') {
+          this.emitStatus('ERROR');
+          if (!settled) {
+            settled = true;
+            reject(new Error(`Channel status: CHANNEL_ERROR`));
+          }
+        } else if (status === 'TIMED_OUT') {
+          this.emitStatus('TIMED_OUT');
+          if (!settled) {
+            settled = true;
+            reject(new Error(`Channel status: TIMED_OUT`));
+          }
+        } else if (status === 'CLOSED') {
+          this.emitStatus('DISCONNECTED');
         }
       });
     });
@@ -101,11 +111,14 @@ export class RealtimeClient {
 
   async broadcast(event: SessionEvent): Promise<void> {
     if (!this.channel) throw new Error('Not connected');
-    await this.channel.send({
+    const result = await this.channel.send({
       type: 'broadcast',
       event: 'session-event',
       payload: event,
     });
+    if (result === 'timed out' || result === 'error') {
+      throw new Error(`broadcast failed: ${result}`);
+    }
   }
 
   onEvent(listener: EventListener): () => void {
@@ -122,6 +135,13 @@ export class RealtimeClient {
     };
   }
 
+  onStatus(listener: StatusListener): () => void {
+    this.statusListeners.push(listener);
+    return () => {
+      this.statusListeners = this.statusListeners.filter((l) => l !== listener);
+    };
+  }
+
   async disconnect(): Promise<void> {
     if (!this.channel) return;
     try {
@@ -134,9 +154,14 @@ export class RealtimeClient {
     this.currentTrack = null;
     this.eventListeners = [];
     this.presenceListeners = [];
+    this.statusListeners = [];
   }
 
   isConnected(): boolean {
     return this.channel !== null;
+  }
+
+  private emitStatus(status: RealtimeStatus): void {
+    for (const l of this.statusListeners) l(status);
   }
 }

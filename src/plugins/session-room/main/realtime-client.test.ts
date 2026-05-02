@@ -5,7 +5,10 @@ const mockSend = vi.fn();
 const mockUnsubscribe = vi.fn();
 const mockTrack = vi.fn();
 const mockUntrack = vi.fn();
+
+let capturedCb: ((status: string) => void) | null = null;
 const mockSubscribe = vi.fn((cb: (status: string) => void) => {
+  capturedCb = cb;
   setTimeout(() => cb('SUBSCRIBED'), 0);
   return { unsubscribe: mockUnsubscribe };
 });
@@ -36,6 +39,7 @@ vi.mock('../shared/supabase-env.js', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  capturedCb = null;
 });
 
 describe('RealtimeClient', () => {
@@ -75,6 +79,60 @@ describe('RealtimeClient', () => {
     await expect(
       c.connect('y', { memberKey: 'me', displayName: 'n', joinedAt: 0, isHost: true })
     ).rejects.toThrow(/Already connected/);
+  });
+
+  it('onStatus listener receives CONNECTED on initial subscribe', async () => {
+    const c = new RealtimeClient();
+    const spy = vi.fn();
+    c.onStatus(spy);
+    await c.connect('x', { memberKey: 'me', displayName: 'n', joinedAt: 0, isHost: true });
+    expect(spy).toHaveBeenCalledWith('CONNECTED');
+  });
+
+  it('onStatus listener receives ERROR on post-connect CHANNEL_ERROR', async () => {
+    const c = new RealtimeClient();
+    await c.connect('x', { memberKey: 'me', displayName: 'n', joinedAt: 0, isHost: true });
+    const spy = vi.fn();
+    c.onStatus(spy);
+    capturedCb!('CHANNEL_ERROR');
+    expect(spy).toHaveBeenCalledWith('ERROR');
+  });
+
+  it('onStatus returns unsubscribe function that detaches listener', async () => {
+    const c = new RealtimeClient();
+    await c.connect('x', { memberKey: 'me', displayName: 'n', joinedAt: 0, isHost: true });
+    const spy = vi.fn();
+    const unsubscribe = c.onStatus(spy);
+    unsubscribe();
+    capturedCb!('DISCONNECTED');
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('broadcast throws when send returns "timed out"', async () => {
+    const c = new RealtimeClient();
+    await c.connect('x', { memberKey: 'me', displayName: 'n', joinedAt: 0, isHost: true });
+    mockSend.mockResolvedValueOnce('timed out');
+    await expect(
+      c.broadcast({ type: 'CHAT', payload: { id: '1', text: 'hi', from: { memberKey: 'me', displayName: 'n' }, ts: 0 } })
+    ).rejects.toThrow(/broadcast failed: timed out/);
+  });
+
+  it('broadcast throws when send returns "error"', async () => {
+    const c = new RealtimeClient();
+    await c.connect('x', { memberKey: 'me', displayName: 'n', joinedAt: 0, isHost: true });
+    mockSend.mockResolvedValueOnce('error');
+    await expect(
+      c.broadcast({ type: 'CHAT', payload: { id: '1', text: 'hi', from: { memberKey: 'me', displayName: 'n' }, ts: 0 } })
+    ).rejects.toThrow(/broadcast failed: error/);
+  });
+
+  it('broadcast resolves when send returns "ok"', async () => {
+    const c = new RealtimeClient();
+    await c.connect('x', { memberKey: 'me', displayName: 'n', joinedAt: 0, isHost: true });
+    mockSend.mockResolvedValueOnce('ok');
+    await expect(
+      c.broadcast({ type: 'CHAT', payload: { id: '1', text: 'hi', from: { memberKey: 'me', displayName: 'n' }, ts: 0 } })
+    ).resolves.toBeUndefined();
   });
 });
 
