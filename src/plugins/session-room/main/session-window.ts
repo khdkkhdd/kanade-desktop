@@ -32,6 +32,10 @@ export function createSessionWindow(opts: SessionWindowOptions): BrowserWindow {
     },
   });
 
+  // Pin the session-room title; otherwise the loaded page's <title> takes over
+  // and users can't distinguish browse windows from session windows.
+  win.on('page-title-updated', (e) => e.preventDefault());
+
   win.once('ready-to-show', () => win.show());
   win.loadURL(opts.initialUrl);
   return win;
