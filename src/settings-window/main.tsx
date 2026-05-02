@@ -12,11 +12,16 @@ interface PresenceConfig {
   titleLanguage: TitleLanguage;
 }
 
+interface SessionConfigShape {
+  displayName: string;
+}
+
 interface SettingsShape {
   adminApiKey: string;
   apiBase: string;
   presence: PresenceConfig;
   locale: Locale | null;
+  session: SessionConfigShape;
 }
 
 declare global {
@@ -37,6 +42,7 @@ function App() {
   const [timeoutMin, setTimeoutMin] = createSignal(10);
   const [titleLang, setTitleLang] = createSignal<TitleLanguage>('uilang');
   const [appLocale, setAppLocale] = createSignal<Locale | null>(null);
+  const [displayName, setDisplayName] = createSignal('');
   const [saved, setSaved] = createSignal(false);
 
   onMount(async () => {
@@ -48,6 +54,7 @@ function App() {
     setTimeoutMin(v.presence?.activityTimeoutMinutes ?? 10);
     setTitleLang(v.presence?.titleLanguage ?? 'uilang');
     setAppLocale(v.locale ?? null);
+    setDisplayName(v.session?.displayName ?? '');
 
     // Sync page-context i18n state — preload's setLocale doesn't reach this V8 context
     setLocale(v.locale ?? detectLocale());
@@ -69,6 +76,7 @@ function App() {
         titleLanguage: titleLang(),
       },
       locale: appLocale(),
+      session: { displayName: displayName() },
     });
     setLocale(appLocale() ?? detectLocale());
     setSaved(true);
@@ -168,6 +176,20 @@ function App() {
             <option value="en">{t('settings.appLanguageEn')}</option>
             <option value="ja">{t('settings.appLanguageJa')}</option>
           </select>
+        </div>
+      </div>
+
+      <div style={sectionStyle}>
+        <div style="margin-bottom: 12px;">
+          <label style={labelStyle}>{t('settings.displayName')}</label>
+          <input
+            type="text"
+            value={displayName()}
+            onInput={(e) => setDisplayName(e.currentTarget.value)}
+            placeholder={t('settings.displayNamePlaceholder')}
+            style={inputStyle}
+          />
+          <p style="font-size: 12px; color: #888; margin: 6px 0 0 0;">{t('settings.displayNameHint')}</p>
         </div>
       </div>
 

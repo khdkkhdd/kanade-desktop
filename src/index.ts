@@ -277,6 +277,7 @@ function setupSettingsIPC(): void {
       apiBase: k.apiBase,
       presence: getPresenceConfig(),
       locale: k.locale ?? null,
+      session: k.session ?? { displayName: '' },
     };
   });
   ipcMain.handle('settings:save', (_e, v: {
@@ -284,6 +285,7 @@ function setupSettingsIPC(): void {
     apiBase: string;
     presence: PresenceConfig;
     locale: Locale | null;
+    session: { displayName: string };
   }) => {
     store.set('kanade', v);
     for (const w of BrowserWindow.getAllWindows()) {

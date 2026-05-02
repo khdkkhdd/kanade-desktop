@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('kanadeSettings', {
     apiBase: string;
     presence: PresenceConfig;
     locale: Locale | null;
+    session: { displayName: string };
   }) => ipcRenderer.invoke('settings:save', v),
   onLocaleChanged: (callback: (locale: Locale | null) => void) => {
     ipcRenderer.on('i18n:locale-changed', (_e, locale: Locale | null) => callback(locale));
