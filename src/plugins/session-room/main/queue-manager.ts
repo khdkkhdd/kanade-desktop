@@ -3,6 +3,7 @@ import type { SessionStateStore } from './session-state.js';
 import type { SessionEvent, QueueOp, QueueItem, MemberKey } from '../shared/types.js';
 import { calculatePriority } from '../shared/fair-rotation.js';
 import { canApplyQueueOp } from '../shared/permissions.js';
+import { canAddSong } from '../shared/rate-limit.js';
 
 interface QueueManagerDeps {
   store: SessionStateStore;
@@ -14,6 +15,12 @@ export class QueueManager {
 
   async addLocal(meta: { videoId: string; videoTitle: string; channelName: string; videoDuration: number }): Promise<QueueItem> {
     const s = this.deps.store.get();
+    const now = Date.now();
+    const r = canAddSong(s.myLastAddAt, now);
+    if (!r.ok) {
+      throw new Error(`rate-limit:${r.remainingMs}`);
+    }
+
     const adderKey = s.myMemberKey;
     const me = s.members.get(adderKey);
     const item: QueueItem = {
@@ -23,7 +30,7 @@ export class QueueManager {
       channelName: meta.channelName,
       videoDuration: meta.videoDuration,
       addedBy: { memberKey: adderKey, displayName: me?.displayName ?? '' },
-      addedAt: Date.now(),
+      addedAt: now,
       priorityScore: calculatePriority(s.queue, adderKey),
     };
 

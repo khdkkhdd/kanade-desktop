@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { QueueManager } from './queue-manager.js';
 import { SessionStateStore } from './session-state.js';
 
@@ -8,11 +8,16 @@ describe('QueueManager', () => {
   let mgr: QueueManager;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     store = new SessionStateStore();
     store.initRoom({ code: 'x', myMemberKey: 'me', isHost: true });
     store.setMembers([{ memberKey: 'me', displayName: 'me', joinedAt: 0, isHost: true }]);
     broadcast = vi.fn().mockResolvedValue(undefined);
     mgr = new QueueManager({ store, broadcast: broadcast as never });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('add — first add, score 0, broadcasts QUEUE_OP add', async () => {
@@ -27,6 +32,7 @@ describe('QueueManager', () => {
 
   it('add — applies fair rotation across users', async () => {
     await mgr.addLocal({ videoId: 'v1', videoTitle: 't', channelName: 'c', videoDuration: 200 });
+    vi.advanceTimersByTime(5001); // Advance past the rate-limit window
     await mgr.addLocal({ videoId: 'v2', videoTitle: 't', channelName: 'c', videoDuration: 200 });
     expect(store.get().queue.map((i) => i.priorityScore)).toEqual([0, 10000]);
   });
@@ -70,5 +76,11 @@ describe('QueueManager', () => {
     await mgr.applyOp({ op: 'reorder', itemId: 'a', toIndex: 0 }, 'guest');
     // Should be unchanged
     expect(store.get().queue).toHaveLength(1);
+  });
+
+  it('addLocal throws when within rate-limit window', async () => {
+    await mgr.addLocal({ videoId: 'v1', videoTitle: 't', channelName: 'c', videoDuration: 200 });
+    await expect(mgr.addLocal({ videoId: 'v2', videoTitle: 't', channelName: 'c', videoDuration: 200 }))
+      .rejects.toThrow(/rate-limit:/);
   });
 });
