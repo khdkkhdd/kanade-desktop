@@ -15,6 +15,7 @@ export interface IpcDeps {
   queue: QueueManager;
   realtime: RealtimeClient;
   pushState: () => void;
+  broadcastHostLoad: (args: { videoId: string }) => void;
 }
 
 export function setupIpc(deps: IpcDeps): void {
@@ -91,5 +92,25 @@ export function setupIpc(deps: IpcDeps): void {
       type: 'DRIFT_CHECK',
       payload: payload as { videoId: string; position: number; ts: number },
     });
+  });
+
+  ctx.ipc.on('player.trackEnded', () => {
+    const s = deps.store.get();
+    if (!s.isHost) return;
+    const next = s.queue[0];
+    if (!next) {
+      // Empty queue: broadcast paused state with the last videoId so guests
+      // don't receive an empty videoId (which would trigger loadVideoById(''))
+      const lps = s.lastPlayerState;
+      if (!lps) return; // never started — nothing to do
+      void deps.realtime.broadcast({
+        type: 'PLAYER_STATE',
+        payload: { ...lps, isPlaying: false, position: lps.position, isAd: false, ts: Date.now() },
+      }).catch((e) => console.warn('[session-room] track-end empty-queue broadcast failed', e));
+      return;
+    }
+    void deps.queue.setCurrentLocal(next.id).catch((e) =>
+      console.warn('[session-room] track-end setCurrent failed', e));
+    deps.broadcastHostLoad({ videoId: next.videoId });
   });
 }

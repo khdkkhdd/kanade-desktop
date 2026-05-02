@@ -60,6 +60,11 @@ export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean)
     broadcast();
   };
 
+  const onTrackEnded = () => {
+    if (!isHost()) return;
+    ctx.ipc.send('player.trackEnded', {});
+  };
+
   // Listen on <video> element events
   let videoEl: HTMLVideoElement | null = null;
   let cleanupVideo: (() => void) | null = null;
@@ -71,7 +76,11 @@ export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean)
     videoEl = el as HTMLVideoElement;
     const evs: Array<keyof HTMLMediaElementEventMap> = ['play', 'playing', 'pause', 'seeked', 'ended'];
     for (const ev of evs) videoEl.addEventListener(ev, onPlayerEvent);
-    cleanupVideo = () => { for (const ev of evs) videoEl?.removeEventListener(ev, onPlayerEvent); };
+    videoEl.addEventListener('ended', onTrackEnded);
+    cleanupVideo = () => {
+      for (const ev of evs) videoEl?.removeEventListener(ev, onPlayerEvent);
+      videoEl?.removeEventListener('ended', onTrackEnded);
+    };
   };
 
   const onNavigate = () => { void rebindVideo(); onPlayerEvent(); };

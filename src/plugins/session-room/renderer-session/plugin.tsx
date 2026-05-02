@@ -85,6 +85,13 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
   setupHostPlayerSync(ctx, () => state().isHost); // stop ignored — renderer lifetime
   setupGuestPlayerSync(ctx, () => state().isHost); // stop ignored — renderer lifetime
 
+  ctx.ipc.on('host.loadVideo', (args) => {
+    if (!state().isHost) return; // only host's renderer should load via this channel
+    const { videoId } = args as { videoId: string };
+    const player = document.getElementById('movie_player') as unknown as { loadVideoById?: (id: string) => void } | null;
+    player?.loadVideoById?.(videoId);
+  });
+
   render(() => <SessionPanel ctx={ctx} state={state} />, root);
 
   console.log('[session-room] session renderer started');

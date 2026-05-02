@@ -27,6 +27,12 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
     }
   };
 
+  const broadcastHostLoad = (args: { videoId: string }): void => {
+    for (const w of BrowserWindow.getAllWindows()) {
+      w.webContents.send('plugin:session-room:host.loadVideo', args);
+    }
+  };
+
   let sessionWin: import('electron').BrowserWindow | null = null;
   const openSessionWindow = (opts: { roomCode: string; initialUrl: string }) => {
     sessionWin = createSessionWindow(opts);
@@ -45,7 +51,7 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
 
   const controller = new RoomController({ store, realtime, openSessionWindow, closeSessionWindow });
   const queueMgr = new QueueManager({ store, broadcast: realtime.broadcast.bind(realtime), pushState: broadcastState });
-  setupIpc({ ctx, controller, store, queue: queueMgr, realtime, pushState: broadcastState });
+  setupIpc({ ctx, controller, store, queue: queueMgr, realtime, pushState: broadcastState, broadcastHostLoad });
 
   let previousMemberKeys = new Set<string>();
   realtime.onPresence((members) => {
