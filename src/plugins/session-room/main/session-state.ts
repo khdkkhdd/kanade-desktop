@@ -72,6 +72,10 @@ export class SessionStateStore {
     this.state.queue = [];
   }
 
+  /**
+   * Replaces the members map. Also recomputes isHost from the new presence
+   * data — this is how host handoff (PR6) propagates to local state.
+   */
   setMembers(members: Member[]): void {
     this.state.members = new Map(members.map((m) => [m.memberKey, m]));
     const me = this.state.members.get(this.state.myMemberKey);
