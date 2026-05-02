@@ -28,4 +28,17 @@ describe('observeAdState', () => {
 
     stop();
   });
+
+  it('stop() disconnects the class observer even when player mounts after the call', async () => {
+    document.body.innerHTML = '';
+    const cb = vi.fn();
+    const stop = observeAdState(cb);
+    document.body.innerHTML = '<div id="movie_player"></div>';
+    await new Promise((r) => setTimeout(r, 0));
+    cb.mockClear();
+    stop();
+    document.getElementById('movie_player')!.classList.add('ad-showing');
+    await new Promise((r) => setTimeout(r, 50));
+    expect(cb).not.toHaveBeenCalled();
+  });
 });
