@@ -1,5 +1,10 @@
 import { BrowserWindow } from 'electron';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Self-defined __dirname (see src/index.ts for context — bundler shim disabled
+// when @supabase/supabase-js lands in main bundle).
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export interface SessionWindowOptions {
   roomCode: string;

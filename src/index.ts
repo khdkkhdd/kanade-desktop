@@ -1,6 +1,14 @@
 import { app, BrowserWindow, ipcMain, Menu, session, shell } from 'electron';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { store, getPresenceConfig } from './config/store.js';
+
+// Self-defined __dirname for ESM main bundle. electron-vite normally injects a
+// CommonJS shim, but bundling @supabase/supabase-js causes the shim to be
+// inserted inside a JSDoc comment block in the supabase source, which silently
+// disables it. Define our own up front so all path.join(__dirname, ...) calls
+// in this entry resolve correctly.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { isSafeWebUrl } from './lib/url-guard.js';
 import type { PresenceConfig, Locale } from './config/store.js';
 import { setupAutoUpdater } from './auto-updater.js';
