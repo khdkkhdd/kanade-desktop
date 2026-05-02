@@ -2,8 +2,10 @@ import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
 import type { RendererContext } from '../../../types/plugins.js';
 import { SessionPanel, type PanelState } from './session-panel/SessionPanel.jsx';
+import { AdBanner } from './ad-banner.jsx';
 import { setupHostPlayerSync } from './player-sync-host.js';
 import { setupGuestPlayerSync } from './player-sync-guest.js';
+import { observeAdState } from './ad-detector.js';
 
 const STYLE = `
 .kanade-session-panel {
@@ -47,6 +49,17 @@ const STYLE = `
 .kanade-host-controls { padding: 8px; display: flex; gap: 8px; border-top: 1px solid #333; }
 .kanade-presence { padding: 8px; border-top: 1px solid #333; display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; }
 .kanade-presence .host { color: gold; }
+.kanade-ad-banner {
+  position: fixed;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 4px;
+  z-index: 10000;
+}
 `;
 
 export async function setupSessionRenderer(ctx: RendererContext): Promise<void> {
@@ -85,6 +98,11 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
   setupHostPlayerSync(ctx, () => state().isHost); // stop ignored — renderer lifetime
   setupGuestPlayerSync(ctx, () => state().isHost); // stop ignored — renderer lifetime
 
+  const [iAmInAd, setIAmInAd] = createSignal(false);
+  observeAdState(setIAmInAd); // stop ignored — renderer lifetime
+
+  const hostInAd = () => state().lastPlayerState?.isAd ?? false;
+
   ctx.ipc.on('host.loadVideo', (args) => {
     if (!state().isHost) return; // only host's renderer should load via this channel
     const { videoId } = args as { videoId: string };
@@ -92,7 +110,15 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
     player?.loadVideoById?.(videoId);
   });
 
-  render(() => <SessionPanel ctx={ctx} state={state} />, root);
+  render(
+    () => (
+      <>
+        <SessionPanel ctx={ctx} state={state} />
+        <AdBanner hostInAd={hostInAd()} iAmInAd={iAmInAd()} />
+      </>
+    ),
+    root,
+  );
 
   console.log('[session-room] session renderer started');
 }
@@ -106,5 +132,6 @@ function toPanelState(raw: Record<string, unknown>): PanelState {
     myMemberKey: (raw.myMemberKey as string) ?? '',
     permission: (raw.permission as PanelState['permission']) ?? 'playlist',
     roomCode: ((raw.room as { code?: string } | null)?.code) ?? '',
+    lastPlayerState: (raw.lastPlayerState as PanelState['lastPlayerState']) ?? null,
   };
 }

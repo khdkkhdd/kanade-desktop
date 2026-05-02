@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from 'solid-js';
 import type { RendererContext } from '../../../../types/plugins.js';
-import type { QueueItem, ItemId, PermissionMode, MemberKey, Member } from '../../shared/types.js';
+import type { QueueItem, ItemId, PermissionMode, MemberKey, Member, PlayerState } from '../../shared/types.js';
 import { QueueTab } from './QueueTab.jsx';
 
 export interface PanelState {
@@ -11,6 +11,7 @@ export interface PanelState {
   myMemberKey: MemberKey;
   permission: PermissionMode;
   roomCode: string;
+  lastPlayerState: PlayerState | null;
 }
 
 export function SessionPanel(props: { ctx: RendererContext; state: () => PanelState }) {
