@@ -4,9 +4,9 @@ import { observeAdState } from './ad-detector.js';
 import { DRIFT_CHECK_INTERVAL_MS } from '../shared/constants.js';
 
 interface YTPlayer {
-  getCurrentTime(): number;
-  getPlayerState(): number; // -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
-  getVideoData(): { video_id: string };
+  getCurrentTime?(): number;
+  getPlayerState?(): number; // -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
+  getVideoData?(): { video_id: string };
 }
 
 function waitForElement(selector: string, timeout = 5_000): Promise<Element | null> {
@@ -36,13 +36,16 @@ export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean)
     if (!isHost()) return;
     const player = getPlayer();
     if (!player) return;
-    const state = player.getPlayerState();
+    const state = player.getPlayerState?.();
+    if (state === undefined) return;
     const isPlaying = state === 1 || state === 3; // playing or buffering counts as playing
-    const data = player.getVideoData();
+    const data = player.getVideoData?.();
     if (!data?.video_id) return;
+    const position = player.getCurrentTime?.();
+    if (position === undefined) return;
     ctx.ipc.send('player.broadcastState', {
       videoId: data.video_id,
-      position: player.getCurrentTime(),
+      position,
       isPlaying,
       isAd,
       ts: Date.now(),
@@ -81,11 +84,13 @@ export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean)
     if (!isHost()) return;
     const player = getPlayer();
     if (!player) return;
-    const data = player.getVideoData();
+    const data = player.getVideoData?.();
     if (!data?.video_id) return;
+    const position = player.getCurrentTime?.();
+    if (position === undefined) return;
     ctx.ipc.send('player.driftCheck', {
       videoId: data.video_id,
-      position: player.getCurrentTime(),
+      position,
       ts: Date.now(),
     });
   }, DRIFT_CHECK_INTERVAL_MS);

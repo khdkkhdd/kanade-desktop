@@ -5,12 +5,12 @@ import { DRIFT_CORRECT_THRESHOLD_S } from '../shared/constants.js';
 import { observeAdState } from './ad-detector.js';
 
 interface YTPlayer {
-  getCurrentTime(): number;
-  getVideoData(): { video_id: string };
-  seekTo(time: number, allowSeekAhead: boolean): void;
-  pauseVideo(): void;
-  playVideo(): void;
-  loadVideoById(videoId: string, startSeconds?: number): void;
+  getCurrentTime?(): number;
+  getVideoData?(): { video_id: string };
+  seekTo?(time: number, allowSeekAhead: boolean): void;
+  pauseVideo?(): void;
+  playVideo?(): void;
+  loadVideoById?(videoId: string, startSeconds?: number): void;
 }
 
 export function setupGuestPlayerSync(ctx: RendererContext, isHost: () => boolean): () => void {
@@ -21,19 +21,19 @@ export function setupGuestPlayerSync(ctx: RendererContext, isHost: () => boolean
     if (isHost()) return;
     const player = getPlayer();
     if (!player) return;
-    const data = player.getVideoData();
+    const data = player.getVideoData?.();
     if (data?.video_id !== event.videoId) {
       const target = expectedHostPosition(event, Date.now());
-      player.loadVideoById(event.videoId, target);
+      player.loadVideoById?.(event.videoId, target);
       return;
     }
     if (event.isPlaying) {
-      player.playVideo();
+      player.playVideo?.();
       const target = expectedHostPosition(event, Date.now());
-      player.seekTo(target, true);
+      player.seekTo?.(target, true);
     } else {
-      player.seekTo(event.position, true);
-      player.pauseVideo();
+      player.seekTo?.(event.position, true);
+      player.pauseVideo?.();
     }
   };
 
@@ -42,13 +42,14 @@ export function setupGuestPlayerSync(ctx: RendererContext, isHost: () => boolean
     if (myAdState) return; // ignore during own ad
     const player = getPlayer();
     if (!player) return;
-    const data = player.getVideoData();
+    const data = player.getVideoData?.();
     if (data?.video_id !== msg.videoId) return;
-    const myPos = player.getCurrentTime();
+    const myPos = player.getCurrentTime?.();
+    if (myPos === undefined) return;
     const drift = computeDrift(msg, myPos, Date.now());
     if (Math.abs(drift) > DRIFT_CORRECT_THRESHOLD_S) {
       const target = msg.position + (Date.now() - msg.ts) / 1000;
-      player.seekTo(target, true);
+      player.seekTo?.(target, true);
     }
   };
 
