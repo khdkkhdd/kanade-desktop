@@ -45,6 +45,9 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   setupIpc({ ctx, controller, store });
 
   realtime.onPresence((members) => {
+    console.log(
+      `[session-room] presence: ${members.length} member(s) — ${members.map((m) => `${m.displayName}${m.isHost ? '★' : ''}`).join(', ')}`,
+    );
     store.setMembers(members);
     ctx.ipc.send('state-changed', toIpcState(store));
   });
@@ -52,6 +55,10 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   realtime.onEvent((event) => {
     // PR3+ will populate handlers (queue ops, chat, player state, permission change, drift check)
     ctx.ipc.send('event', event);
+  });
+
+  realtime.onStatus((status) => {
+    console.log(`[session-room] realtime status: ${status}`);
   });
 
   console.log('[session-room] main plugin initialized');
