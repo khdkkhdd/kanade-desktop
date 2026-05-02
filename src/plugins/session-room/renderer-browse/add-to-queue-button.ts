@@ -33,14 +33,18 @@ export function setupAddToQueueButtons(ctx: RendererContext, sessionActive: () =
     btn.addEventListener('click', async (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
-      const meta = await fetchVideoMeta(videoId);
-      const r = await ctx.ipc.invoke('queue.add', {
-        videoId,
-        videoTitle: meta.title,
-        channelName: meta.channelName,
-        videoDuration: meta.duration,
-      });
-      console.log('[session-room] queued', r);
+      try {
+        const meta = await fetchVideoMeta(videoId);
+        const r = await ctx.ipc.invoke('queue.add', {
+          videoId,
+          videoTitle: meta.title,
+          channelName: meta.channelName,
+          videoDuration: meta.duration,
+        });
+        console.log('[session-room] queued', r);
+      } catch (e) {
+        console.warn('[session-room] queue.add failed', e);
+      }
     });
 
     // Inject button — assume parent positions absolutely-friendly

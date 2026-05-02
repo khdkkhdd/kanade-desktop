@@ -58,13 +58,19 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
     void Promise.all([refreshDisplayName(), tryReadClipboard()]).then(() => setJoinOpen(true));
   });
 
+  let bootstrapped = false;
   ctx.ipc.on('state-changed', (state) => {
+    bootstrapped = true;
     setSessionActive(!!(state as { room: unknown }).room);
   });
 
-  void ctx.ipc.invoke('getState').then((state) => {
-    setSessionActive(!!(state as { room: unknown }).room);
-  });
+  void ctx.ipc.invoke('getState').then(
+    (state) => {
+      if (bootstrapped) return;
+      setSessionActive(!!(state as { room: unknown }).room);
+    },
+    (e) => console.warn('[session-room] getState failed', e),
+  );
 
   setupAddToQueueButtons(ctx, sessionActive);
 
