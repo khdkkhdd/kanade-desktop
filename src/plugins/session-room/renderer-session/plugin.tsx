@@ -3,6 +3,7 @@ import { createSignal } from 'solid-js';
 import type { RendererContext } from '../../../types/plugins.js';
 import { SessionPanel, type PanelState } from './session-panel/SessionPanel.jsx';
 import { setupHostPlayerSync } from './player-sync-host.js';
+import { setupGuestPlayerSync } from './player-sync-guest.js';
 
 const STYLE = `
 .kanade-session-panel {
@@ -82,6 +83,7 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
   );
 
   setupHostPlayerSync(ctx, () => state().isHost); // stop ignored — renderer lifetime
+  setupGuestPlayerSync(ctx, () => state().isHost); // stop ignored — renderer lifetime
 
   render(() => <SessionPanel ctx={ctx} state={state} />, root);
 

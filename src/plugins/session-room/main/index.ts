@@ -56,11 +56,28 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
 
   realtime.onEvent(async (event) => {
     try {
-      if (event.type === 'QUEUE_OP') {
-        await queueMgr.applyOp(event.payload, event.senderMemberKey);
-      } else if (event.type === 'PERMISSION_CHANGE') {
-        const sender = store.get().members.get(event.senderMemberKey);
-        if (sender?.isHost) store.setPermission(event.payload.mode);
+      switch (event.type) {
+        case 'QUEUE_OP':
+          await queueMgr.applyOp(event.payload, event.senderMemberKey);
+          break;
+        case 'PLAYER_STATE':
+          store.setPlayerState(event.payload);
+          break;
+        case 'PERMISSION_CHANGE': {
+          const sender = store.get().members.get(event.senderMemberKey);
+          if (sender?.isHost) store.setPermission(event.payload.mode);
+          break;
+        }
+        case 'DRIFT_CHECK':
+          // No store update — guest renderers process directly via 'event' channel.
+          break;
+        case 'CHAT':
+          // PR6 — accepted no-op for now to keep switch exhaustive.
+          break;
+        default: {
+          const _exhaustive: never = event;
+          void _exhaustive;
+        }
       }
     } catch (e) {
       console.warn('[session-room] inbound event handler failed', event.type, e);
