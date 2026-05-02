@@ -2,6 +2,10 @@ import { defineConfig } from 'electron-vite';
 import solid from 'vite-plugin-solid';
 import { resolve } from 'node:path';
 
+// Load .env.local into process.env for build-time `define` substitutions.
+// Node 20.6+ provides loadEnvFile; missing file is silent.
+try { process.loadEnvFile?.('.env.local'); } catch { /* no .env.local — fine */ }
+
 export default defineConfig({
   main: {
     build: {
