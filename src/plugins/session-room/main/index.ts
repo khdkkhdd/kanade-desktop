@@ -3,23 +3,10 @@ import type { BackendContext } from '../../../types/plugins.js';
 import { SessionStateStore } from './session-state.js';
 import { RealtimeClient } from './realtime-client.js';
 import { RoomController } from './room-controller.js';
+import { QueueManager } from './queue-manager.js';
 import { createSessionWindow } from './session-window.js';
 import { setupIpc } from './ipc.js';
-
-function toIpcState(store: SessionStateStore) {
-  const s = store.get();
-  return {
-    room: s.room,
-    myMemberKey: s.myMemberKey,
-    isHost: s.isHost,
-    members: Array.from(s.members.values()),
-    queue: s.queue,
-    currentItemId: s.currentItemId,
-    permission: s.permission,
-    lastPlayerState: s.lastPlayerState,
-    chatMessages: s.chatMessages,
-  };
-}
+import { toIpcState } from './state-projection.js';
 
 export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   const store = new SessionStateStore();
@@ -42,7 +29,8 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   };
 
   const controller = new RoomController({ store, realtime, openSessionWindow, closeSessionWindow });
-  setupIpc({ ctx, controller, store });
+  const queueMgr = new QueueManager({ store, broadcast: realtime.broadcast.bind(realtime) });
+  setupIpc({ ctx, controller, store, queue: queueMgr });
 
   realtime.onPresence((members) => {
     console.log(
@@ -52,9 +40,12 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
     ctx.ipc.send('state-changed', toIpcState(store));
   });
 
-  realtime.onEvent((event) => {
-    // PR3+ will populate handlers (queue ops, chat, player state, permission change, drift check)
+  realtime.onEvent(async (event) => {
+    if (event.type === 'QUEUE_OP') {
+      await queueMgr.applyOp(event.payload, event.senderMemberKey);
+    }
     ctx.ipc.send('event', event);
+    ctx.ipc.send('state-changed', toIpcState(store));
   });
 
   realtime.onStatus((status) => {

@@ -68,13 +68,10 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
         onClose={() => setCreateOpen(false)}
         defaultDisplayName={defaultName()}
         onSubmit={async (a) => {
-          const r = await ctx.ipc.invoke('create', {
+          await ctx.ipc.invoke('create', {
             displayName: a.displayName,
             initialVideoId: getCurrentVideoId(),
           });
-          if (r && typeof r === 'object' && 'error' in r) {
-            throw new Error(String((r as { error: string }).error));
-          }
         }}
       />
       <JoinDialog
@@ -83,13 +80,10 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
         defaultDisplayName={defaultName()}
         defaultCode={clipboardCode()}
         onSubmit={async (a) => {
-          const r = await ctx.ipc.invoke('join', {
+          await ctx.ipc.invoke('join', {
             displayName: a.displayName,
             roomCode: a.roomCode,
           });
-          if (r && typeof r === 'object' && 'error' in r) {
-            throw new Error(String((r as { error: string }).error));
-          }
         }}
       />
     </>
