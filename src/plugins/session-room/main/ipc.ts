@@ -81,6 +81,7 @@ export function setupIpc(deps: IpcDeps): void {
     if (!s.isHost) return;
     deps.realtime.broadcast({ type: 'PLAYER_STATE', payload: state as PlayerState });
     deps.store.setPlayerState(state as PlayerState);
+    pushState();
   });
 
   ctx.ipc.on('player.driftCheck', (payload) => {

@@ -7,7 +7,19 @@ interface YTPlayer {
   getCurrentTime(): number;
   getPlayerState(): number; // -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
   getVideoData(): { video_id: string };
-  getDuration(): number;
+}
+
+function waitForElement(selector: string, timeout = 5_000): Promise<Element | null> {
+  const existing = document.querySelector(selector);
+  if (existing) return Promise.resolve(existing);
+  return new Promise((resolve) => {
+    const t = setTimeout(() => { observer.disconnect(); resolve(null); }, timeout);
+    const observer = new MutationObserver(() => {
+      const el = document.querySelector(selector);
+      if (el) { observer.disconnect(); clearTimeout(t); resolve(el); }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
 }
 
 export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean): () => void {
@@ -45,10 +57,24 @@ export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean)
     broadcast();
   };
 
-  // Listen on YouTube player events
-  document.addEventListener('onStateChange', onPlayerEvent);
-  // SPA navigation reset
-  window.addEventListener('yt-navigate-finish', onPlayerEvent);
+  // Listen on <video> element events
+  let videoEl: HTMLVideoElement | null = null;
+  let cleanupVideo: (() => void) | null = null;
+
+  const rebindVideo = async () => {
+    const el = await waitForElement('video', 5_000);
+    if (!el || el === videoEl) return;
+    cleanupVideo?.();
+    videoEl = el as HTMLVideoElement;
+    const evs: Array<keyof HTMLMediaElementEventMap> = ['play', 'playing', 'pause', 'seeked', 'ended'];
+    for (const ev of evs) videoEl.addEventListener(ev, onPlayerEvent);
+    cleanupVideo = () => { for (const ev of evs) videoEl?.removeEventListener(ev, onPlayerEvent); };
+  };
+
+  const onNavigate = () => { void rebindVideo(); onPlayerEvent(); };
+  document.addEventListener('yt-navigate-finish', onNavigate);
+  window.addEventListener('load', () => { void rebindVideo(); });
+  void rebindVideo();
 
   // 30s drift heartbeat
   driftInterval = window.setInterval(() => {
@@ -66,8 +92,8 @@ export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean)
 
   return () => {
     stopAd();
-    document.removeEventListener('onStateChange', onPlayerEvent);
-    window.removeEventListener('yt-navigate-finish', onPlayerEvent);
+    cleanupVideo?.();
+    document.removeEventListener('yt-navigate-finish', onNavigate);
     if (driftInterval) clearInterval(driftInterval);
   };
 }
