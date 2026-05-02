@@ -80,7 +80,8 @@ export function setupIpc(deps: IpcDeps): void {
   ctx.ipc.on('player.broadcastState', (state) => {
     const s = deps.store.get();
     if (!s.isHost) return;
-    deps.realtime.broadcast({ type: 'PLAYER_STATE', payload: state as PlayerState });
+    void deps.realtime.broadcast({ type: 'PLAYER_STATE', payload: state as PlayerState })
+      .catch((e) => console.warn('[session-room] PLAYER_STATE broadcast failed', e));
     deps.store.setPlayerState(state as PlayerState);
     pushState();
   });
@@ -88,10 +89,10 @@ export function setupIpc(deps: IpcDeps): void {
   ctx.ipc.on('player.driftCheck', (payload) => {
     const s = deps.store.get();
     if (!s.isHost) return;
-    deps.realtime.broadcast({
+    void deps.realtime.broadcast({
       type: 'DRIFT_CHECK',
       payload: payload as { videoId: string; position: number; ts: number },
-    });
+    }).catch((e) => console.warn('[session-room] DRIFT_CHECK broadcast failed', e));
   });
 
   ctx.ipc.on('player.trackEnded', () => {
