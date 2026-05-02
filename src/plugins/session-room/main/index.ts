@@ -8,6 +8,7 @@ import { QueueManager } from './queue-manager.js';
 import { createSessionWindow } from './session-window.js';
 import { setupIpc } from './ipc.js';
 import { toIpcState } from './state-projection.js';
+import { CATCHUP_BROADCAST_DELAY_MS } from '../shared/constants.js';
 
 export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   const store = new SessionStateStore();
@@ -59,6 +60,7 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
     previousMemberKeys = newKeys;
 
     if (store.get().isHost && newcomers.some((k) => k !== me)) {
+      // channel-wide broadcast covers all newcomers in this presence delta
       setTimeout(() => {
         const lps = store.get().lastPlayerState;
         if (lps) {
@@ -69,7 +71,7 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
         }
         void queueMgr.broadcastSnapshot()
           .catch((e) => console.warn('[session-room] catch-up snapshot broadcast failed', e));
-      }, 200);
+      }, CATCHUP_BROADCAST_DELAY_MS);
     }
 
     broadcastState();
