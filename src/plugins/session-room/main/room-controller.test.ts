@@ -4,7 +4,7 @@ import { SessionStateStore } from './session-state.js';
 
 class MockRealtime {
   connect = vi.fn();
-  disconnect = vi.fn();
+  disconnect = vi.fn(() => Promise.resolve());
   broadcast = vi.fn();
   onEvent = vi.fn(() => () => {});
   onPresence = vi.fn(() => () => {});
@@ -59,5 +59,24 @@ describe('RoomController', () => {
 
   it('joinSession rejects invalid code format', async () => {
     await expect(ctrl.joinSession({ roomCode: 'BADCODE', displayName: 'x' })).rejects.toThrow(/invalid/i);
+  });
+
+  it('createSession resets store if realtime.connect rejects', async () => {
+    realtime.connect.mockRejectedValueOnce(new Error('CHANNEL_ERROR'));
+    await expect(
+      ctrl.createSession({ displayName: 'Dong', initialVideoId: null })
+    ).rejects.toThrow(/CHANNEL_ERROR/);
+    expect(store.get().room).toBeNull();
+    expect(store.get().myMemberKey).toBe('');
+    expect(realtime.disconnect).toHaveBeenCalled();
+  });
+
+  it('joinSession resets store if realtime.connect rejects', async () => {
+    realtime.connect.mockRejectedValueOnce(new Error('TIMED_OUT'));
+    await expect(
+      ctrl.joinSession({ roomCode: 'k7m3xq', displayName: 'Sara' })
+    ).rejects.toThrow(/TIMED_OUT/);
+    expect(store.get().room).toBeNull();
+    expect(realtime.disconnect).toHaveBeenCalled();
   });
 });

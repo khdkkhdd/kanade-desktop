@@ -21,12 +21,18 @@ export class RoomController {
     const displayName = args.displayName || this.fallbackName(memberKey);
 
     this.deps.store.initRoom({ code, myMemberKey: memberKey, isHost: true });
-    await this.deps.realtime.connect(code, {
-      memberKey,
-      displayName,
-      joinedAt: Date.now(),
-      isHost: true,
-    });
+    try {
+      await this.deps.realtime.connect(code, {
+        memberKey,
+        displayName,
+        joinedAt: Date.now(),
+        isHost: true,
+      });
+    } catch (err) {
+      this.deps.store.reset();
+      await this.deps.realtime.disconnect().catch(() => {});
+      throw err;
+    }
 
     const initialUrl = args.initialVideoId
       ? `https://www.youtube.com/watch?v=${args.initialVideoId}`
@@ -43,12 +49,18 @@ export class RoomController {
     const displayName = args.displayName || this.fallbackName(memberKey);
 
     this.deps.store.initRoom({ code: args.roomCode, myMemberKey: memberKey, isHost: false });
-    await this.deps.realtime.connect(args.roomCode, {
-      memberKey,
-      displayName,
-      joinedAt: Date.now(),
-      isHost: false,
-    });
+    try {
+      await this.deps.realtime.connect(args.roomCode, {
+        memberKey,
+        displayName,
+        joinedAt: Date.now(),
+        isHost: false,
+      });
+    } catch (err) {
+      this.deps.store.reset();
+      await this.deps.realtime.disconnect().catch(() => {});
+      throw err;
+    }
 
     // Window opens with placeholder URL — real video will load via PLAYER_STATE handler in PR4.
     this.deps.openSessionWindow({ roomCode: args.roomCode, initialUrl: 'about:blank' });
