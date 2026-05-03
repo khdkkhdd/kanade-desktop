@@ -13,7 +13,8 @@ export function ChatTab(p: Props) {
   const [atBottom, setAtBottom] = createSignal(true);
   const [showNewBadge, setShowNewBadge] = createSignal(false);
   let scrollEl: HTMLDivElement | undefined;
-  let previousLength = 0;
+  // tracks newest seen message id; preferred over length to handle 50-cap eviction at the FIFO ceiling
+  let lastSeenId: string | undefined = undefined;
 
   const isAtBottom = (): boolean => {
     if (!scrollEl) return true;
@@ -37,12 +38,13 @@ export function ChatTab(p: Props) {
   };
 
   createEffect(() => {
-    const len = p.messages.length;
-    const newMessages = len > previousLength;
-    previousLength = len;
+    const lastId = p.messages.at(-1)?.id;
+    const newMessages = lastId !== undefined && lastId !== lastSeenId;
+    lastSeenId = lastId;
 
     if (newMessages) {
       if (atBottom()) {
+        // defer until <For> flushes new <div> so scrollHeight reflects the new message
         queueMicrotask(() => { if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight; });
       } else {
         setShowNewBadge(true);
@@ -54,6 +56,9 @@ export function ChatTab(p: Props) {
     const t = draft().trim();
     if (!t) return;
     setDraft('');
+    setShowNewBadge(false);
+    // defer until <For> flushes new <div> so scrollHeight reflects the new message
+    queueMicrotask(() => { if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight; });
     await p.ctx.ipc.invoke('chat.send', { text: t });
   };
 
@@ -77,7 +82,8 @@ export function ChatTab(p: Props) {
         <button class="kanade-chat-newbadge" onClick={scrollToBottom}>새 메시지 ↓</button>
       </Show>
       <div class="kanade-chat-input">
-        <input
+        <textarea
+          rows={1}
           value={draft()}
           onInput={(e) => setDraft(e.currentTarget.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
