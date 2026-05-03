@@ -24,6 +24,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Bundle
+        env:
+          # electron.vite.config.mts inlines these into the main bundle at
+          # build time via the `define` substitution. Without them the main
+          # process gets empty strings and RealtimeClient throws on construct.
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: pnpm build
 
       - name: Package and publish (arm64 + x64)
