@@ -27,9 +27,6 @@ export function setupGuestPlayerSync(ctx: RendererContext, isHost: () => boolean
     if (!el || el === videoEl) return;
     videoEl = el as HTMLVideoElement;
   };
-  document.addEventListener('yt-navigate-finish', () => { void rebindVideo(); });
-  window.addEventListener('load', () => { void rebindVideo(); });
-  void rebindVideo();
 
   const myVideoIdFromUrl = (): string | null => {
     try { return new URL(location.href).searchParams.get('v'); }
@@ -86,6 +83,29 @@ export function setupGuestPlayerSync(ctx: RendererContext, isHost: () => boolean
     if (e.type === 'PLAYER_STATE') onPlayerState(e.payload as PlayerState);
     else if (e.type === 'DRIFT_CHECK') onDrift(e.payload as { videoId: string; position: number; ts: number });
   });
+
+  // After page load / yt-navigate-finish, request the store's lastPlayerState
+  // and apply it immediately. Without this, a catch-up PLAYER_STATE that fires
+  // during the webContents.loadURL → new page load chain misses the new
+  // listener (it landed on the previous page's now-discarded renderer), so the
+  // guest stays at position 0 until the next host event or the 30s DRIFT_CHECK
+  // heartbeat. expectedHostPosition inside onPlayerState compensates for the
+  // store→apply delay using state.ts.
+  const applyCurrentState = async () => {
+    await rebindVideo();
+    if (!videoEl) return;
+    if (isHost()) return;
+    try {
+      const s = await ctx.ipc.invoke('getState') as { lastPlayerState: PlayerState | null; isHost: boolean };
+      if (s.isHost) return;
+      if (s.lastPlayerState) onPlayerState(s.lastPlayerState);
+    } catch (e) {
+      console.warn('[session-room] guest state catch-up failed', e);
+    }
+  };
+  document.addEventListener('yt-navigate-finish', () => { void applyCurrentState(); });
+  window.addEventListener('load', () => { void applyCurrentState(); });
+  void applyCurrentState();
 
   return () => {
     stopAd();
