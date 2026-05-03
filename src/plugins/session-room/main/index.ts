@@ -80,6 +80,15 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
     routeToBrowse(url);
   });
 
+  // Browse window banner (Task 5.4) sends this to bring session window to front.
+  ctx.ipc.on('showSessionWindow', () => {
+    const win = sessionWinApi?.window;
+    if (!win || win.isDestroyed()) return;
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  });
+
   let previousMemberKeys = new Set<string>();
   realtime.onPresence((members) => {
     console.log(

@@ -3,8 +3,25 @@ import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
 import type { RendererContext } from '../../../types/plugins.js';
 import { CreateDialog, JoinDialog } from './dialogs.jsx';
+import { SessionBanner } from './session-banner.jsx';
 import { setupAddToQueueButtons } from './add-to-queue-button.js';
 import { setupMuteMutex } from './mute-mutex.js';
+
+const STYLE = `
+.kanade-banner {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  background: #5a3fff;
+  color: #fff;
+  padding: 8px 16px;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+`;
 
 export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   if ((window as unknown as { kanadeMode?: string }).kanadeMode === 'session') {
@@ -19,6 +36,10 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
     });
   }
 
+  const styleEl = document.createElement('style');
+  styleEl.textContent = STYLE;
+  document.head.appendChild(styleEl);
+
   const root = document.createElement('div');
   root.id = 'kanade-session-overlay';
   document.body.appendChild(root);
@@ -26,6 +47,8 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   const [createOpen, setCreateOpen] = createSignal(false);
   const [sessionActive, setSessionActive] = createSignal(false);
   const [joinOpen, setJoinOpen] = createSignal(false);
+  const [hostName, setHostName] = createSignal('');
+  const [memberCount, setMemberCount] = createSignal(0);
   const [defaultName, setDefaultName] = createSignal('');
   const [clipboardCode, setClipboardCode] = createSignal('');
 
@@ -62,13 +85,23 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   let bootstrapped = false;
   ctx.ipc.on('state-changed', (state) => {
     bootstrapped = true;
-    setSessionActive(!!(state as { room: unknown }).room);
+    const s = state as { room: unknown; members?: Array<{ displayName: string; isHost: boolean }> };
+    setSessionActive(!!s.room);
+    const members = s.members ?? [];
+    const host = members.find((m) => m.isHost);
+    setHostName(host?.displayName ?? '');
+    setMemberCount(members.length);
   });
 
   void ctx.ipc.invoke('getState').then(
     (state) => {
       if (bootstrapped) return;
-      setSessionActive(!!(state as { room: unknown }).room);
+      const s = state as { room: unknown; members?: Array<{ displayName: string; isHost: boolean }> };
+      setSessionActive(!!s.room);
+      const members = s.members ?? [];
+      const host = members.find((m) => m.isHost);
+      setHostName(host?.displayName ?? '');
+      setMemberCount(members.length);
     },
     (e) => console.warn('[session-room] getState failed', e),
   );
@@ -83,6 +116,15 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
 
   render(() => (
     <>
+      <SessionBanner
+        active={sessionActive()}
+        hostName={hostName()}
+        memberCount={memberCount()}
+        onShowSession={() => ctx.ipc.send('showSessionWindow')}
+        onLeave={() => {
+          void ctx.ipc.invoke('leave').catch((e) => console.warn('[session-room] leave failed', e));
+        }}
+      />
       <CreateDialog
         open={createOpen()}
         onClose={() => setCreateOpen(false)}
