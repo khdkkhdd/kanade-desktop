@@ -15,6 +15,13 @@ interface QueueTabProps {
 }
 
 export function QueueTab(p: QueueTabProps) {
+  const canRemove = (item: QueueItem) => {
+    if (p.isHost) return true;
+    if (p.permission === 'all') return true;
+    if (p.permission === 'host-only') return false;
+    return item.addedBy.memberKey === p.myMemberKey;
+  };
+
   const current = () => p.queue.find((i) => i.id === p.currentItemId) ?? null;
   const upcoming = () => p.queue.filter((i) => i.id !== p.currentItemId);
 
@@ -38,15 +45,7 @@ export function QueueTab(p: QueueTabProps) {
               <Show when={p.isHost}>
                 <button onClick={() => p.onSetCurrent(item.id)}>▶ 점프</button>
               </Show>
-              {/* canRemove inlined as a function so Solid tracks p.permission /
-                  p.isHost / p.myMemberKey reactively per-item. The previous
-                  helper-function form failed to re-render the x button when
-                  permission changed (host: 'all' → 'host-only' / 'playlist'). */}
-              <Show when={
-                p.isHost
-                || p.permission === 'all'
-                || (p.permission === 'playlist' && item.addedBy.memberKey === p.myMemberKey)
-              }>
+              <Show when={canRemove(item)}>
                 <button onClick={() => p.onRemove(item.id)}>×</button>
               </Show>
             </div>
