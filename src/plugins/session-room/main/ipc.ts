@@ -79,10 +79,15 @@ export function setupIpc(deps: IpcDeps): void {
 
   ctx.ipc.on('player.broadcastState', (state) => {
     const s = deps.store.get();
-    if (!s.isHost) return;
-    void deps.realtime.broadcast({ type: 'PLAYER_STATE', payload: state as PlayerState })
+    if (!s.isHost) {
+      console.log('[session-room] DEBUG broadcastState IPC ignored (not host)');
+      return;
+    }
+    const ps = state as PlayerState;
+    console.log('[session-room] DEBUG broadcastState IPC →', ps.videoId, 'playing=', ps.isPlaying, 'pos=', ps.position);
+    void deps.realtime.broadcast({ type: 'PLAYER_STATE', payload: ps })
       .catch((e) => console.warn('[session-room] PLAYER_STATE broadcast failed', e));
-    deps.store.setPlayerState(state as PlayerState);
+    deps.store.setPlayerState(ps);
     pushState();
   });
 
