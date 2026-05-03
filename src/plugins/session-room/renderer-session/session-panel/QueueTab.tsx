@@ -25,28 +25,38 @@ export function QueueTab(p: QueueTabProps) {
   const current = () => p.queue.find((i) => i.id === p.currentItemId) ?? null;
   const upcoming = () => p.queue.filter((i) => i.id !== p.currentItemId);
 
+  const thumbUrl = (videoId: string) => `https://i.ytimg.com/vi/${videoId}/default.jpg`;
+
   return (
     <div class="kanade-queue-tab">
       <Show when={current()}>
         {(c) => (
-          <div class="kanade-current">
-            <div class="label">▶ 지금 재생</div>
-            <div class="title">{c().videoTitle}</div>
-            <div class="meta">by {c().addedBy.displayName} · {fmt(c().videoDuration)}</div>
+          <div class="kanade-current-card">
+            <div class="kanade-thumb-lg" style={{ 'background-image': `url(${thumbUrl(c().videoId)})` }}>
+              <span class="kanade-play-arrow" />
+            </div>
+            <div class="kanade-current-info">
+              <div class="kanade-current-label">지금 재생</div>
+              <div class="kanade-current-title">{c().videoTitle}</div>
+              <div class="kanade-current-meta">by {c().addedBy.displayName} · {fmt(c().videoDuration)}</div>
+            </div>
           </div>
         )}
       </Show>
-      <div class="kanade-list">
+      <div class="kanade-queue-list">
         <For each={upcoming()}>
           {(item) => (
-            <div class="kanade-item">
-              <div class="title">{item.videoTitle}</div>
-              <div class="meta">by {item.addedBy.displayName} · {fmt(item.videoDuration)}</div>
+            <div class="kanade-queue-item">
+              <div class="kanade-thumb-sm" style={{ 'background-image': `url(${thumbUrl(item.videoId)})` }} />
+              <div class="kanade-queue-info">
+                <div class="kanade-queue-title">{item.videoTitle}</div>
+                <div class="kanade-queue-meta">by {item.addedBy.displayName} · {fmt(item.videoDuration)}</div>
+              </div>
               <Show when={p.isHost}>
-                <button onClick={() => p.onSetCurrent(item.id)}>▶ 점프</button>
+                <button class="kanade-icon-btn" title="이 곡으로 점프" onClick={() => p.onSetCurrent(item.id)}>▶</button>
               </Show>
               <Show when={canRemove(item)}>
-                <button onClick={() => p.onRemove(item.id)}>×</button>
+                <button class="kanade-icon-btn" title="삭제" onClick={() => p.onRemove(item.id)}>×</button>
               </Show>
             </div>
           )}
@@ -54,8 +64,8 @@ export function QueueTab(p: QueueTabProps) {
       </div>
       <Show when={p.isHost}>
         <div class="kanade-host-controls">
-          <button onClick={p.onClear}>큐 비우기</button>
-          <select value={p.permission} onChange={(e) => p.onPermissionChange(e.currentTarget.value as PermissionMode)}>
+          <button class="kanade-pill-btn" onClick={p.onClear}>큐 비우기</button>
+          <select class="kanade-pill-select" value={p.permission} onChange={(e) => p.onPermissionChange(e.currentTarget.value as PermissionMode)}>
             <option value="host-only">host-only</option>
             <option value="playlist">playlist</option>
             <option value="all">all</option>

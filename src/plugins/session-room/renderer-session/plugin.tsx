@@ -209,15 +209,162 @@ const STYLE = `
   z-index: 1;
 }
 
-/* Queue-tab styles preserved until Task 7 replaces them with the new
-   thumbnail/now-playing layout. SessionPanel no longer references these,
-   but QueueTab.tsx still does. */
-.kanade-current { padding: 8px; border-bottom: 1px solid #333; }
-.kanade-current .label { color: #f00; font-size: 11px; }
-.kanade-list { flex: 1; overflow-y: auto; }
-.kanade-item { padding: 8px; border-bottom: 1px solid #2a2a2a; display: flex; flex-direction: column; gap: 2px; }
-.kanade-item .meta { color: #888; font-size: 11px; }
-.kanade-host-controls { padding: 8px; display: flex; gap: 8px; border-top: 1px solid #333; }
+.kanade-queue-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.kanade-current-card {
+  margin: 12px;
+  padding: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  display: flex;
+  gap: 10px;
+}
+[data-theme="light"] .kanade-current-card {
+  background: #f7f7f7;
+  border-color: rgba(0,0,0,0.06);
+}
+.kanade-thumb-lg {
+  width: 60px;
+  height: 34px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  background-color: #2a2a2a;
+  background-size: cover;
+  background-position: center;
+}
+[data-theme="light"] .kanade-thumb-lg { background-color: #e0e0e0; }
+.kanade-play-arrow {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid #ff0033;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+.kanade-current-info {
+  flex: 1;
+  min-width: 0;
+}
+.kanade-current-label {
+  font-size: 10px;
+  color: #ff0033;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+.kanade-current-title {
+  font-size: 12px;
+  line-height: 1.3;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kanade-current-meta {
+  font-size: 11px;
+  margin-top: 2px;
+  opacity: 0.6;
+}
+
+.kanade-queue-list {
+  flex: 1;
+  padding: 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.kanade-queue-item {
+  display: flex;
+  gap: 10px;
+  padding: 6px;
+  border-radius: 8px;
+  align-items: center;
+  cursor: default;
+}
+.kanade-queue-item:hover { background: rgba(255,255,255,0.04); }
+[data-theme="light"] .kanade-queue-item:hover { background: rgba(0,0,0,0.04); }
+.kanade-thumb-sm {
+  width: 48px;
+  height: 27px;
+  background-color: #2a2a2a;
+  background-size: cover;
+  background-position: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+[data-theme="light"] .kanade-thumb-sm { background-color: #e0e0e0; }
+.kanade-queue-info {
+  flex: 1;
+  min-width: 0;
+}
+.kanade-queue-title {
+  font-size: 12px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kanade-queue-meta {
+  font-size: 10px;
+  margin-top: 2px;
+  opacity: 0.6;
+}
+.kanade-icon-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.1s;
+  flex-shrink: 0;
+}
+.kanade-queue-item:hover .kanade-icon-btn { opacity: 1; }
+.kanade-icon-btn:hover { background: rgba(255,255,255,0.08); }
+[data-theme="light"] .kanade-icon-btn:hover { background: rgba(0,0,0,0.08); }
+
+.kanade-host-controls {
+  padding: 12px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  gap: 8px;
+}
+[data-theme="light"] .kanade-host-controls { border-top-color: rgba(0,0,0,0.08); }
+.kanade-pill-btn, .kanade-pill-select {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: inherit;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+[data-theme="light"] .kanade-pill-btn,
+[data-theme="light"] .kanade-pill-select {
+  border-color: rgba(0,0,0,0.2);
+}
+.kanade-pill-btn:hover, .kanade-pill-select:hover {
+  background: rgba(255,255,255,0.04);
+}
+[data-theme="light"] .kanade-pill-btn:hover,
+[data-theme="light"] .kanade-pill-select:hover {
+  background: rgba(0,0,0,0.04);
+}
 `;
 
 export async function setupSessionRenderer(ctx: RendererContext): Promise<void> {
