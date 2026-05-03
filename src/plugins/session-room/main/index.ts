@@ -29,16 +29,22 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   };
 
   const broadcastHostLoad = (args: { videoId: string }): void => {
-    // Sync the session window's URL guard before sending the IPC so that the
-    // host's own will-navigate (triggered by loadVideoById or a real navigation)
-    // sees the new URL and doesn't incorrectly route to the browse window.
-    sessionWinApi?.setSyncedUrl(`https://www.youtube.com/watch?v=${args.videoId}`);
-    for (const w of BrowserWindow.getAllWindows()) {
-      w.webContents.send('plugin:session-room:host.loadVideo', args);
-    }
+    console.log('[session-room] DBG broadcastHostLoad videoId=', args.videoId);
+    // Drive the host's session window with webContents.loadURL — same pattern as
+    // the guest catch-up path below. Polymer's `#movie_player.loadVideoById` is
+    // unreliable (PR4 learning #2: same trap as host-sync / guest-sync), so we
+    // navigate the chrome-level URL instead.
+    const url = `https://www.youtube.com/watch?v=${args.videoId}`;
+    if (!sessionWinApi || sessionWinApi.window.isDestroyed()) return;
+    // Sync the URL guard BEFORE loadURL so the resulting will-navigate isn't
+    // bounced back to the browse window.
+    sessionWinApi.setSyncedUrl(url);
+    void sessionWinApi.window.webContents.loadURL(url)
+      .catch((e) => console.warn('[session-room] host loadURL failed', e));
   };
 
   const routeToBrowse = (url: string): void => {
+    console.log('[session-room] DBG routeToBrowse url=', url);
     const browseWin = ctx.window;
     if (!browseWin || browseWin.isDestroyed()) return;
     if (!isSafeWebUrl(url)) {
@@ -78,6 +84,10 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   ctx.ipc.on('routeToBrowse', (args) => {
     const { url } = args as { url: string };
     routeToBrowse(url);
+  });
+
+  ctx.ipc.on('debug.log', (msg) => {
+    console.log('[session-room] DBG-renderer:', msg);
   });
 
   // Browse window banner (Task 5.4) sends this to bring session window to front.

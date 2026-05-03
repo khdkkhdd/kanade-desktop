@@ -100,7 +100,10 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
   setupHostPlayerSync(ctx, () => state().isHost); // stop ignored — renderer lifetime
   setupGuestPlayerSync(ctx, () => state().isHost); // stop ignored — renderer lifetime
   setupClickInterceptor(
-    (url) => ctx.ipc.send('routeToBrowse', { url }),
+    (url) => {
+      ctx.ipc.send('debug.log', `click-interceptor routeToBrowse url=${url}`);
+      ctx.ipc.send('routeToBrowse', { url });
+    },
     () => state().lastPlayerState?.videoId ?? null,
   ); // stop ignored — renderer lifetime
 
@@ -110,12 +113,8 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
 
   const hostInAd = () => state().lastPlayerState?.isAd ?? false;
 
-  ctx.ipc.on('host.loadVideo', (args) => {
-    if (!state().isHost) return; // only host's renderer should load via this channel
-    const { videoId } = args as { videoId: string };
-    const player = document.getElementById('movie_player') as unknown as { loadVideoById?: (id: string) => void } | null;
-    player?.loadVideoById?.(videoId);
-  });
+  // host.loadVideo IPC removed — main now drives the session window directly
+  // via webContents.loadURL in broadcastHostLoad (same pattern as guest catch-up).
 
   render(
     () => (

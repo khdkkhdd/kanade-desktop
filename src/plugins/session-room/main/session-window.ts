@@ -51,11 +51,15 @@ export function createSessionWindow(
   let currentSyncedUrl = opts.initialUrl;
 
   win.webContents.on('will-navigate', (event, url) => {
-    if (urlsMatchAsSync(url, currentSyncedUrl)) return;
+    const matches = urlsMatchAsSync(url, currentSyncedUrl);
+    console.log('[session-room] DBG will-navigate url=', url, 'currentSyncedUrl=', currentSyncedUrl, 'matchesAsSync=', matches);
+    if (matches) return;
     event.preventDefault();
     try {
       const u = new URL(url);
-      if (isYouTubeHost(u.hostname)) {
+      const yt = isYouTubeHost(u.hostname);
+      console.log('[session-room] DBG will-navigate branch hostname=', u.hostname, 'isYouTubeHost=', yt, 'protocol=', u.protocol);
+      if (yt) {
         routeToBrowse(url);
       } else if (u.protocol === 'http:' || u.protocol === 'https:') {
         void shell.openExternal(url);
@@ -67,9 +71,12 @@ export function createSessionWindow(
   });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
+    console.log('[session-room] DBG setWindowOpenHandler url=', url);
     try {
       const u = new URL(url);
-      if (isYouTubeHost(u.hostname)) {
+      const yt = isYouTubeHost(u.hostname);
+      console.log('[session-room] DBG window-open branch hostname=', u.hostname, 'isYouTubeHost=', yt, 'protocol=', u.protocol);
+      if (yt) {
         routeToBrowse(url);
       } else if (u.protocol === 'http:' || u.protocol === 'https:') {
         void shell.openExternal(url);
