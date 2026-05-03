@@ -31,7 +31,6 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   };
 
   const broadcastHostLoad = (args: { videoId: string }): void => {
-    console.log('[session-room] DBG broadcastHostLoad videoId=', args.videoId);
     // Drive the host's session window with webContents.loadURL — same pattern as
     // the guest catch-up path below. Polymer's `#movie_player.loadVideoById` is
     // unreliable (PR4 learning #2: same trap as host-sync / guest-sync), so we
@@ -46,13 +45,11 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   };
 
   const routeToBrowse = (url: string): void => {
-    console.log('[session-room] DBG routeToBrowse url=', url);
     // YouTube wraps external links as `youtube.com/redirect?q=<external>`.
     // Unwrap before deciding: if the target is non-YouTube, send it to the OS
     // browser instead of letting browse window auto-redirect there.
     const target = unwrapYouTubeRedirect(url);
     if (target !== url) {
-      console.log('[session-room] DBG routeToBrowse unwrapped target=', target);
       try {
         const t = new URL(target);
         if (!isYouTubeHost(t.hostname)) {
@@ -106,10 +103,6 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   ctx.ipc.on('routeToBrowse', (args) => {
     const { url } = args as { url: string };
     routeToBrowse(url);
-  });
-
-  ctx.ipc.on('debug.log', (msg) => {
-    console.log('[session-room] DBG-renderer:', msg);
   });
 
   // Browse window banner (Task 5.4) sends this to bring session window to front.

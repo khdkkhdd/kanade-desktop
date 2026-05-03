@@ -100,10 +100,7 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
   setupHostPlayerSync(ctx, () => state().isHost); // stop ignored — renderer lifetime
   setupGuestPlayerSync(ctx, () => state().isHost); // stop ignored — renderer lifetime
   setupClickInterceptor(
-    (url) => {
-      ctx.ipc.send('debug.log', `click-interceptor routeToBrowse url=${url}`);
-      ctx.ipc.send('routeToBrowse', { url });
-    },
+    (url) => ctx.ipc.send('routeToBrowse', { url }),
     () => state().lastPlayerState?.videoId ?? null,
   ); // stop ignored — renderer lifetime
 
