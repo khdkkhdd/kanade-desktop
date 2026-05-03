@@ -1,4 +1,5 @@
 // src/plugins/session-room/main/ipc.ts
+import { randomUUID } from 'node:crypto';
 import type { BackendContext } from '../../../types/plugins.js';
 import type { RoomController } from './room-controller.js';
 import type { SessionStateStore } from './session-state.js';
@@ -87,6 +88,22 @@ export function setupIpc(deps: IpcDeps): void {
       payload: { mode: a.mode },
       senderMemberKey: s.myMemberKey,
     });
+  });
+
+  ctx.ipc.handle('chat.send', async (args) => {
+    const a = args as { text: string };
+    const s = deps.store.get();
+    if (!s.room) throw new Error('not in session');
+    const me = s.members.get(s.myMemberKey);
+    if (!me) throw new Error('no member');
+    const msg = {
+      id: randomUUID(),
+      text: a.text,
+      from: { memberKey: s.myMemberKey, displayName: me.displayName },
+      ts: Date.now(),
+    };
+    deps.store.addChat(msg);
+    await deps.realtime.broadcast({ type: 'CHAT', payload: msg });
   });
 
   ctx.ipc.on('player.broadcastState', (state) => {

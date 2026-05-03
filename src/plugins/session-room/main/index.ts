@@ -177,7 +177,7 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
           // No store update — guest renderers process directly via 'event' channel.
           break;
         case 'CHAT':
-          // PR6 — accepted no-op for now to keep switch exhaustive.
+          store.addChat(event.payload);
           break;
         default: {
           const _exhaustive: never = event;
