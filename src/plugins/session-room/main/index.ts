@@ -183,6 +183,18 @@ export async function setupSessionRoomMain(ctx: BackendContext, options?: Sessio
     console.log(
       `[session-room] presence: ${members.length} member(s) — ${members.map((m) => `${m.displayName}${m.isHost ? '★' : ''}`).join(', ')}`,
     );
+    // Race protection (handoff): if we just self-promoted via the handoff
+    // grace timer, our updatePresence({isHost:true}) is async — if a presence
+    // sync arrives BEFORE Supabase echoes the new track back, the sync still
+    // shows us as isHost=false. Without this override, setMembers would
+    // clobber our optimistic local promotion and the just-promoted host
+    // would never see the crown.
+    const meKey = store.get().myMemberKey;
+    if (store.get().isHost && meKey) {
+      members = members.map((m) =>
+        m.memberKey === meKey && !m.isHost ? { ...m, isHost: true } : m
+      );
+    }
     store.setMembers(members);
 
     const newKeys = new Set(members.map((m) => m.memberKey));
