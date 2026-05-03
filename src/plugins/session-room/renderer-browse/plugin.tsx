@@ -359,8 +359,12 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
             displayName: a.displayName,
             initialVideoId,
           });
+          // Fire-and-forget — the session window is already open and loading
+          // the video; we just need the queue + currentItem state to follow.
+          // Awaiting here would block the dialog close on a couple of realtime
+          // round-trips for no user benefit.
           if (initialVideoId) {
-            await promoteInitialVideo(ctx, initialVideoId);
+            void promoteInitialVideo(ctx, initialVideoId);
           }
         }}
       />

@@ -65,6 +65,13 @@ export async function setupSessionRoomMain(ctx: BackendContext, options?: Sessio
     // navigate the chrome-level URL instead.
     const url = `https://www.youtube.com/watch?v=${args.videoId}`;
     if (!sessionWinApi || sessionWinApi.window.isDestroyed()) return;
+    // Skip if the session window is already on / loading this exact videoId.
+    // Happens during the create-from-watch flow: openSessionWindow already
+    // navigated to /watch?v=<id>, then promoteInitialVideo's setCurrent call
+    // would have triggered a redundant reload here that visibly stalls the
+    // window for a few seconds.
+    const currentUrl = sessionWinApi.window.webContents.getURL();
+    if (currentUrl.includes(`v=${args.videoId}`)) return;
     // Sync the URL guard BEFORE loadURL so the resulting will-navigate isn't
     // bounced back to the browse window.
     sessionWinApi.setSyncedUrl(url);
