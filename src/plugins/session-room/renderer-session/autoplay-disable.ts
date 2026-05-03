@@ -1,8 +1,10 @@
 export function disableAutoplay(): () => void {
   const apply = () => {
-    // YouTube has both an autoplay toggle and JS-driven recommendations.
-    // Easiest: toggle the autoplay button if present and currently on.
-    const toggle = document.querySelector('[aria-label*="자동재생" i], [aria-label*="autoplay" i]') as HTMLElement | null;
+    // YouTube's autonav toggle is `<div class="ytp-autonav-toggle-button"
+    // aria-checked="…">`. The aria-label sits on a separate wrapper (verified
+    // via smoke), so target the well-known class — same rationale as PR4
+    // learning #2: polymer is more reliable to address by class than by ARIA.
+    const toggle = document.querySelector('.ytp-autonav-toggle-button') as HTMLElement | null;
     if (toggle?.getAttribute('aria-checked') === 'true') {
       toggle.click();
     }
