@@ -19,3 +19,21 @@ export function isSafeWebUrl(url: string | undefined | null): url is string {
   if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]') return false;
   return true;
 }
+
+/**
+ * Stricter than `isSafeWebUrl`: also requires the URL to be on YouTube
+ * (`youtube.com`, any `*.youtube.com`, or `youtu.be`). Use this for the
+ * persisted `lastUrl` boot path so a YouTube `/redirect?q=…` wrapper that
+ * navigates the main window to an external domain (or a directly-pasted
+ * external URL) does not contaminate the next boot.
+ */
+export function isSafeYouTubeUrl(url: string | undefined | null): url is string {
+  if (!isSafeWebUrl(url)) return false;
+  let host: string;
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    return false;
+  }
+  return host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtu.be';
+}

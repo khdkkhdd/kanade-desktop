@@ -9,7 +9,7 @@ import { store, getPresenceConfig } from './config/store.js';
 // disables it. Define our own up front so all path.join(__dirname, ...) calls
 // in this entry resolve correctly.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-import { isSafeWebUrl } from './lib/url-guard.js';
+import { isSafeYouTubeUrl } from './lib/url-guard.js';
 import type { PresenceConfig, Locale } from './config/store.js';
 import { setupAutoUpdater } from './auto-updater.js';
 import { loadAllMainPlugins, unloadAllMainPlugins } from './loader/main.js';
@@ -110,12 +110,13 @@ function createWindow(): BrowserWindow {
     else if (cmd === 'browser-forward' && nav.canGoForward()) nav.goForward();
   });
 
-  // URL loading logic. Guard against non-http(s) values sneaking in via
-  // `navigation:changed` (e.g. file:// paths from loaded HTML) so the main
-  // window always boots to a real web page.
+  // URL loading logic. Boot only resumes a YouTube URL — a `youtube.com/redirect?q=...`
+  // wrapper that landed the user on an external domain (or any external URL) gets
+  // discarded and we fall back to the YouTube home, so the main window always boots
+  // to a real YouTube page.
   const startUrl = store.get('startUrl') || 'https://www.youtube.com';
   const lastUrl = store.get('lastUrl');
-  const bootUrl = isSafeWebUrl(lastUrl) ? lastUrl : startUrl;
+  const bootUrl = isSafeYouTubeUrl(lastUrl) ? lastUrl : startUrl;
   win.loadURL(bootUrl);
 
   // Plugins
@@ -134,11 +135,12 @@ function createWindow(): BrowserWindow {
 function setupIPC(win: BrowserWindow): void {
   // Navigation change from renderer. Only listen to the main window's
   // webContents (other BrowserWindows like Settings can't poison lastUrl)
-  // and double-check the URL via isSafeWebUrl which rejects loopback dev
-  // hosts on top of non-http(s) protocols.
+  // and gate via isSafeYouTubeUrl: a YouTube /redirect?q=... wrapper that
+  // navigates the main window to nicovideo / etc. must NOT become the next
+  // boot URL.
   ipcMain.on('navigation:changed', (event, data: { url: string; videoId: string | null }) => {
     if (event.sender !== win.webContents) return;
-    if (isSafeWebUrl(data.url)) {
+    if (isSafeYouTubeUrl(data.url)) {
       store.set('lastUrl', data.url);
     }
   });
