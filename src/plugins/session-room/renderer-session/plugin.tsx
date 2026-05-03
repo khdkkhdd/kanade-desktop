@@ -7,6 +7,7 @@ import { setupHostPlayerSync } from './player-sync-host.js';
 import { setupGuestPlayerSync } from './player-sync-guest.js';
 import { observeAdState } from './ad-detector.js';
 import { setupClickInterceptor } from './click-interceptor.js';
+import { disableAutoplay } from './autoplay-disable.js';
 
 const STYLE = `
 .kanade-session-panel {
@@ -105,6 +106,7 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
 
   const [iAmInAd, setIAmInAd] = createSignal(false);
   observeAdState(setIAmInAd); // stop ignored — renderer lifetime
+  disableAutoplay(); // stop ignored — renderer lifetime
 
   const hostInAd = () => state().lastPlayerState?.isAd ?? false;
 
