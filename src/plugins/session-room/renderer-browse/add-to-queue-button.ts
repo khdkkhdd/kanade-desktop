@@ -80,31 +80,29 @@ export function setupAddToQueueButtons(ctx: RendererContext, sessionActive: () =
   };
 }
 
-interface PlayerElement extends HTMLElement {
-  getVideoData?: () => { title: string; author: string; video_id: string };
-  getDuration?: () => number;
-}
-
 async function fetchVideoMeta(
   videoId: string,
 ): Promise<{ title: string; channelName: string; duration: number }> {
-  // Fast path: if the user is currently watching exactly this video, the
-  // on-page polymer player has the freshest metadata + the only source of
-  // duration we have without hitting the YouTube Data API.
-  const playerEl = document.querySelector('#movie_player') as PlayerElement | null;
-  if (playerEl?.getVideoData?.().video_id === videoId) {
-    return {
-      title: playerEl.getVideoData!().title,
-      channelName: playerEl.getVideoData!().author,
-      duration: playerEl.getDuration?.() ?? 0,
-    };
-  }
-  // Otherwise (sidebar / grid / search +큐 — typical case where the player
-  // is on a different video) fall back to YouTube's oEmbed endpoint for
-  // title + channel. Duration stays 0; the panel hides the 0:00 tail.
+  // Title + channel: oEmbed only. The polymer #movie_player.getVideoData()
+  // is unreliable across SPA states (PR4 learning #2 — same trap that drove
+  // player-sync over to the raw <video> element). oEmbed is a public,
+  // CORS-friendly, no-API-key endpoint that gives consistent answers.
   const oembed = await fetchOembedMeta(videoId);
+
+  // Duration: only when we're currently on this exact /watch?v=videoId, read
+  // from the HTML5 <video> element. <video>.duration lands as soon as the
+  // media metadata loads. If we're hovering a sidebar card for video Y while
+  // watching X, there's no local source for Y's duration — leave 0 and let
+  // the panel hide the tail.
+  const m = location.href.match(/[?&]v=([\w-]{11})/);
+  const isCurrent = !!m && m[1] === videoId;
+  const videoEl = isCurrent ? (document.querySelector('video') as HTMLVideoElement | null) : null;
+  const duration = videoEl && Number.isFinite(videoEl.duration) && videoEl.duration > 0
+    ? Math.floor(videoEl.duration)
+    : 0;
+
   if (oembed) {
-    return { title: oembed.title, channelName: oembed.channelName, duration: 0 };
+    return { title: oembed.title, channelName: oembed.channelName, duration };
   }
-  return { title: videoId, channelName: '', duration: 0 };
+  return { title: videoId, channelName: '', duration };
 }

@@ -205,25 +205,14 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   async function readWatchPagePlayerMeta(
     videoId: string,
   ): Promise<{ title: string; channelName: string; duration: number }> {
-    const playerEl = document.querySelector('#movie_player') as
-      | (HTMLElement & { getVideoData?: () => { title: string; author: string }; getDuration?: () => number })
-      | null;
-    // The HTML5 <video>.duration becomes valid as soon as metadata loads and
-    // is more reliable than #movie_player.getDuration() across ad transitions
-    // and SPA hydration — getDuration() commonly returns 0 right after the
-    // user lands on a /watch URL even when playback has visibly started.
+    // No #movie_player query — polymer's getVideoData() / getDuration() are
+    // the same flaky surface that drove player-sync to the raw <video>
+    // element (PR4 learning #2). Use the HTML5 <video> for duration and
+    // YouTube oEmbed for title + channel; both are stable.
     const videoEl = document.querySelector('video') as HTMLVideoElement | null;
-    const videoDuration = videoEl && Number.isFinite(videoEl.duration) && videoEl.duration > 0
+    const duration = videoEl && Number.isFinite(videoEl.duration) && videoEl.duration > 0
       ? Math.floor(videoEl.duration)
       : 0;
-    const polymerDuration = playerEl?.getDuration?.() ?? 0;
-    const duration = videoDuration || polymerDuration;
-    const data = playerEl?.getVideoData?.();
-    if (data && (data.title || data.author)) {
-      return { title: data.title, channelName: data.author, duration };
-    }
-    // Player wasn't ready / didn't expose metadata — fall back to oEmbed for
-    // title + channel so the panel doesn't show the bare videoId.
     const oembed = await fetchOembedMeta(videoId);
     if (oembed) {
       return { title: oembed.title, channelName: oembed.channelName, duration };
