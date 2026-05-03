@@ -97,7 +97,6 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
       console.warn('[session-room] leave failed', e);
     });
   };
-  const [roomCode, setRoomCode] = createSignal('');
   ctx.ipc.on('state-changed', (state) => {
     const s = state as IpcState;
 
@@ -122,7 +121,6 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
     prevState = s;
 
     setSessionActive(!!s.room);
-    setRoomCode(s.room?.code ?? '');
     const members = s.members ?? [];
     const host = members.find((m) => m.isHost);
     setHostName(host?.displayName ?? '');
@@ -131,18 +129,8 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
 
   // Menu actions (src/index.ts Session menu) fan out via webContents.send to
   // this renderer. Bounce them back as plugin IPC the main process actually
-  // handles. Without these listeners the menu items would silently no-op.
-  ctx.ipc.on('copy-code', () => {
-    const code = roomCode();
-    if (!code) return;
-    void navigator.clipboard.writeText(code).then(
-      () => showToast('세션 코드 복사됨', 'info'),
-      (e) => {
-        console.warn('[session-room] clipboard write failed', e);
-        showToast('복사 실패', 'error');
-      },
-    );
-  });
+  // handles. (copy-code is handled main-side via ipcMain.emit because clipboard
+  // API requires document focus that a native menu click can briefly steal.)
   ctx.ipc.on('show-session-window', () => {
     ctx.ipc.send('showSessionWindow');
   });

@@ -244,8 +244,11 @@ function installAppMenu(getMainWin: () => BrowserWindow | null): void {
           label: '세션 코드 복사',
           enabled: false,
           click: () => {
-            const main = getMainWin();
-            main?.webContents.send('plugin:session-room:copy-code');
+            // Trigger plugin's main-side handler directly. Renderer-side
+            // navigator.clipboard.writeText fails when the document loses
+            // focus to a native menu (macOS), so we route through ipcMain
+            // instead of webContents.send.
+            ipcMain.emit('plugin:session-room:copy-code');
           },
         },
         {

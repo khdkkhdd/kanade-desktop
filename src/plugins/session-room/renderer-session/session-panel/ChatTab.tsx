@@ -92,7 +92,15 @@ export function ChatTab(p: Props) {
           rows={1}
           value={draft()}
           onInput={(e) => setDraft(e.currentTarget.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
+          onKeyDown={(e) => {
+            // !e.isComposing skips Enter while an IME is composing (Korean / Japanese / Chinese).
+            // Without this, hitting Enter mid-composition would send the partially-composed
+            // text and leak the just-committed final jamo into the next draft.
+            if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+              e.preventDefault();
+              void send();
+            }
+          }}
         />
       </div>
     </div>

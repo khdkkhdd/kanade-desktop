@@ -1,5 +1,5 @@
 // src/plugins/session-room/main/index.ts
-import { BrowserWindow, shell } from 'electron';
+import { BrowserWindow, clipboard, shell } from 'electron';
 import type { BackendContext } from '../../../types/plugins.js';
 import { isSafeWebUrl } from '../../../lib/url-guard.js';
 import { SessionStateStore } from './session-state.js';
@@ -140,6 +140,16 @@ export async function setupSessionRoomMain(ctx: BackendContext, options?: Sessio
     if (win.isMinimized()) win.restore();
     win.show();
     win.focus();
+  });
+
+  // Session menu '세션 코드 복사' triggers this via ipcMain.emit (src/index.ts).
+  // Done in main rather than renderer because navigator.clipboard.writeText
+  // requires document focus which a native menu click can briefly steal.
+  ctx.ipc.on('copy-code', () => {
+    const code = store.get().room?.code;
+    if (!code) return;
+    clipboard.writeText(code);
+    broadcastToast({ text: '세션 코드 복사됨', kind: 'info' });
   });
 
   const handoff = new HandoffManager({

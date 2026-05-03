@@ -44,12 +44,17 @@ export function setupAddToQueueButtons(ctx: RendererContext, sessionActive: () =
         });
         showToast('큐에 추가됨', 'info');
       } catch (e) {
+        // Electron IPC wraps main-side throws as
+        //   "Error invoking remote method '...': Error: <original>"
+        // so .startsWith on the original sentinel never matches. Use .includes
+        // and parse rate-limit's remainingMs out of whatever wrapper Electron uses.
         const msg = e instanceof Error ? e.message : String(e);
-        if (msg.startsWith('rate-limit:')) {
-          const remainingMs = parseInt(msg.slice('rate-limit:'.length), 10) || 0;
+        const rateLimitMatch = msg.match(/rate-limit:(\d+)/);
+        if (rateLimitMatch) {
+          const remainingMs = parseInt(rateLimitMatch[1], 10) || 0;
           const seconds = Math.ceil(remainingMs / 1000);
           showToast(`${seconds}초 후 다시 추가할 수 있습니다`, 'warn');
-        } else if (msg.startsWith('permission-denied:')) {
+        } else if (msg.includes('permission-denied:')) {
           showToast('Host 만 추가 가능', 'warn');
         } else {
           showToast('큐 추가 실패', 'error');
