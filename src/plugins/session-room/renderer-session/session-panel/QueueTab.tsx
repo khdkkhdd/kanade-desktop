@@ -38,7 +38,11 @@ export function QueueTab(p: QueueTabProps) {
             <div class="kanade-current-info">
               <div class="kanade-current-label">지금 재생</div>
               <div class="kanade-current-title">{c().videoTitle}</div>
-              <div class="kanade-current-meta">by {c().addedBy.displayName}{c().videoDuration > 0 ? ` · ${fmt(c().videoDuration)}` : ''}</div>
+              <div class="kanade-current-meta">{joinMeta([
+                c().channelName,
+                c().videoDuration > 0 ? fmt(c().videoDuration) : null,
+                c().addedBy.displayName ? `by ${c().addedBy.displayName}` : null,
+              ])}</div>
             </div>
           </div>
         )}
@@ -50,7 +54,10 @@ export function QueueTab(p: QueueTabProps) {
               <div class="kanade-thumb-sm" style={{ 'background-image': `url(${thumbUrl(item.videoId)})` }} />
               <div class="kanade-queue-info">
                 <div class="kanade-queue-title">{item.videoTitle}</div>
-                <div class="kanade-queue-meta">by {item.addedBy.displayName}{item.videoDuration > 0 ? ` · ${fmt(item.videoDuration)}` : ''}</div>
+                <div class="kanade-queue-meta">{joinMeta([
+                  item.channelName,
+                  item.videoDuration > 0 ? fmt(item.videoDuration) : null,
+                ])}</div>
               </div>
               <Show when={p.isHost}>
                 <button class="kanade-icon-btn" title="이 곡으로 점프" onClick={() => p.onSetCurrent(item.id)}>▶</button>
@@ -80,4 +87,8 @@ function fmt(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function joinMeta(parts: Array<string | null | undefined>): string {
+  return parts.filter((p): p is string => typeof p === 'string' && p.length > 0).join(' · ');
 }
