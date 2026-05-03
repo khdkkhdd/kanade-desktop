@@ -48,6 +48,14 @@ export function setupIpc(deps: IpcDeps): void {
 
   ctx.ipc.handle('queue.add', async (args) => {
     const a = args as { videoId: string; videoTitle: string; channelName: string; videoDuration: number };
+    // Permission check: non-host can't add when permission is host-only.
+    // Without this, the renderer would optimistically add to local queue and
+    // broadcast — peers would silently drop via canApplyQueueOp, leaving the
+    // sender with a phantom local item and no user feedback.
+    const s = deps.store.get();
+    if (!s.isHost && s.permission === 'host-only') {
+      throw new Error('permission-denied:host-only');
+    }
     return deps.queue.addLocal(a);
   });
 

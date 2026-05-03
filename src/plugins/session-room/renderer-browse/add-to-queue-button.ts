@@ -49,6 +49,8 @@ export function setupAddToQueueButtons(ctx: RendererContext, sessionActive: () =
           const remainingMs = parseInt(msg.slice('rate-limit:'.length), 10) || 0;
           const seconds = Math.ceil(remainingMs / 1000);
           showToast(`${seconds}초 후 다시 추가할 수 있습니다`, 'warn');
+        } else if (msg.startsWith('permission-denied:')) {
+          showToast('Host 만 추가 가능', 'warn');
         } else {
           showToast('큐 추가 실패', 'error');
           console.warn('[session-room] queue.add failed', e);
