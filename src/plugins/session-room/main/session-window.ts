@@ -25,6 +25,11 @@ export function createSessionWindow(opts: SessionWindowOptions): BrowserWindow {
       nodeIntegration: false,
       preload: path.join(__dirname, '../preload/preload.cjs'),
       sandbox: false,
+      // Keep host-sync broadcast and guest player updates running when the
+      // session window is in the background — otherwise Chromium throttles
+      // timers / MutationObservers / video timeupdate, freezing sync the
+      // moment the user looks at another window.
+      backgroundThrottling: false,
       additionalArguments: [
         `--kanade-mode=session`,
         `--kanade-room=${opts.roomCode}`,
