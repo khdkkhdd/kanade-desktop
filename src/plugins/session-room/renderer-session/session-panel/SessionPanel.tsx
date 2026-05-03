@@ -32,8 +32,12 @@ export function SessionPanel(p: PanelProps) {
   const [hasUnread, setHasUnread] = createSignal(false);
 
   createEffect(() => {
+    // Treat a closed panel as "not viewing chat" so messages arriving
+    // while closed always light up the toggle dot, even if the user
+    // last left the panel on the chat tab.
     const messages = p.state().chatMessages;
-    const r = computeUnread({ lastSeenId, messages, currentTab: tab() });
+    const currentTab = p.open() ? tab() : 'queue';
+    const r = computeUnread({ lastSeenId, messages, currentTab });
     lastSeenId = r.newLastSeenId;
     setHasUnread(r.hasUnread);
   });
