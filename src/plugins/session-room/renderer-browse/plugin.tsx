@@ -86,9 +86,10 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   });
 
   type IpcMember = { memberKey: string; displayName: string; isHost: boolean };
-  type IpcState = { room: unknown; members?: IpcMember[] };
+  type IpcState = { room: { code?: string } | null; members?: IpcMember[] };
 
   let prevState: IpcState | null = null;
+  const [roomCode, setRoomCode] = createSignal('');
   ctx.ipc.on('state-changed', (state) => {
     const s = state as IpcState;
 
@@ -108,10 +109,32 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
     prevState = s;
 
     setSessionActive(!!s.room);
+    setRoomCode(s.room?.code ?? '');
     const members = s.members ?? [];
     const host = members.find((m) => m.isHost);
     setHostName(host?.displayName ?? '');
     setMemberCount(members.length);
+  });
+
+  // Menu actions (src/index.ts Session menu) fan out via webContents.send to
+  // this renderer. Bounce them back as plugin IPC the main process actually
+  // handles. Without these listeners the menu items would silently no-op.
+  ctx.ipc.on('copy-code', () => {
+    const code = roomCode();
+    if (!code) return;
+    void navigator.clipboard.writeText(code).then(
+      () => showToast('세션 코드 복사됨', 'info'),
+      (e) => {
+        console.warn('[session-room] clipboard write failed', e);
+        showToast('복사 실패', 'error');
+      },
+    );
+  });
+  ctx.ipc.on('show-session-window', () => {
+    ctx.ipc.send('showSessionWindow');
+  });
+  ctx.ipc.on('leave', () => {
+    void ctx.ipc.invoke('leave').catch((e) => console.warn('[session-room] leave failed', e));
   });
 
   ctx.ipc.on('toast', (p) => {
