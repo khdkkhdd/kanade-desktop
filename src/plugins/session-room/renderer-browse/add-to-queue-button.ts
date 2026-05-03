@@ -27,7 +27,10 @@ export function setupAddToQueueButtons(ctx: RendererContext, sessionActive: () =
 
     const btn = document.createElement('button');
     btn.className = 'kanade-add-queue';
-    btn.innerHTML = '<span class="kanade-add-queue-ico">+</span> 큐';
+    const ico = document.createElement('span');
+    ico.className = 'kanade-add-queue-ico';
+    ico.textContent = '+';
+    btn.append(ico, ' 큐');
 
     btn.addEventListener('click', async (ev) => {
       ev.preventDefault();
