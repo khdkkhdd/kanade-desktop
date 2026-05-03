@@ -1,5 +1,6 @@
 import type { RendererContext } from '../../../types/plugins.js';
 import { showToast } from '../renderer-shared/toast.jsx';
+import { fetchOembedMeta } from './youtube-meta.js';
 
 const VIDEO_RE = /(?:youtube\.com\/(?:watch\?v=|shorts\/))([\w-]{11})/;
 
@@ -87,7 +88,9 @@ interface PlayerElement extends HTMLElement {
 async function fetchVideoMeta(
   videoId: string,
 ): Promise<{ title: string; channelName: string; duration: number }> {
-  // Best-effort: read from current page or use minimal metadata.
+  // Fast path: if the user is currently watching exactly this video, the
+  // on-page polymer player has the freshest metadata + the only source of
+  // duration we have without hitting the YouTube Data API.
   const playerEl = document.querySelector('#movie_player') as PlayerElement | null;
   if (playerEl?.getVideoData?.().video_id === videoId) {
     return {
@@ -95,6 +98,13 @@ async function fetchVideoMeta(
       channelName: playerEl.getVideoData!().author,
       duration: playerEl.getDuration?.() ?? 0,
     };
+  }
+  // Otherwise (sidebar / grid / search +큐 — typical case where the player
+  // is on a different video) fall back to YouTube's oEmbed endpoint for
+  // title + channel. Duration stays 0; the panel hides the 0:00 tail.
+  const oembed = await fetchOembedMeta(videoId);
+  if (oembed) {
+    return { title: oembed.title, channelName: oembed.channelName, duration: 0 };
   }
   return { title: videoId, channelName: '', duration: 0 };
 }

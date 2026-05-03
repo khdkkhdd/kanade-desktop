@@ -7,6 +7,7 @@ import { CreateDialog, JoinDialog } from './dialogs.jsx';
 import { SessionBanner } from './session-banner.jsx';
 import { setupAddToQueueButtons } from './add-to-queue-button.js';
 import { setupMuteMutex } from './mute-mutex.js';
+import { fetchOembedMeta } from './youtube-meta.js';
 import { mountToastContainer, showToast, type ToastKind } from '../renderer-shared/toast.jsx';
 import { detectYouTubeTheme, subscribeYouTubeTheme } from '../shared/theme-detect.js';
 
@@ -201,7 +202,9 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
     });
   };
 
-  function readWatchPagePlayerMeta(videoId: string): { title: string; channelName: string; duration: number } {
+  async function readWatchPagePlayerMeta(
+    videoId: string,
+  ): Promise<{ title: string; channelName: string; duration: number }> {
     const playerEl = document.querySelector('#movie_player') as
       | (HTMLElement & { getVideoData?: () => { title: string; author: string }; getDuration?: () => number })
       | null;
@@ -216,9 +219,16 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
     const polymerDuration = playerEl?.getDuration?.() ?? 0;
     const duration = videoDuration || polymerDuration;
     const data = playerEl?.getVideoData?.();
-    return data
-      ? { title: data.title, channelName: data.author, duration }
-      : { title: videoId, channelName: '', duration };
+    if (data && (data.title || data.author)) {
+      return { title: data.title, channelName: data.author, duration };
+    }
+    // Player wasn't ready / didn't expose metadata — fall back to oEmbed for
+    // title + channel so the panel doesn't show the bare videoId.
+    const oembed = await fetchOembedMeta(videoId);
+    if (oembed) {
+      return { title: oembed.title, channelName: oembed.channelName, duration };
+    }
+    return { title: videoId, channelName: '', duration };
   }
 
   async function addCurrentVideoToQueue(ctx: RendererContext): Promise<void> {
@@ -227,7 +237,7 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
       showToast('영상 정보를 찾을 수 없습니다', 'warn');
       return;
     }
-    const meta = readWatchPagePlayerMeta(videoId);
+    const meta = await readWatchPagePlayerMeta(videoId);
 
     try {
       await ctx.ipc.invoke('queue.add', {
@@ -258,7 +268,7 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   // queue and the panel's "지금 재생" card stays hidden until the host manually
   // adds and ▶s a song.
   async function promoteInitialVideo(ctx: RendererContext, videoId: string): Promise<void> {
-    const meta = readWatchPagePlayerMeta(videoId);
+    const meta = await readWatchPagePlayerMeta(videoId);
     try {
       const item = (await ctx.ipc.invoke('queue.add', {
         videoId,
