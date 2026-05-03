@@ -23,6 +23,7 @@ export class SessionStateStore {
       lastPlayerStateReceivedAt: 0,
       permission: 'playlist',
       chatMessages: [],
+      isHostAbsent: false,
       myLastAddAt: 0,
     };
   }
@@ -98,6 +99,10 @@ export class SessionStateStore {
     } else {
       this.state.chatMessages = next;
     }
+  }
+
+  setHostAbsent(b: boolean): void {
+    this.state.isHostAbsent = b;
   }
 
   setMyLastAddAt(ts: number): void {

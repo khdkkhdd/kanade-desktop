@@ -14,6 +14,7 @@ export interface PanelState {
   roomCode: string;
   lastPlayerState: PlayerState | null;
   chatMessages: ChatMessage[];
+  isHostAbsent: boolean;
 }
 
 export function SessionPanel(props: { ctx: RendererContext; state: () => PanelState }) {
@@ -50,6 +51,9 @@ export function SessionPanel(props: { ctx: RendererContext; state: () => PanelSt
           <ChatTab ctx={props.ctx} messages={props.state().chatMessages} myMemberKey={props.state().myMemberKey} />
         </Show>
         <div class="kanade-presence">
+          <Show when={props.state().isHostAbsent}>
+            <div class="kanade-handoff-pending">⚠️ Host 연결 끊김… 자동 승계 대기</div>
+          </Show>
           <For each={props.state().members}>
             {(m) => (
               <span class={m.isHost ? 'host' : ''}>{m.isHost ? '👑 ' : ''}{m.displayName}</span>

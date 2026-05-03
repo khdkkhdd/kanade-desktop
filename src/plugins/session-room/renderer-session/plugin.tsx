@@ -51,6 +51,7 @@ const STYLE = `
 .kanade-host-controls { padding: 8px; display: flex; gap: 8px; border-top: 1px solid #333; }
 .kanade-presence { padding: 8px; border-top: 1px solid #333; display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; }
 .kanade-presence .host { color: gold; }
+.kanade-handoff-pending { color: #ff9800; font-size: 11px; padding: 4px 0; width: 100%; }
 .kanade-ad-banner {
   position: fixed;
   top: 56px;
@@ -160,5 +161,6 @@ function toPanelState(raw: Record<string, unknown>): PanelState {
     roomCode: ((raw.room as { code?: string } | null)?.code) ?? '',
     lastPlayerState: (raw.lastPlayerState as PanelState['lastPlayerState']) ?? null,
     chatMessages: (raw.chatMessages as PanelState['chatMessages']) ?? [],
+    isHostAbsent: !!raw.isHostAbsent,
   };
 }

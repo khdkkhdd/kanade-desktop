@@ -12,5 +12,6 @@ export function toIpcState(store: SessionStateStore) {
     permission: s.permission,
     lastPlayerState: s.lastPlayerState,
     chatMessages: s.chatMessages,
+    isHostAbsent: s.isHostAbsent,
   };
 }

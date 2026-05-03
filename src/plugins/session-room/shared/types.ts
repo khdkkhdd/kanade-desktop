@@ -71,5 +71,6 @@ export type SessionState = {
   lastPlayerStateReceivedAt: number;
   permission: PermissionMode;
   chatMessages: ChatMessage[];
+  isHostAbsent: boolean;  // true while handoff grace timer is running
   myLastAddAt: number;
 };

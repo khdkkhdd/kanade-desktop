@@ -9,7 +9,8 @@ import { QueueManager } from './queue-manager.js';
 import { createSessionWindow } from './session-window.js';
 import { setupIpc } from './ipc.js';
 import { toIpcState } from './state-projection.js';
-import { CATCHUP_BROADCAST_DELAY_MS } from '../shared/constants.js';
+import { CATCHUP_BROADCAST_DELAY_MS, HOST_GRACE_MS } from '../shared/constants.js';
+import { HandoffManager } from './handoff-manager.js';
 import { isYouTubeHost } from '../shared/is-youtube-host.js';
 import { unwrapYouTubeRedirect } from '../shared/youtube-redirect.js';
 
@@ -114,6 +115,27 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
     win.focus();
   });
 
+  const handoff = new HandoffManager({
+    store,
+    graceMs: HOST_GRACE_MS,
+    onSelfPromote: () => {
+      // Optimistic local: mark self as host in the members map and recompute.
+      const s = store.get();
+      const me = s.members.get(s.myMemberKey);
+      if (!me) return;
+      const updated = Array.from(s.members.values()).map((m) =>
+        m.memberKey === s.myMemberKey ? { ...m, isHost: true } : m
+      );
+      store.setMembers(updated); // recomputes store.isHost
+      // Tell the channel we are now host (eventually consistent presence sync).
+      void realtime.updatePresence({ isHost: true })
+        .catch((e) => console.warn('[session-room] handoff updatePresence failed', e));
+      broadcastState();
+      console.log('[session-room] self-promoted to host via handoff');
+    },
+  });
+
+  let prevHostPresent = false;
   let previousMemberKeys = new Set<string>();
   realtime.onPresence((members) => {
     console.log(
@@ -140,6 +162,12 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
           .catch((e) => console.warn('[session-room] catch-up snapshot broadcast failed', e));
       }, CATCHUP_BROADCAST_DELAY_MS);
     }
+
+    // Host absence tracking for handoff
+    const hostPresent = members.some((m) => m.isHost);
+    if (prevHostPresent && !hostPresent) handoff.onHostAbsenceStart();
+    if (!prevHostPresent && hostPresent) handoff.onHostReturn();
+    prevHostPresent = hostPresent;
 
     broadcastState();
   });
@@ -198,6 +226,8 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
     console.log(`[session-room] realtime status: ${status}`);
     if (status === 'DISCONNECTED') {
       previousMemberKeys = new Set();
+      prevHostPresent = false;
+      handoff.reset();
       broadcastState();
     }
   });
