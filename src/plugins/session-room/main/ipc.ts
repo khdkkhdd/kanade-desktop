@@ -143,7 +143,10 @@ export function setupIpc(deps: IpcDeps): void {
   ctx.ipc.on('player.trackEnded', () => {
     const s = deps.store.get();
     if (!s.isHost) return;
-    const next = s.queue[0];
+    // Skip the just-played item — it still lives in queue so the panel can
+    // render its "지금 재생" card. setCurrentLocal will remove it once we move
+    // on (via setCurrentItem's prev-id filter).
+    const next = s.queue.find((i) => i.id !== s.currentItemId);
     if (!next) {
       // Empty queue: broadcast paused state with the last videoId so guests
       // don't receive an empty videoId (which would trigger loadVideoById(''))

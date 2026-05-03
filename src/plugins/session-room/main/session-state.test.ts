@@ -50,6 +50,30 @@ describe('SessionStateStore', () => {
     expect(s.get().currentItemId).toBe('q');
   });
 
+  it('setCurrentItem keeps the new current in queue and removes the previous', () => {
+    s.initRoom({ code: 'x', myMemberKey: 'me', isHost: true });
+    const mk = (id: string, score: number) => ({
+      id, videoId: id, videoTitle: id, channelName: '',
+      videoDuration: 0, addedBy: { memberKey: 'me', displayName: 'me' },
+      addedAt: 0, priorityScore: score,
+    });
+    s.addQueueItem(mk('a', 100));
+    s.addQueueItem(mk('b', 200));
+    s.addQueueItem(mk('c', 300));
+
+    s.setCurrentItem('a');
+    expect(s.get().currentItemId).toBe('a');
+    expect(s.get().queue.map((i) => i.id)).toEqual(['a', 'b', 'c']); // a stays — renderer needs its data
+
+    s.setCurrentItem('b');
+    expect(s.get().currentItemId).toBe('b');
+    expect(s.get().queue.map((i) => i.id)).toEqual(['b', 'c']); // a (prev) removed; b stays
+
+    s.setCurrentItem(null);
+    expect(s.get().currentItemId).toBeNull();
+    expect(s.get().queue.map((i) => i.id)).toEqual(['c']); // b (prev) removed
+  });
+
   it('setMembers replaces members map and updates isHost', () => {
     s.initRoom({ code: 'x', myMemberKey: 'me', isHost: false });
     s.setMembers([

@@ -57,10 +57,14 @@ export class SessionStateStore {
   }
 
   setCurrentItem(itemId: ItemId | null): void {
+    // The newly-current item stays in queue so the renderer can read its
+    // metadata via queue.find(id === currentItemId) for the "지금 재생" card.
+    // What gets removed is the PREVIOUS current — once we've moved past it,
+    // it shouldn't reappear in upcoming.
+    const prevId = this.state.currentItemId;
     this.state.currentItemId = itemId;
-    if (itemId) {
-      // move to head implicitly — currentItemId tracks separately, queue.filter to remove
-      this.state.queue = this.state.queue.filter((i) => i.id !== itemId);
+    if (prevId && prevId !== itemId) {
+      this.state.queue = this.state.queue.filter((i) => i.id !== prevId);
     }
   }
 
