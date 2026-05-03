@@ -177,6 +177,9 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
           // No store update — guest renderers process directly via 'event' channel.
           break;
         case 'CHAT':
+          // No self-dedup: Supabase broadcast.self defaults to false (see realtime-client.ts
+          // channel config), so this branch only fires for messages from OTHER members.
+          // Sender's own message was already added by the chat.send IPC handler.
           store.addChat(event.payload);
           break;
         default: {

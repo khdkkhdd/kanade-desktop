@@ -103,6 +103,9 @@ export function setupIpc(deps: IpcDeps): void {
       ts: Date.now(),
     };
     deps.store.addChat(msg);
+    pushState();
+    // Local-first: keep the sender's message visible even if broadcast fails.
+    // Chat is best-effort; unlike queue ops, no rollback needed.
     await deps.realtime.broadcast({ type: 'CHAT', payload: msg });
   });
 
