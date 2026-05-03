@@ -160,13 +160,6 @@ const STYLE = `
   background: rgba(245,158,11,0.15);
   color: #b45309;
 }
-.kanade-handoff-pending {
-  width: 100%;
-  padding: 6px 0;
-  font-size: 11px;
-  color: #ff9800;
-}
-[data-theme="light"] .kanade-handoff-pending { color: #d97706; }
 .kanade-handoff-warn {
   width: 100%;
   padding: 6px 0;
