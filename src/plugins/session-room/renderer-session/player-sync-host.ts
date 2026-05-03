@@ -27,22 +27,26 @@ export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean)
   let driftInterval: number | null = null;
   let lastBroadcast = 0;
 
+  const dbg = (msg: string) => ctx.ipc.send('debug.log', `host-sync: ${msg}`);
+  dbg(`setup at ${location.href}`);
+
   const stopAd = observeAdState((v) => {
     isAd = v;
     if (isHost()) broadcast();
   });
 
   const broadcast = () => {
-    if (!isHost()) return;
+    if (!isHost()) { dbg('broadcast skip: not host'); return; }
     const player = getPlayer();
-    if (!player) return;
+    if (!player) { dbg('broadcast skip: no #movie_player'); return; }
     const state = player.getPlayerState?.();
-    if (state === undefined) return;
+    if (state === undefined) { dbg('broadcast skip: getPlayerState undefined'); return; }
     const isPlaying = state === 1 || state === 3; // playing or buffering counts as playing
     const data = player.getVideoData?.();
-    if (!data?.video_id) return;
+    if (!data?.video_id) { dbg(`broadcast skip: no video_id (data=${JSON.stringify(data)})`); return; }
     const position = player.getCurrentTime?.();
-    if (position === undefined) return;
+    if (position === undefined) { dbg('broadcast skip: getCurrentTime undefined'); return; }
+    dbg(`broadcast OK videoId=${data.video_id} playing=${isPlaying} pos=${position}`);
     ctx.ipc.send('player.broadcastState', {
       videoId: data.video_id,
       position,
@@ -54,9 +58,10 @@ export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean)
   };
 
   const onPlayerEvent = () => {
-    if (!isHost()) return;
+    if (!isHost()) { dbg('onPlayerEvent skip: not host'); return; }
     // Throttle bursts
-    if (Date.now() - lastBroadcast < 100) return;
+    if (Date.now() - lastBroadcast < 100) { dbg('onPlayerEvent throttled'); return; }
+    dbg('onPlayerEvent → broadcast');
     broadcast();
   };
 
@@ -71,7 +76,9 @@ export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean)
 
   const rebindVideo = async () => {
     const el = await waitForElement('video', 5_000);
-    if (!el || el === videoEl) return;
+    if (!el) { dbg('rebindVideo: <video> not found within 5s'); return; }
+    if (el === videoEl) { dbg('rebindVideo: same element, skip'); return; }
+    dbg(`rebindVideo: bound new <video>`);
     cleanupVideo?.();
     videoEl = el as HTMLVideoElement;
     const evs: Array<keyof HTMLMediaElementEventMap> = ['play', 'playing', 'pause', 'seeked', 'ended'];

@@ -77,6 +77,10 @@ export function setupIpc(deps: IpcDeps): void {
     });
   });
 
+  ctx.ipc.on('debug.log', (msg) => {
+    console.log('[session-room] DBG-renderer:', msg);
+  });
+
   ctx.ipc.on('player.broadcastState', (state) => {
     const s = deps.store.get();
     if (!s.isHost) {
