@@ -123,6 +123,11 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
       const s = store.get();
       const me = s.members.get(s.myMemberKey);
       if (!me) return;
+      // We only flip self to isHost; we don't strip any existing isHost flag.
+      // No two-host risk: onHostAbsenceStart fires on hostPresent transition
+      // true→false, and the handoff timer's race re-check aborts if presence
+      // sync brings the host back. By fire time, the absent host is already
+      // gone from members (Supabase presence-sync drops vanished tabs).
       const updated = Array.from(s.members.values()).map((m) =>
         m.memberKey === s.myMemberKey ? { ...m, isHost: true } : m
       );
