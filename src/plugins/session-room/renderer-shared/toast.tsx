@@ -5,6 +5,7 @@
 
 import { createSignal, For } from 'solid-js';
 import { render } from 'solid-js/web';
+import { detectYouTubeTheme, subscribeYouTubeTheme } from '../shared/theme-detect.js';
 
 export type ToastKind = 'info' | 'warn' | 'error';
 
@@ -77,6 +78,12 @@ export function mountToastContainer(): void {
   const el = document.createElement('div');
   el.id = 'kanade-toast-root';
   document.body.appendChild(el);
+
+  el.dataset.theme = detectYouTubeTheme();
+  subscribeYouTubeTheme((theme) => {
+    el.dataset.theme = theme;
+  });
+
   render(() => <ToastContainer />, el);
 }
 

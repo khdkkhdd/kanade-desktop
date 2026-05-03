@@ -7,6 +7,7 @@ import { SessionBanner } from './session-banner.jsx';
 import { setupAddToQueueButtons } from './add-to-queue-button.js';
 import { setupMuteMutex } from './mute-mutex.js';
 import { mountToastContainer, showToast, type ToastKind } from '../renderer-shared/toast.jsx';
+import { detectYouTubeTheme, subscribeYouTubeTheme } from '../shared/theme-detect.js';
 
 const STYLE = `
 .kanade-banner {
@@ -46,6 +47,11 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   const root = document.createElement('div');
   root.id = 'kanade-session-overlay';
   document.body.appendChild(root);
+
+  root.dataset.theme = detectYouTubeTheme();
+  subscribeYouTubeTheme((theme) => {
+    root.dataset.theme = theme;
+  });
 
   const [createOpen, setCreateOpen] = createSignal(false);
   const [sessionActive, setSessionActive] = createSignal(false);

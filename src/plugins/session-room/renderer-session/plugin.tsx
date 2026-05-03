@@ -9,6 +9,7 @@ import { observeAdState } from './ad-detector.js';
 import { setupClickInterceptor } from './click-interceptor.js';
 import { disableAutoplay } from './autoplay-disable.js';
 import { mountToastContainer, showToast, type ToastKind } from '../renderer-shared/toast.jsx';
+import { detectYouTubeTheme, subscribeYouTubeTheme } from '../shared/theme-detect.js';
 
 const STYLE = `
 .kanade-session-panel {
@@ -107,6 +108,11 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
 
   const root = document.createElement('div');
   document.body.appendChild(root);
+
+  root.dataset.theme = detectYouTubeTheme();
+  subscribeYouTubeTheme((theme) => {
+    root.dataset.theme = theme;
+  });
 
   type IpcMember = { memberKey: string; displayName: string; isHost: boolean };
   type IpcStateRaw = Record<string, unknown> & { room?: unknown; members?: IpcMember[] };
