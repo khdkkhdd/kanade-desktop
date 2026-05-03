@@ -7,7 +7,17 @@ export function observeAdState(callback: (isAd: boolean) => void): () => void {
   let stopAttached: (() => void) | null = null;
 
   const attach = (p: HTMLElement): () => void => {
-    const report = () => callback(p.classList.contains('ad-showing'));
+    // YouTube mutates #movie_player's class very frequently (playback mode,
+    // hover state, etc.). Only invoke the callback when the ad-showing bit
+    // actually flips, so consumers (host-sync's broadcast) don't fire on
+    // every unrelated class change.
+    let lastValue: boolean | null = null;
+    const report = () => {
+      const v = p.classList.contains('ad-showing');
+      if (v === lastValue) return;
+      lastValue = v;
+      callback(v);
+    };
     report();
     const obs = new MutationObserver(report);
     obs.observe(p, { attributes: true, attributeFilter: ['class'] });
