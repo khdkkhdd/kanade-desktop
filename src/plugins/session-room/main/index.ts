@@ -1,5 +1,5 @@
 // src/plugins/session-room/main/index.ts
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, shell } from 'electron';
 import type { BackendContext } from '../../../types/plugins.js';
 import { isSafeWebUrl } from '../../../lib/url-guard.js';
 import { SessionStateStore } from './session-state.js';
@@ -10,6 +10,8 @@ import { createSessionWindow } from './session-window.js';
 import { setupIpc } from './ipc.js';
 import { toIpcState } from './state-projection.js';
 import { CATCHUP_BROADCAST_DELAY_MS } from '../shared/constants.js';
+import { isYouTubeHost } from '../shared/is-youtube-host.js';
+import { unwrapYouTubeRedirect } from '../shared/youtube-redirect.js';
 
 export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   const store = new SessionStateStore();
@@ -45,16 +47,36 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
 
   const routeToBrowse = (url: string): void => {
     console.log('[session-room] DBG routeToBrowse url=', url);
+    // YouTube wraps external links as `youtube.com/redirect?q=<external>`.
+    // Unwrap before deciding: if the target is non-YouTube, send it to the OS
+    // browser instead of letting browse window auto-redirect there.
+    const target = unwrapYouTubeRedirect(url);
+    if (target !== url) {
+      console.log('[session-room] DBG routeToBrowse unwrapped target=', target);
+      try {
+        const t = new URL(target);
+        if (!isYouTubeHost(t.hostname)) {
+          if (t.protocol === 'http:' || t.protocol === 'https:') {
+            void shell.openExternal(target);
+          }
+          return;
+        }
+        // unwrapped to another YouTube URL — fall through with the unwrapped value
+      } catch {
+        return;
+      }
+    }
+    const finalUrl = target;
     const browseWin = ctx.window;
     if (!browseWin || browseWin.isDestroyed()) return;
-    if (!isSafeWebUrl(url)) {
-      console.warn('[session-room] routeToBrowse refused unsafe URL:', url);
+    if (!isSafeWebUrl(finalUrl)) {
+      console.warn('[session-room] routeToBrowse refused unsafe URL:', finalUrl);
       return;
     }
     if (browseWin.isMinimized()) browseWin.restore();
     browseWin.show();
     browseWin.focus();
-    void browseWin.webContents.loadURL(url)
+    void browseWin.webContents.loadURL(finalUrl)
       .catch((e) => console.warn('[session-room] routeToBrowse loadURL failed', e));
   };
 
