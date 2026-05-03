@@ -92,18 +92,13 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
         case 'PLAYER_STATE': {
           const prev = store.get().lastPlayerState;
           store.setPlayerState(event.payload);
-          const isGuest = !store.get().isHost;
-          console.log('[session-room] DEBUG inbound PLAYER_STATE',
-            event.payload.videoId, 'prev=', prev?.videoId,
-            'isGuest=', isGuest, 'sessionWin=', !!sessionWin);
           // Guest: load the host's video into the session window when videoId changes
           // (covers initial about:blank → host's video, and host track-change advances).
-          if (isGuest
+          if (!store.get().isHost
               && sessionWin
               && event.payload.videoId
               && event.payload.videoId !== prev?.videoId) {
             const url = `https://www.youtube.com/watch?v=${event.payload.videoId}`;
-            console.log('[session-room] DEBUG guest loadURL →', url);
             void sessionWin.webContents.loadURL(url)
               .catch((e) => console.warn('[session-room] guest session loadURL failed', e));
           }

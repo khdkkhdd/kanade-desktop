@@ -21,9 +21,6 @@ export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean)
   let driftInterval: number | null = null;
   let lastBroadcast = 0;
 
-  const dbg = (msg: string) => ctx.ipc.send('debug.log', `host-sync: ${msg}`);
-  dbg(`setup at ${location.href}`);
-
   const stopAd = observeAdState((v) => {
     isAd = v;
     if (isHost()) broadcast();
@@ -38,13 +35,12 @@ export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean)
   };
 
   const broadcast = () => {
-    if (!isHost()) { dbg('broadcast skip: not host'); return; }
-    if (!videoEl) { dbg('broadcast skip: no <video>'); return; }
+    if (!isHost()) return;
+    if (!videoEl) return;
     const videoId = extractVideoId();
-    if (!videoId) { dbg('broadcast skip: no videoId in URL'); return; }
+    if (!videoId) return;
     const isPlaying = !videoEl.paused && !videoEl.ended;
     const position = videoEl.currentTime;
-    dbg(`broadcast OK videoId=${videoId} playing=${isPlaying} pos=${position}`);
     ctx.ipc.send('player.broadcastState', {
       videoId,
       position,
@@ -56,10 +52,9 @@ export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean)
   };
 
   const onPlayerEvent = () => {
-    if (!isHost()) { dbg('onPlayerEvent skip: not host'); return; }
+    if (!isHost()) return;
     // Throttle bursts
-    if (Date.now() - lastBroadcast < 100) { dbg('onPlayerEvent throttled'); return; }
-    dbg('onPlayerEvent → broadcast');
+    if (Date.now() - lastBroadcast < 100) return;
     broadcast();
   };
 
@@ -74,9 +69,7 @@ export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean)
 
   const rebindVideo = async () => {
     const el = await waitForElement('video', 5_000);
-    if (!el) { dbg('rebindVideo: <video> not found within 5s'); return; }
-    if (el === videoEl) { dbg('rebindVideo: same element, skip'); return; }
-    dbg(`rebindVideo: bound new <video>`);
+    if (!el || el === videoEl) return;
     cleanupVideo?.();
     videoEl = el as HTMLVideoElement;
     const evs: Array<keyof HTMLMediaElementEventMap> = ['play', 'playing', 'pause', 'seeked', 'ended'];

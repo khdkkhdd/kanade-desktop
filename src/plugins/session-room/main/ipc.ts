@@ -88,18 +88,10 @@ export function setupIpc(deps: IpcDeps): void {
     });
   });
 
-  ctx.ipc.on('debug.log', (msg) => {
-    console.log('[session-room] DBG-renderer:', msg);
-  });
-
   ctx.ipc.on('player.broadcastState', (state) => {
     const s = deps.store.get();
-    if (!s.isHost) {
-      console.log('[session-room] DEBUG broadcastState IPC ignored (not host)');
-      return;
-    }
+    if (!s.isHost) return;
     const ps = state as PlayerState;
-    console.log('[session-room] DEBUG broadcastState IPC →', ps.videoId, 'playing=', ps.isPlaying, 'pos=', ps.position);
     void deps.realtime.broadcast({ type: 'PLAYER_STATE', payload: ps })
       .catch((e) => console.warn('[session-room] PLAYER_STATE broadcast failed', e));
     deps.store.setPlayerState(ps);

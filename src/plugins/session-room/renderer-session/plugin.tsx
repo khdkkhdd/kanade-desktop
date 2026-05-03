@@ -63,14 +63,7 @@ const STYLE = `
 `;
 
 export async function setupSessionRenderer(ctx: RendererContext): Promise<void> {
-  const dbg = (msg: string) => ctx.ipc.send('debug.log', `session-renderer: ${msg}`);
-  const mode = (globalThis as Record<string, unknown>).kanadeMode
-    ?? (window as unknown as { kanadeMode?: string }).kanadeMode;
-  dbg(`entry url=${location.href} kanadeMode=${String(mode)}`);
-  if ((window as unknown as { kanadeMode?: string }).kanadeMode !== 'session') {
-    dbg('skip: kanadeMode !== session');
-    return;
-  }
+  if ((window as unknown as { kanadeMode?: string }).kanadeMode !== 'session') return;
 
   // preload runs before document.body / head exists. Wait for DOM ready.
   if (!document.body) {
@@ -78,7 +71,6 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
       document.addEventListener('DOMContentLoaded', () => resolve(), { once: true });
     });
   }
-  dbg('past DOM-ready, proceeding to mount');
 
   const styleEl = document.createElement('style');
   styleEl.textContent = STYLE;
@@ -103,10 +95,8 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
     (e) => console.warn('[session-room] getState failed', e),
   );
 
-  dbg('about to setupHostPlayerSync / setupGuestPlayerSync');
   setupHostPlayerSync(ctx, () => state().isHost); // stop ignored — renderer lifetime
   setupGuestPlayerSync(ctx, () => state().isHost); // stop ignored — renderer lifetime
-  dbg('player-sync setups done');
 
   const [iAmInAd, setIAmInAd] = createSignal(false);
   observeAdState(setIAmInAd); // stop ignored — renderer lifetime
