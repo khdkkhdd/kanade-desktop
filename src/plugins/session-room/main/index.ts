@@ -89,9 +89,21 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
         case 'QUEUE_OP':
           await queueMgr.applyOp(event.payload, event.senderMemberKey);
           break;
-        case 'PLAYER_STATE':
+        case 'PLAYER_STATE': {
+          const prev = store.get().lastPlayerState;
           store.setPlayerState(event.payload);
+          // Guest: load the host's video into the session window when videoId changes
+          // (covers initial about:blank → host's video, and host track-change advances).
+          if (!store.get().isHost
+              && sessionWin
+              && event.payload.videoId
+              && event.payload.videoId !== prev?.videoId) {
+            const url = `https://www.youtube.com/watch?v=${event.payload.videoId}`;
+            void sessionWin.webContents.loadURL(url)
+              .catch((e) => console.warn('[session-room] guest session loadURL failed', e));
+          }
           break;
+        }
         case 'PERMISSION_CHANGE': {
           const sender = store.get().members.get(event.senderMemberKey);
           if (sender?.isHost) store.setPermission(event.payload.mode);
