@@ -17,14 +17,13 @@ export interface PanelState {
   isHostAbsent: boolean;
 }
 
-export function SessionPanel(props: { ctx: RendererContext; state: () => PanelState }) {
+export function SessionPanel(props: { ctx: RendererContext; state: () => PanelState; open: () => boolean; onToggle: () => void }) {
   const [tab, setTab] = createSignal<'queue' | 'chat'>('queue');
-  const [open, setOpen] = createSignal(true);
 
   return (
-    <div class={`kanade-session-panel ${open() ? 'open' : 'closed'}`}>
-      <button class="kanade-toggle" onClick={() => setOpen((v) => !v)}>{open() ? '▶' : '◀'}</button>
-      <Show when={open()}>
+    <div class={`kanade-session-panel ${props.open() ? 'open' : 'closed'}`}>
+      <button class="kanade-toggle" onClick={props.onToggle}>{props.open() ? '▶' : '◀'}</button>
+      <Show when={props.open()}>
         <div class="kanade-tabs">
           <button class={tab() === 'queue' ? 'active' : ''} onClick={() => setTab('queue')}>큐</button>
           <button class={tab() === 'chat' ? 'active' : ''} onClick={() => setTab('chat')}>채팅</button>

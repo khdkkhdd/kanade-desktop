@@ -160,13 +160,30 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
 
   const hostInAd = () => state().lastPlayerState?.isAd ?? false;
 
+  // Lift panel open state so Cmd+Shift+P keydown can toggle it from outside SessionPanel.
+  const [panelOpen, setPanelOpen] = createSignal(true);
+
+  // Gap D: Cmd+Shift+P (macOS) / Ctrl+Shift+P (Win/Linux) toggles the session panel.
+  // Bound here (session renderer) so it only fires when the session window is active,
+  // not from the browse window.
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  const onKeydown = (e: KeyboardEvent) => {
+    const cmd = isMac ? e.metaKey : e.ctrlKey;
+    if (cmd && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
+      e.preventDefault();
+      setPanelOpen((v) => !v);
+    }
+  };
+  document.addEventListener('keydown', onKeydown, true);
+  // no cleanup — renderer lifetime
+
   // host.loadVideo IPC removed — main now drives the session window directly
   // via webContents.loadURL in broadcastHostLoad (same pattern as guest catch-up).
 
   render(
     () => (
       <>
-        <SessionPanel ctx={ctx} state={state} />
+        <SessionPanel ctx={ctx} state={state} open={panelOpen} onToggle={() => setPanelOpen((v) => !v)} />
         <AdBanner hostInAd={hostInAd()} iAmInAd={iAmInAd()} />
       </>
     ),

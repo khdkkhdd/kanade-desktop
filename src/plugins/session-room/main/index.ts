@@ -15,15 +15,30 @@ import type { RealtimeStatus } from './realtime-client.js';
 import { isYouTubeHost } from '../shared/is-youtube-host.js';
 import { unwrapYouTubeRedirect } from '../shared/youtube-redirect.js';
 
-export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
+export interface SessionRoomOptions {
+  onSessionActiveChange?: (active: boolean) => void;
+}
+
+export async function setupSessionRoomMain(ctx: BackendContext, options?: SessionRoomOptions): Promise<void> {
   const store = new SessionStateStore();
   const realtime = new RealtimeClient();
+
+  let prevActive = false;
+
+  const notifyActiveChange = (): void => {
+    const active = !!store.get().room;
+    if (active !== prevActive) {
+      prevActive = active;
+      options?.onSessionActiveChange?.(active);
+    }
+  };
 
   const broadcastState = (): void => {
     const payload = toIpcState(store);
     for (const w of BrowserWindow.getAllWindows()) {
       w.webContents.send('plugin:session-room:state-changed', payload);
     }
+    notifyActiveChange();
   };
 
   const broadcastEvent = (event: unknown): void => {

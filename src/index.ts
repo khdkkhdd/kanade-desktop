@@ -18,7 +18,7 @@ import { adminVideoMain } from './plugins/admin-video/main.js';
 import { adminChannelMain } from './plugins/admin-channel/main.js';
 import { discordPresenceMain } from './plugins/discord-presence/main.js';
 import { applyPresenceConfigChange } from './plugins/discord-presence/backend.js';
-import { sessionRoomMain } from './plugins/session-room/main.js';
+import { createSessionRoomMain } from './plugins/session-room/main.js';
 
 function removeCSP(): void {
   session.defaultSession.webRequest.onHeadersReceived(
@@ -125,7 +125,7 @@ function createWindow(): BrowserWindow {
     'admin-video': adminVideoMain,
     'admin-channel': adminChannelMain,
     'discord-presence': discordPresenceMain,
-    'session-room': sessionRoomMain,
+    'session-room': createSessionRoomMain({ onSessionActiveChange: refreshSessionMenu }),
   };
   loadAllMainPlugins(plugins, win, ipcMain);
 
@@ -174,6 +174,21 @@ function openSettingsWindow(parent: BrowserWindow): void {
   settingsWin.on('closed', () => { settingsWin = null; });
 }
 
+function refreshSessionMenu(active: boolean): void {
+  const menu = Menu.getApplicationMenu();
+  if (!menu) return;
+  // Enable session-active items only when in a session
+  for (const id of ['session-copy-code', 'session-show', 'session-leave'] as const) {
+    const item = menu.getMenuItemById(id);
+    if (item) item.enabled = active;
+  }
+  // Disable new/join when in a session so the user can't destructively double-join
+  for (const id of ['session-create', 'session-join'] as const) {
+    const item = menu.getMenuItemById(id);
+    if (item) item.enabled = !active;
+  }
+}
+
 function installAppMenu(getMainWin: () => BrowserWindow | null): void {
   const template: Electron.MenuItemConstructorOptions[] = [
     {
@@ -206,6 +221,7 @@ function installAppMenu(getMainWin: () => BrowserWindow | null): void {
       label: 'Session',
       submenu: [
         {
+          id: 'session-create',
           label: '새 세션 시작...',
           accelerator: process.platform === 'darwin' ? 'Cmd+Shift+S' : 'Ctrl+Shift+S',
           click: () => {
@@ -214,6 +230,7 @@ function installAppMenu(getMainWin: () => BrowserWindow | null): void {
           },
         },
         {
+          id: 'session-join',
           label: '세션 참여...',
           accelerator: process.platform === 'darwin' ? 'Cmd+Shift+J' : 'Ctrl+Shift+J',
           click: () => {
