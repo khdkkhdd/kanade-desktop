@@ -21,7 +21,61 @@ const STYLE = `
   z-index: 9998;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+  font-family: 'Roboto', system-ui, sans-serif;
+  font-size: 13px;
+}
+.kanade-banner-title {
+  font-weight: 500;
+}
+.kanade-banner-spacer {
+  flex: 1;
+}
+.kanade-banner-btn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.kanade-banner-btn:hover {
+  background: rgba(255,255,255,0.22);
+}
+.kanade-banner-add-btn {
+  background: rgba(255,255,255,0.95);
+  color: #5a3fff;
+  border: none;
+  padding: 4px 12px 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.kanade-banner-add-btn:hover:not(:disabled) {
+  background: #fff;
+}
+.kanade-banner-add-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.kanade-banner-add-ico {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  background: #5a3fff;
+  color: #fff;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
 }
 `;
 
@@ -60,6 +114,12 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   const [memberCount, setMemberCount] = createSignal(0);
   const [defaultName, setDefaultName] = createSignal('');
   const [clipboardCode, setClipboardCode] = createSignal('');
+  const [canAddCurrent, setCanAddCurrent] = createSignal(/^\/watch/.test(location.pathname));
+
+  const updateAddCurrent = () => setCanAddCurrent(/^\/watch/.test(location.pathname));
+  window.addEventListener('yt-navigate-finish', updateAddCurrent);
+  window.addEventListener('popstate', updateAddCurrent);
+  // no cleanup — renderer lifetime
 
   const tryReadClipboard = async (): Promise<void> => {
     try {
@@ -103,6 +163,48 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
       console.warn('[session-room] leave failed', e);
     });
   };
+
+  async function addCurrentVideoToQueue(ctx: RendererContext): Promise<void> {
+    const m = location.href.match(/[?&]v=([\w-]{11})/);
+    if (!m) {
+      showToast('영상 정보를 찾을 수 없습니다', 'warn');
+      return;
+    }
+    const videoId = m[1];
+    const playerEl = document.querySelector('#movie_player') as
+      | (HTMLElement & { getVideoData?: () => { title: string; author: string }; getDuration?: () => number })
+      | null;
+    const meta = playerEl?.getVideoData?.()
+      ? {
+          title: playerEl.getVideoData!().title,
+          channelName: playerEl.getVideoData!().author,
+          duration: playerEl.getDuration?.() ?? 0,
+        }
+      : { title: videoId, channelName: '', duration: 0 };
+
+    try {
+      await ctx.ipc.invoke('queue.add', {
+        videoId,
+        videoTitle: meta.title,
+        channelName: meta.channelName,
+        videoDuration: meta.duration,
+      });
+      showToast('큐에 추가됨', 'info');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const rateLimitMatch = msg.match(/rate-limit:(\d+)/);
+      if (rateLimitMatch) {
+        const remainingMs = parseInt(rateLimitMatch[1], 10) || 0;
+        showToast(`${Math.ceil(remainingMs / 1000)}초 후 다시 추가할 수 있습니다`, 'warn');
+      } else if (msg.includes('permission-denied:')) {
+        showToast('Host 만 추가 가능', 'warn');
+      } else {
+        showToast('큐 추가 실패', 'error');
+        console.warn('[session-room] queue.add (current) failed', e);
+      }
+    }
+  }
+
   ctx.ipc.on('state-changed', (state) => {
     const s = state as IpcState;
 
@@ -177,8 +279,10 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
         active={sessionActive()}
         hostName={hostName()}
         memberCount={memberCount()}
+        canAddCurrent={canAddCurrent()}
         onShowSession={() => ctx.ipc.send('showSessionWindow')}
         onLeave={initiateLeave}
+        onAddCurrent={() => { void addCurrentVideoToQueue(ctx); }}
       />
       <CreateDialog
         open={createOpen()}
