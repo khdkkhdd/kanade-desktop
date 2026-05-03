@@ -77,6 +77,42 @@ const STYLE = `
   font-size: 13px;
   line-height: 1;
 }
+.kanade-add-queue {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 100;
+  padding: 4px 10px 4px 6px;
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  backdrop-filter: blur(8px);
+  line-height: 1;
+  cursor: pointer;
+  font-family: 'Roboto', system-ui, sans-serif;
+}
+.kanade-add-queue:hover {
+  background: rgba(0,0,0,0.95);
+  border-color: rgba(255,255,255,0.3);
+}
+.kanade-add-queue-ico {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  background: #ff0033;
+  color: #fff;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+}
 `;
 
 export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
