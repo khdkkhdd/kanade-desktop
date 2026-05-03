@@ -242,6 +242,9 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   ctx.ipc.on('show-session-window', () => {
     ctx.ipc.send('showSessionWindow');
   });
+  ctx.ipc.on('add-current-video', () => {
+    void addCurrentVideoToQueue(ctx);
+  });
   ctx.ipc.on('leave', () => {
     initiateLeave();
   });

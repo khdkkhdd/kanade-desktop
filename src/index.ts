@@ -178,7 +178,7 @@ function refreshSessionMenu(active: boolean): void {
   const menu = Menu.getApplicationMenu();
   if (!menu) return;
   // Enable session-active items only when in a session
-  for (const id of ['session-copy-code', 'session-show', 'session-leave'] as const) {
+  for (const id of ['session-copy-code', 'session-show', 'session-leave', 'session-add-current'] as const) {
     const item = menu.getMenuItemById(id);
     if (item) item.enabled = active;
   }
@@ -258,6 +258,16 @@ function installAppMenu(getMainWin: () => BrowserWindow | null): void {
           click: () => {
             const main = getMainWin();
             main?.webContents.send('plugin:session-room:show-session-window');
+          },
+        },
+        {
+          id: 'session-add-current',
+          label: '세션에 현재 영상 추가',
+          enabled: false,
+          accelerator: process.platform === 'darwin' ? 'Cmd+Shift+Q' : 'Ctrl+Shift+Q',
+          click: () => {
+            const main = getMainWin();
+            main?.webContents.send('plugin:session-room:add-current-video');
           },
         },
         {
