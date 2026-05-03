@@ -39,9 +39,14 @@ const TOAST_CSS = `
   padding: 8px 16px;
   border-radius: 6px;
   font-size: 13px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
   animation: kanade-toast-in 0.2s ease-out;
   white-space: nowrap;
+}
+[data-theme="dark"] .kanade-toast {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+[data-theme="light"] .kanade-toast {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 .kanade-toast.warn { background: #ff9800; }
 .kanade-toast.error { background: #cc3344; }
