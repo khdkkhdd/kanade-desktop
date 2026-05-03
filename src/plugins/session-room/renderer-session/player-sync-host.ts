@@ -3,12 +3,6 @@ import type { RendererContext } from '../../../types/plugins.js';
 import { observeAdState } from './ad-detector.js';
 import { DRIFT_CHECK_INTERVAL_MS } from '../shared/constants.js';
 
-interface YTPlayer {
-  getCurrentTime?(): number;
-  getPlayerState?(): number; // -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
-  getVideoData?(): { video_id: string };
-}
-
 function waitForElement(selector: string, timeout = 5_000): Promise<Element | null> {
   const existing = document.querySelector(selector);
   if (existing) return Promise.resolve(existing);
@@ -35,20 +29,24 @@ export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean)
     if (isHost()) broadcast();
   });
 
+  const extractVideoId = (): string | null => {
+    try {
+      return new URL(location.href).searchParams.get('v');
+    } catch {
+      return null;
+    }
+  };
+
   const broadcast = () => {
     if (!isHost()) { dbg('broadcast skip: not host'); return; }
-    const player = getPlayer();
-    if (!player) { dbg('broadcast skip: no #movie_player'); return; }
-    const state = player.getPlayerState?.();
-    if (state === undefined) { dbg('broadcast skip: getPlayerState undefined'); return; }
-    const isPlaying = state === 1 || state === 3; // playing or buffering counts as playing
-    const data = player.getVideoData?.();
-    if (!data?.video_id) { dbg(`broadcast skip: no video_id (data=${JSON.stringify(data)})`); return; }
-    const position = player.getCurrentTime?.();
-    if (position === undefined) { dbg('broadcast skip: getCurrentTime undefined'); return; }
-    dbg(`broadcast OK videoId=${data.video_id} playing=${isPlaying} pos=${position}`);
+    if (!videoEl) { dbg('broadcast skip: no <video>'); return; }
+    const videoId = extractVideoId();
+    if (!videoId) { dbg('broadcast skip: no videoId in URL'); return; }
+    const isPlaying = !videoEl.paused && !videoEl.ended;
+    const position = videoEl.currentTime;
+    dbg(`broadcast OK videoId=${videoId} playing=${isPlaying} pos=${position}`);
     ctx.ipc.send('player.broadcastState', {
-      videoId: data.video_id,
+      videoId,
       position,
       isPlaying,
       isAd,
@@ -98,15 +96,12 @@ export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean)
   // 30s drift heartbeat
   driftInterval = window.setInterval(() => {
     if (!isHost()) return;
-    const player = getPlayer();
-    if (!player) return;
-    const data = player.getVideoData?.();
-    if (!data?.video_id) return;
-    const position = player.getCurrentTime?.();
-    if (position === undefined) return;
+    if (!videoEl) return;
+    const videoId = extractVideoId();
+    if (!videoId) return;
     ctx.ipc.send('player.driftCheck', {
-      videoId: data.video_id,
-      position,
+      videoId,
+      position: videoEl.currentTime,
       ts: Date.now(),
     });
   }, DRIFT_CHECK_INTERVAL_MS);
@@ -117,8 +112,4 @@ export function setupHostPlayerSync(ctx: RendererContext, isHost: () => boolean)
     document.removeEventListener('yt-navigate-finish', onNavigate);
     if (driftInterval) clearInterval(driftInterval);
   };
-}
-
-function getPlayer(): YTPlayer | null {
-  return document.getElementById('movie_player') as unknown as YTPlayer | null;
 }

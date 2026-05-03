@@ -59,7 +59,18 @@ export function setupIpc(deps: IpcDeps): void {
   });
 
   ctx.ipc.handle('queue.setCurrent', async (args) => {
-    return deps.queue.setCurrentLocal((args as { itemId: string | null }).itemId);
+    const itemId = (args as { itemId: string | null }).itemId;
+    // Capture videoId BEFORE setCurrentLocal — store.setCurrentItem filters the
+    // item out of the queue, so a post-call lookup would miss it.
+    const sBefore = deps.store.get();
+    const item = itemId ? sBefore.queue.find((i) => i.id === itemId) : null;
+    await deps.queue.setCurrentLocal(itemId);
+    // Host: drive the host's session window to actually load the new video,
+    // mirroring track-end behavior. Without this the host's player stays on
+    // the previous video while everyone waits for a PLAYER_STATE that never comes.
+    if (sBefore.isHost && item) {
+      deps.broadcastHostLoad({ videoId: item.videoId });
+    }
   });
 
   ctx.ipc.handle('queue.clear', async () => deps.queue.clearLocal());
