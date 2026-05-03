@@ -2,6 +2,7 @@ import { createSignal, For, Show, createEffect } from 'solid-js';
 import type { ChatMessage, MemberKey } from '../../shared/types.js';
 import type { RendererContext } from '../../../../types/plugins.js';
 import { showToast } from '../../renderer-shared/toast.jsx';
+import { shouldShowFrom } from './chat-grouping.js';
 
 interface Props {
   ctx: RendererContext;
@@ -11,38 +12,33 @@ interface Props {
 
 export function ChatTab(p: Props) {
   const [draft, setDraft] = createSignal('');
-  const [atBottom, setAtBottom] = createSignal(true);
   const [showNewBadge, setShowNewBadge] = createSignal(false);
-  let scrollEl: HTMLDivElement | undefined;
+  const [atBottom, setAtBottom] = createSignal(true);
   // tracks newest seen message id; preferred over length to handle 50-cap eviction at the FIFO ceiling
   let lastSeenId: string | undefined = undefined;
+  let scrollEl: HTMLDivElement | undefined;
 
   const isAtBottom = (): boolean => {
     if (!scrollEl) return true;
     return scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 8;
   };
 
-  const scrollToBottom = (): void => {
-    if (scrollEl) {
-      scrollEl.scrollTop = scrollEl.scrollHeight;
-      setShowNewBadge(false);
-      setAtBottom(true);
-    }
-  };
-
-  const handleScroll = (): void => {
+  const handleScroll = () => {
     const bottom = isAtBottom();
     setAtBottom(bottom);
-    if (bottom) {
-      setShowNewBadge(false);
-    }
+    if (bottom) setShowNewBadge(false);
+  };
+
+  const scrollToBottom = () => {
+    if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+    setAtBottom(true);
+    setShowNewBadge(false);
   };
 
   createEffect(() => {
     const lastId = p.messages.at(-1)?.id;
     const newMessages = lastId !== undefined && lastId !== lastSeenId;
     lastSeenId = lastId;
-
     if (newMessages) {
       if (atBottom()) {
         // defer until <For> flushes new <div> so scrollHeight reflects the new message
@@ -58,7 +54,6 @@ export function ChatTab(p: Props) {
     if (!t) return;
     setDraft('');
     setShowNewBadge(false);
-    // defer until <For> flushes new <div> so scrollHeight reflects the new message
     queueMicrotask(() => { if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight; });
     try {
       await p.ctx.ipc.invoke('chat.send', { text: t });
@@ -74,11 +69,15 @@ export function ChatTab(p: Props) {
         <For each={p.messages}>
           {(m, idx) => {
             const prev = idx() > 0 ? p.messages[idx() - 1] : null;
+            const showFrom = shouldShowFrom(prev?.from.memberKey, m.from.memberKey);
             const showTime = !prev || fmtTime(prev.ts) !== fmtTime(m.ts);
+            const isMine = m.from.memberKey === p.myMemberKey;
             return (
-              <div class={`kanade-chat-msg ${m.from.memberKey === p.myMemberKey ? 'mine' : ''}`}>
-                <div class="from">{m.from.displayName}{showTime ? ` · ${fmtTime(m.ts)}` : ''}</div>
-                <div class="text">{m.text}</div>
+              <div class={`kanade-chat-msg ${isMine ? 'mine' : ''}`}>
+                <Show when={showFrom}>
+                  <div class="kanade-chat-from">{m.from.displayName}{showTime ? ` · ${fmtTime(m.ts)}` : ''}</div>
+                </Show>
+                <div class="kanade-chat-bubble">{m.text}</div>
               </div>
             );
           }}
@@ -101,6 +100,7 @@ export function ChatTab(p: Props) {
               void send();
             }
           }}
+          placeholder="메시지 입력... (Enter 전송, Shift+Enter 줄바꿈)"
         />
       </div>
     </div>
@@ -109,5 +109,5 @@ export function ChatTab(p: Props) {
 
 function fmtTime(ts: number): string {
   const d = new Date(ts);
-  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+  return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
 }
