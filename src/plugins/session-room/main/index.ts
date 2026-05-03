@@ -28,16 +28,31 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   };
 
   const broadcastHostLoad = (args: { videoId: string }): void => {
+    // Sync the session window's URL guard before sending the IPC so that the
+    // host's own will-navigate (triggered by loadVideoById or a real navigation)
+    // sees the new URL and doesn't incorrectly route to the browse window.
+    sessionWinApi?.setSyncedUrl(`https://www.youtube.com/watch?v=${args.videoId}`);
     for (const w of BrowserWindow.getAllWindows()) {
       w.webContents.send('plugin:session-room:host.loadVideo', args);
     }
   };
 
-  let sessionWin: import('electron').BrowserWindow | null = null;
+  const routeToBrowse = (url: string): void => {
+    const browseWin = ctx.window;
+    if (!browseWin) return;
+    if (browseWin.isMinimized()) browseWin.restore();
+    browseWin.show();
+    browseWin.focus();
+    void browseWin.webContents.loadURL(url)
+      .catch((e) => console.warn('[session-room] routeToBrowse loadURL failed', e));
+  };
+
+  let sessionWinApi: { window: BrowserWindow; setSyncedUrl: (u: string) => void } | null = null;
+
   const openSessionWindow = (opts: { roomCode: string; initialUrl: string }) => {
-    sessionWin = createSessionWindow(opts);
-    sessionWin.on('closed', () => {
-      sessionWin = null;
+    sessionWinApi = createSessionWindow(opts, routeToBrowse);
+    sessionWinApi.window.on('closed', () => {
+      sessionWinApi = null;
       if (realtime.isConnected()) {
         void controller.leaveSession().catch((e) =>
           console.warn('[session-room] auto-leave on window close failed', e));
@@ -45,13 +60,20 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
     });
   };
   const closeSessionWindow = () => {
-    if (sessionWin) sessionWin.close();
-    sessionWin = null;
+    if (sessionWinApi) sessionWinApi.window.close();
+    sessionWinApi = null;
   };
 
   const controller = new RoomController({ store, realtime, openSessionWindow, closeSessionWindow });
   const queueMgr = new QueueManager({ store, broadcast: realtime.broadcast.bind(realtime), pushState: broadcastState });
   setupIpc({ ctx, controller, store, queue: queueMgr, realtime, pushState: broadcastState, broadcastHostLoad });
+
+  // Renderer click-interceptor (Task 5.1) sends this when the user clicks a
+  // YouTube link inside the session window. Route it to the browse window.
+  ctx.ipc.on('routeToBrowse', (args) => {
+    const { url } = args as { url: string };
+    routeToBrowse(url);
+  });
 
   let previousMemberKeys = new Set<string>();
   realtime.onPresence((members) => {
@@ -95,11 +117,14 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
           // Guest: load the host's video into the session window when videoId changes
           // (covers initial about:blank → host's video, and host track-change advances).
           if (!store.get().isHost
-              && sessionWin
+              && sessionWinApi
               && event.payload.videoId
               && event.payload.videoId !== prev?.videoId) {
             const url = `https://www.youtube.com/watch?v=${event.payload.videoId}`;
-            void sessionWin.webContents.loadURL(url)
+            // Sync the URL guard BEFORE calling loadURL so that the will-navigate
+            // event fired by this programmatic navigation is allowed through.
+            sessionWinApi.setSyncedUrl(url);
+            void sessionWinApi.window.webContents.loadURL(url)
               .catch((e) => console.warn('[session-room] guest session loadURL failed', e));
           }
           break;

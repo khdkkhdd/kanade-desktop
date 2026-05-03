@@ -1,6 +1,7 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, shell } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isYouTubeHost } from '../shared/is-youtube-host.js';
 
 // Self-defined __dirname (see src/index.ts for context — bundler shim disabled
 // when @supabase/supabase-js lands in main bundle).
@@ -11,7 +12,10 @@ export interface SessionWindowOptions {
   initialUrl: string;
 }
 
-export function createSessionWindow(opts: SessionWindowOptions): BrowserWindow {
+export function createSessionWindow(
+  opts: SessionWindowOptions,
+  routeToBrowse: (url: string) => void,
+): { window: BrowserWindow; setSyncedUrl: (u: string) => void } {
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -42,6 +46,30 @@ export function createSessionWindow(opts: SessionWindowOptions): BrowserWindow {
   win.on('page-title-updated', (e) => e.preventDefault());
 
   win.once('ready-to-show', () => win.show());
+
+  let currentSyncedUrl = opts.initialUrl;
+
+  win.webContents.on('will-navigate', (event, url) => {
+    if (url === currentSyncedUrl) return;
+    event.preventDefault();
+    routeToBrowse(url);
+  });
+
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const u = new URL(url);
+      if (isYouTubeHost(u.hostname)) {
+        routeToBrowse(url);
+      } else {
+        void shell.openExternal(url);
+      }
+    } catch {
+      // malformed URL — drop
+    }
+    return { action: 'deny' };
+  });
+
   win.loadURL(opts.initialUrl);
-  return win;
+
+  return { window: win, setSyncedUrl: (u) => { currentSyncedUrl = u; } };
 }
