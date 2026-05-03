@@ -205,13 +205,20 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
     const playerEl = document.querySelector('#movie_player') as
       | (HTMLElement & { getVideoData?: () => { title: string; author: string }; getDuration?: () => number })
       | null;
-    return playerEl?.getVideoData?.()
-      ? {
-          title: playerEl.getVideoData!().title,
-          channelName: playerEl.getVideoData!().author,
-          duration: playerEl.getDuration?.() ?? 0,
-        }
-      : { title: videoId, channelName: '', duration: 0 };
+    // The HTML5 <video>.duration becomes valid as soon as metadata loads and
+    // is more reliable than #movie_player.getDuration() across ad transitions
+    // and SPA hydration — getDuration() commonly returns 0 right after the
+    // user lands on a /watch URL even when playback has visibly started.
+    const videoEl = document.querySelector('video') as HTMLVideoElement | null;
+    const videoDuration = videoEl && Number.isFinite(videoEl.duration) && videoEl.duration > 0
+      ? Math.floor(videoEl.duration)
+      : 0;
+    const polymerDuration = playerEl?.getDuration?.() ?? 0;
+    const duration = videoDuration || polymerDuration;
+    const data = playerEl?.getVideoData?.();
+    return data
+      ? { title: data.title, channelName: data.author, duration }
+      : { title: videoId, channelName: '', duration };
   }
 
   async function addCurrentVideoToQueue(ctx: RendererContext): Promise<void> {

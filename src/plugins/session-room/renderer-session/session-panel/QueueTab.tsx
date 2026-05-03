@@ -38,7 +38,7 @@ export function QueueTab(p: QueueTabProps) {
             <div class="kanade-current-info">
               <div class="kanade-current-label">지금 재생</div>
               <div class="kanade-current-title">{c().videoTitle}</div>
-              <div class="kanade-current-meta">by {c().addedBy.displayName} · {fmt(c().videoDuration)}</div>
+              <div class="kanade-current-meta">by {c().addedBy.displayName}{c().videoDuration > 0 ? ` · ${fmt(c().videoDuration)}` : ''}</div>
             </div>
           </div>
         )}
@@ -50,7 +50,7 @@ export function QueueTab(p: QueueTabProps) {
               <div class="kanade-thumb-sm" style={{ 'background-image': `url(${thumbUrl(item.videoId)})` }} />
               <div class="kanade-queue-info">
                 <div class="kanade-queue-title">{item.videoTitle}</div>
-                <div class="kanade-queue-meta">by {item.addedBy.displayName} · {fmt(item.videoDuration)}</div>
+                <div class="kanade-queue-meta">by {item.addedBy.displayName}{item.videoDuration > 0 ? ` · ${fmt(item.videoDuration)}` : ''}</div>
               </div>
               <Show when={p.isHost}>
                 <button class="kanade-icon-btn" title="이 곡으로 점프" onClick={() => p.onSetCurrent(item.id)}>▶</button>
