@@ -6,6 +6,7 @@ import { AdBanner } from './ad-banner.jsx';
 import { setupHostPlayerSync } from './player-sync-host.js';
 import { setupGuestPlayerSync } from './player-sync-guest.js';
 import { observeAdState } from './ad-detector.js';
+import { setupClickInterceptor } from './click-interceptor.js';
 
 const STYLE = `
 .kanade-session-panel {
@@ -97,6 +98,10 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
 
   setupHostPlayerSync(ctx, () => state().isHost); // stop ignored — renderer lifetime
   setupGuestPlayerSync(ctx, () => state().isHost); // stop ignored — renderer lifetime
+  setupClickInterceptor(
+    (url) => ctx.ipc.send('routeToBrowse', { url }),
+    () => state().lastPlayerState?.videoId ?? null,
+  ); // stop ignored — renderer lifetime
 
   const [iAmInAd, setIAmInAd] = createSignal(false);
   observeAdState(setIAmInAd); // stop ignored — renderer lifetime
