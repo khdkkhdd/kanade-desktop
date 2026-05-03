@@ -11,6 +11,7 @@ import { setupIpc } from './ipc.js';
 import { toIpcState } from './state-projection.js';
 import { CATCHUP_BROADCAST_DELAY_MS, HOST_GRACE_MS } from '../shared/constants.js';
 import { HandoffManager } from './handoff-manager.js';
+import type { RealtimeStatus } from './realtime-client.js';
 import { isYouTubeHost } from '../shared/is-youtube-host.js';
 import { unwrapYouTubeRedirect } from '../shared/youtube-redirect.js';
 
@@ -28,6 +29,12 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
   const broadcastEvent = (event: unknown): void => {
     for (const w of BrowserWindow.getAllWindows()) {
       w.webContents.send('plugin:session-room:event', event);
+    }
+  };
+
+  const broadcastToast = (payload: { text: string; kind?: 'info' | 'warn' | 'error' }): void => {
+    for (const w of BrowserWindow.getAllWindows()) {
+      w.webContents.send('plugin:session-room:toast', payload);
     }
   };
 
@@ -227,6 +234,7 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
     broadcastState();
   });
 
+  let prevStatus: RealtimeStatus | null = null;
   realtime.onStatus((status) => {
     console.log(`[session-room] realtime status: ${status}`);
     if (status === 'DISCONNECTED') {
@@ -235,6 +243,17 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
       handoff.reset();
       broadcastState();
     }
+
+    // Connection toasts — only when in a session
+    if (store.get().room) {
+      if (status === 'DISCONNECTED' && prevStatus === 'CONNECTED') {
+        broadcastToast({ text: '연결 끊김. 재연결 시도 중…', kind: 'warn' });
+      }
+      if (status === 'CONNECTED' && prevStatus !== null && prevStatus !== 'CONNECTED') {
+        broadcastToast({ text: '연결 복구됨', kind: 'info' });
+      }
+    }
+    prevStatus = status;
   });
 
   console.log('[session-room] main plugin initialized');

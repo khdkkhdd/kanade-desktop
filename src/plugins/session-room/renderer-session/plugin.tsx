@@ -8,6 +8,7 @@ import { setupGuestPlayerSync } from './player-sync-guest.js';
 import { observeAdState } from './ad-detector.js';
 import { setupClickInterceptor } from './click-interceptor.js';
 import { disableAutoplay } from './autoplay-disable.js';
+import { mountToastContainer, showToast, type ToastKind } from '../renderer-shared/toast.jsx';
 
 const STYLE = `
 .kanade-session-panel {
@@ -102,20 +103,45 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
   styleEl.textContent = STYLE;
   document.head.appendChild(styleEl);
 
+  mountToastContainer();
+
   const root = document.createElement('div');
   document.body.appendChild(root);
 
-  let bootstrapped = false;
+  type IpcMember = { memberKey: string; displayName: string; isHost: boolean };
+  type IpcStateRaw = Record<string, unknown> & { room?: unknown; members?: IpcMember[] };
+
+  let prevRaw: IpcStateRaw | null = null;
   const [state, setState] = createSignal<PanelState>(toPanelState({}));
 
   ctx.ipc.on('state-changed', (s) => {
-    bootstrapped = true;
-    setState(toPanelState(s as Record<string, unknown>));
+    const raw = s as IpcStateRaw;
+
+    // Diff against previous state (skip on first bootstrap)
+    if (prevRaw !== null) {
+      const prevHost = (prevRaw.members ?? []).find((m) => m.isHost);
+      const newHost = (raw.members ?? []).find((m) => m.isHost);
+      if (prevHost && newHost && prevHost.memberKey !== newHost.memberKey) {
+        showToast(`Host 가 ${newHost.displayName} 로 변경되었습니다`, 'info');
+      }
+      if (prevRaw.room && !raw.room) {
+        showToast('세션이 종료되었습니다', 'warn');
+      }
+    }
+    prevRaw = raw;
+
+    setState(toPanelState(raw));
+  });
+
+  ctx.ipc.on('toast', (p) => {
+    const payload = p as { text: string; kind?: ToastKind };
+    showToast(payload.text, payload.kind ?? 'info');
   });
 
   void ctx.ipc.invoke('getState').then(
     (s) => {
-      if (bootstrapped) return;
+      if (prevRaw !== null) return; // state-changed arrived first
+      prevRaw = s as IpcStateRaw;
       setState(toPanelState(s as Record<string, unknown>));
     },
     (e) => console.warn('[session-room] getState failed', e),

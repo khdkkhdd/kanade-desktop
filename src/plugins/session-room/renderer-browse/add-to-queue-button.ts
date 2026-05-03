@@ -1,4 +1,5 @@
 import type { RendererContext } from '../../../types/plugins.js';
+import { showToast } from '../renderer-shared/toast.jsx';
 
 const VIDEO_RE = /(?:youtube\.com\/(?:watch\?v=|shorts\/))([\w-]{11})/;
 
@@ -35,15 +36,23 @@ export function setupAddToQueueButtons(ctx: RendererContext, sessionActive: () =
       ev.stopPropagation();
       try {
         const meta = await fetchVideoMeta(videoId);
-        const r = await ctx.ipc.invoke('queue.add', {
+        await ctx.ipc.invoke('queue.add', {
           videoId,
           videoTitle: meta.title,
           channelName: meta.channelName,
           videoDuration: meta.duration,
         });
-        console.log('[session-room] queued', r);
+        showToast('큐에 추가됨', 'info');
       } catch (e) {
-        console.warn('[session-room] queue.add failed', e);
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.startsWith('rate-limit:')) {
+          const remainingMs = parseInt(msg.slice('rate-limit:'.length), 10) || 0;
+          const seconds = Math.ceil(remainingMs / 1000);
+          showToast(`${seconds}초 후 다시 추가할 수 있습니다`, 'warn');
+        } else {
+          showToast('큐 추가 실패', 'error');
+          console.warn('[session-room] queue.add failed', e);
+        }
       }
     });
 

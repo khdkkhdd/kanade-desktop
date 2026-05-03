@@ -6,6 +6,7 @@ import { CreateDialog, JoinDialog } from './dialogs.jsx';
 import { SessionBanner } from './session-banner.jsx';
 import { setupAddToQueueButtons } from './add-to-queue-button.js';
 import { setupMuteMutex } from './mute-mutex.js';
+import { mountToastContainer, showToast, type ToastKind } from '../renderer-shared/toast.jsx';
 
 const STYLE = `
 .kanade-banner {
@@ -39,6 +40,8 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   const styleEl = document.createElement('style');
   styleEl.textContent = STYLE;
   document.head.appendChild(styleEl);
+
+  mountToastContainer();
 
   const root = document.createElement('div');
   root.id = 'kanade-session-overlay';
@@ -82,10 +85,28 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
     void Promise.all([refreshDisplayName(), tryReadClipboard()]).then(() => setJoinOpen(true));
   });
 
-  let bootstrapped = false;
+  type IpcMember = { memberKey: string; displayName: string; isHost: boolean };
+  type IpcState = { room: unknown; members?: IpcMember[] };
+
+  let prevState: IpcState | null = null;
   ctx.ipc.on('state-changed', (state) => {
-    bootstrapped = true;
-    const s = state as { room: unknown; members?: Array<{ displayName: string; isHost: boolean }> };
+    const s = state as IpcState;
+
+    // Diff against previous state (skip on first bootstrap)
+    if (prevState !== null) {
+      const prevHost = (prevState.members ?? []).find((m) => m.isHost);
+      const newHost = (s.members ?? []).find((m) => m.isHost);
+      // Host changed: both exist and memberKey differs
+      if (prevHost && newHost && prevHost.memberKey !== newHost.memberKey) {
+        showToast(`Host 가 ${newHost.displayName} 로 변경되었습니다`, 'info');
+      }
+      // Session closed: previous room was non-null, new room is null
+      if (prevState.room && !s.room) {
+        showToast('세션이 종료되었습니다', 'warn');
+      }
+    }
+    prevState = s;
+
     setSessionActive(!!s.room);
     const members = s.members ?? [];
     const host = members.find((m) => m.isHost);
@@ -93,10 +114,16 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
     setMemberCount(members.length);
   });
 
+  ctx.ipc.on('toast', (p) => {
+    const payload = p as { text: string; kind?: ToastKind };
+    showToast(payload.text, payload.kind ?? 'info');
+  });
+
   void ctx.ipc.invoke('getState').then(
     (state) => {
-      if (bootstrapped) return;
-      const s = state as { room: unknown; members?: Array<{ displayName: string; isHost: boolean }> };
+      if (prevState !== null) return; // state-changed arrived first
+      const s = state as IpcState;
+      prevState = s;
       setSessionActive(!!s.room);
       const members = s.members ?? [];
       const host = members.find((m) => m.isHost);
