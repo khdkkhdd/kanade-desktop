@@ -264,7 +264,7 @@ function installAppMenu(getMainWin: () => BrowserWindow | null): void {
           id: 'session-add-current',
           label: '세션에 현재 영상 추가',
           enabled: false,
-          accelerator: process.platform === 'darwin' ? 'Cmd+Shift+Q' : 'Ctrl+Shift+Q',
+          accelerator: process.platform === 'darwin' ? 'Cmd+Shift+A' : 'Ctrl+Shift+A',
           click: () => {
             const main = getMainWin();
             main?.webContents.send('plugin:session-room:add-current-video');
