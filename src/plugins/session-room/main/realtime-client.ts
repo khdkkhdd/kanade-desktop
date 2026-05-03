@@ -142,6 +142,11 @@ export class RealtimeClient {
     };
   }
 
+  /**
+   * Tears down the channel and clears tracked presence. Listener subscriptions
+   * (onEvent / onPresence / onStatus) survive disconnect — they are registered
+   * once per process and re-fire on the next connect().
+   */
   async disconnect(): Promise<void> {
     if (!this.channel) return;
     try {
@@ -152,9 +157,6 @@ export class RealtimeClient {
     await this.supabase.removeChannel(this.channel);
     this.channel = null;
     this.currentTrack = null;
-    this.eventListeners = [];
-    this.presenceListeners = [];
-    this.statusListeners = [];
   }
 
   isConnected(): boolean {

@@ -129,6 +129,9 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
 
   realtime.onStatus((status) => {
     console.log(`[session-room] realtime status: ${status}`);
+    if (status === 'DISCONNECTED') {
+      previousMemberKeys = new Set();
+    }
   });
 
   console.log('[session-room] main plugin initialized');
