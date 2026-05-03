@@ -62,6 +62,28 @@ const STYLE = `
   border-radius: 4px;
   z-index: 10000;
 }
+.kanade-chat { display: flex; flex-direction: column; height: 100%; flex: 1; min-height: 0; position: relative; }
+.kanade-chat-list { flex: 1; overflow-y: auto; padding: 8px; min-height: 0; }
+.kanade-chat-msg { margin-bottom: 6px; }
+.kanade-chat-msg.mine { text-align: right; color: #5a3fff; }
+.kanade-chat-msg .from { font-size: 10px; color: #888; }
+.kanade-chat-msg .text { font-size: 13px; }
+.kanade-chat-input { padding: 8px; border-top: 1px solid #333; }
+.kanade-chat-input input { width: 100%; background: #2a2a2a; border: none; padding: 6px; color: #fff; }
+.kanade-chat-newbadge {
+  position: absolute;
+  bottom: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #5a3fff;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 4px 12px;
+  font-size: 11px;
+  cursor: pointer;
+  z-index: 1;
+}
 `;
 
 export async function setupSessionRenderer(ctx: RendererContext): Promise<void> {
@@ -136,5 +158,6 @@ function toPanelState(raw: Record<string, unknown>): PanelState {
     permission: (raw.permission as PanelState['permission']) ?? 'playlist',
     roomCode: ((raw.room as { code?: string } | null)?.code) ?? '',
     lastPlayerState: (raw.lastPlayerState as PanelState['lastPlayerState']) ?? null,
+    chatMessages: (raw.chatMessages as PanelState['chatMessages']) ?? [],
   };
 }

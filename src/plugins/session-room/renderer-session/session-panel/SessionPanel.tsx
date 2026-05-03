@@ -1,7 +1,8 @@
 import { createSignal, For, Show } from 'solid-js';
 import type { RendererContext } from '../../../../types/plugins.js';
-import type { QueueItem, ItemId, PermissionMode, MemberKey, Member, PlayerState } from '../../shared/types.js';
+import type { QueueItem, ItemId, PermissionMode, MemberKey, Member, PlayerState, ChatMessage } from '../../shared/types.js';
 import { QueueTab } from './QueueTab.jsx';
+import { ChatTab } from './ChatTab.jsx';
 
 export interface PanelState {
   queue: QueueItem[];
@@ -12,6 +13,7 @@ export interface PanelState {
   permission: PermissionMode;
   roomCode: string;
   lastPlayerState: PlayerState | null;
+  chatMessages: ChatMessage[];
 }
 
 export function SessionPanel(props: { ctx: RendererContext; state: () => PanelState }) {
@@ -45,7 +47,7 @@ export function SessionPanel(props: { ctx: RendererContext; state: () => PanelSt
           />
         </Show>
         <Show when={tab() === 'chat'}>
-          <div>채팅 (PR6)</div>
+          <ChatTab ctx={props.ctx} messages={props.state().chatMessages} myMemberKey={props.state().myMemberKey} />
         </Show>
         <div class="kanade-presence">
           <For each={props.state().members}>
