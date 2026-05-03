@@ -4,6 +4,7 @@ import { createSignal } from 'solid-js';
 import type { RendererContext } from '../../../types/plugins.js';
 import { CreateDialog, JoinDialog } from './dialogs.jsx';
 import { setupAddToQueueButtons } from './add-to-queue-button.js';
+import { setupMuteMutex } from './mute-mutex.js';
 
 export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   if ((window as unknown as { kanadeMode?: string }).kanadeMode === 'session') {
@@ -73,6 +74,7 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   );
 
   setupAddToQueueButtons(ctx, sessionActive);
+  setupMuteMutex(sessionActive); // stop ignored — renderer lifetime
 
   function getCurrentVideoId(): string | null {
     const m = location.href.match(/[?&]v=([\w-]{11})/);
