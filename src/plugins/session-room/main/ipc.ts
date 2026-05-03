@@ -24,12 +24,16 @@ export function setupIpc(deps: IpcDeps): void {
 
   ctx.ipc.handle('create', async (args) => {
     const a = args as { displayName: string; initialVideoId: string | null };
-    return controller.createSession(a);
+    const r = await controller.createSession(a);
+    pushState(); // immediate menu/UI sync — don't wait for first onPresence
+    return r;
   });
 
   ctx.ipc.handle('join', async (args) => {
     const a = args as { roomCode: string; displayName: string };
-    return controller.joinSession(a);
+    const r = await controller.joinSession(a);
+    pushState();
+    return r;
   });
 
   ctx.ipc.handle('leave', async () => {

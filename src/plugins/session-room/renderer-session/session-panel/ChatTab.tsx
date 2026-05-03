@@ -1,6 +1,7 @@
 import { createSignal, For, Show, createEffect } from 'solid-js';
 import type { ChatMessage, MemberKey } from '../../shared/types.js';
 import type { RendererContext } from '../../../../types/plugins.js';
+import { showToast } from '../../renderer-shared/toast.jsx';
 
 interface Props {
   ctx: RendererContext;
@@ -59,7 +60,12 @@ export function ChatTab(p: Props) {
     setShowNewBadge(false);
     // defer until <For> flushes new <div> so scrollHeight reflects the new message
     queueMicrotask(() => { if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight; });
-    await p.ctx.ipc.invoke('chat.send', { text: t });
+    try {
+      await p.ctx.ipc.invoke('chat.send', { text: t });
+    } catch (e) {
+      console.warn('[session-room] chat.send failed', e);
+      showToast('메시지 전송 실패', 'error');
+    }
   };
 
   return (

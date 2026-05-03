@@ -89,6 +89,14 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   type IpcState = { room: { code?: string } | null; members?: IpcMember[] };
 
   let prevState: IpcState | null = null;
+  let selfLeaving = false; // suppress "session closed" toast on user-initiated leave
+  const initiateLeave = (): void => {
+    selfLeaving = true;
+    void ctx.ipc.invoke('leave').catch((e) => {
+      selfLeaving = false; // leave didn't actually happen — re-arm toast
+      console.warn('[session-room] leave failed', e);
+    });
+  };
   const [roomCode, setRoomCode] = createSignal('');
   ctx.ipc.on('state-changed', (state) => {
     const s = state as IpcState;
@@ -101,9 +109,14 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
       if (prevHost && newHost && prevHost.memberKey !== newHost.memberKey) {
         showToast(`Host 가 ${newHost.displayName} 로 변경되었습니다`, 'info');
       }
-      // Session closed: previous room was non-null, new room is null
+      // Session closed: previous room was non-null, new room is null.
+      // Skip if the user themselves clicked Leave — only externally-induced
+      // session ends should trigger the toast.
       if (prevState.room && !s.room) {
-        showToast('세션이 종료되었습니다', 'warn');
+        if (!selfLeaving) {
+          showToast('세션이 종료되었습니다', 'warn');
+        }
+        selfLeaving = false;
       }
     }
     prevState = s;
@@ -134,7 +147,7 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
     ctx.ipc.send('showSessionWindow');
   });
   ctx.ipc.on('leave', () => {
-    void ctx.ipc.invoke('leave').catch((e) => console.warn('[session-room] leave failed', e));
+    initiateLeave();
   });
 
   ctx.ipc.on('toast', (p) => {
@@ -171,9 +184,7 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
         hostName={hostName()}
         memberCount={memberCount()}
         onShowSession={() => ctx.ipc.send('showSessionWindow')}
-        onLeave={() => {
-          void ctx.ipc.invoke('leave').catch((e) => console.warn('[session-room] leave failed', e));
-        }}
+        onLeave={initiateLeave}
       />
       <CreateDialog
         open={createOpen()}

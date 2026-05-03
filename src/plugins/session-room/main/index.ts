@@ -24,10 +24,15 @@ export async function setupSessionRoomMain(ctx: BackendContext, options?: Sessio
   const realtime = new RealtimeClient();
 
   let prevActive = false;
+  let prevStatus: RealtimeStatus | null = null;
 
   const notifyActiveChange = (): void => {
     const active = !!store.get().room;
     if (active !== prevActive) {
+      // Entering a new room: clear connection-status closure so a stale
+      // 'DISCONNECTED' from the previous session doesn't trigger a spurious
+      // "연결 복구됨" toast on the first CONNECTED of the new session.
+      if (active) prevStatus = null;
       prevActive = active;
       options?.onSessionActiveChange?.(active);
     }
@@ -249,7 +254,6 @@ export async function setupSessionRoomMain(ctx: BackendContext, options?: Sessio
     broadcastState();
   });
 
-  let prevStatus: RealtimeStatus | null = null;
   realtime.onStatus((status) => {
     console.log(`[session-room] realtime status: ${status}`);
     if (status === 'DISCONNECTED') {
