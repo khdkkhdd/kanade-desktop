@@ -1,6 +1,7 @@
 // src/plugins/session-room/main/index.ts
 import { BrowserWindow } from 'electron';
 import type { BackendContext } from '../../../types/plugins.js';
+import { isSafeWebUrl } from '../../../lib/url-guard.js';
 import { SessionStateStore } from './session-state.js';
 import { RealtimeClient } from './realtime-client.js';
 import { RoomController } from './room-controller.js';
@@ -39,7 +40,11 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
 
   const routeToBrowse = (url: string): void => {
     const browseWin = ctx.window;
-    if (!browseWin) return;
+    if (!browseWin || browseWin.isDestroyed()) return;
+    if (!isSafeWebUrl(url)) {
+      console.warn('[session-room] routeToBrowse refused unsafe URL:', url);
+      return;
+    }
     if (browseWin.isMinimized()) browseWin.restore();
     browseWin.show();
     browseWin.focus();

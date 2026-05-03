@@ -2,6 +2,7 @@ import { BrowserWindow, shell } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isYouTubeHost } from '../shared/is-youtube-host.js';
+import { urlsMatchAsSync } from '../shared/url-match.js';
 
 // Self-defined __dirname (see src/index.ts for context — bundler shim disabled
 // when @supabase/supabase-js lands in main bundle).
@@ -50,7 +51,7 @@ export function createSessionWindow(
   let currentSyncedUrl = opts.initialUrl;
 
   win.webContents.on('will-navigate', (event, url) => {
-    if (url === currentSyncedUrl) return;
+    if (urlsMatchAsSync(url, currentSyncedUrl)) return;
     event.preventDefault();
     routeToBrowse(url);
   });
@@ -60,9 +61,10 @@ export function createSessionWindow(
       const u = new URL(url);
       if (isYouTubeHost(u.hostname)) {
         routeToBrowse(url);
-      } else {
+      } else if (u.protocol === 'http:' || u.protocol === 'https:') {
         void shell.openExternal(url);
       }
+      // else: drop silently (file:, javascript:, data:, custom-protocol popups never reach the OS)
     } catch {
       // malformed URL — drop
     }
