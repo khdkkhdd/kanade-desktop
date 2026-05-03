@@ -2,6 +2,7 @@
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
 import type { RendererContext } from '../../../types/plugins.js';
+import type { QueueItem } from '../shared/types.js';
 import { CreateDialog, JoinDialog } from './dialogs.jsx';
 import { SessionBanner } from './session-banner.jsx';
 import { setupAddToQueueButtons } from './add-to-queue-button.js';
@@ -200,23 +201,26 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
     });
   };
 
-  async function addCurrentVideoToQueue(ctx: RendererContext): Promise<void> {
-    const m = location.href.match(/[?&]v=([\w-]{11})/);
-    if (!m) {
-      showToast('영상 정보를 찾을 수 없습니다', 'warn');
-      return;
-    }
-    const videoId = m[1];
+  function readWatchPagePlayerMeta(videoId: string): { title: string; channelName: string; duration: number } {
     const playerEl = document.querySelector('#movie_player') as
       | (HTMLElement & { getVideoData?: () => { title: string; author: string }; getDuration?: () => number })
       | null;
-    const meta = playerEl?.getVideoData?.()
+    return playerEl?.getVideoData?.()
       ? {
           title: playerEl.getVideoData!().title,
           channelName: playerEl.getVideoData!().author,
           duration: playerEl.getDuration?.() ?? 0,
         }
       : { title: videoId, channelName: '', duration: 0 };
+  }
+
+  async function addCurrentVideoToQueue(ctx: RendererContext): Promise<void> {
+    const videoId = getCurrentVideoId();
+    if (!videoId) {
+      showToast('영상 정보를 찾을 수 없습니다', 'warn');
+      return;
+    }
+    const meta = readWatchPagePlayerMeta(videoId);
 
     try {
       await ctx.ipc.invoke('queue.add', {
@@ -238,6 +242,28 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
         showToast('큐 추가 실패', 'error');
         console.warn('[session-room] queue.add (current) failed', e);
       }
+    }
+  }
+
+  // Add the watch-page video to the queue and immediately promote it as the
+  // session's "지금 재생". Used right after createSession when the host started
+  // the session from a /watch URL — without this, the session has an empty
+  // queue and the panel's "지금 재생" card stays hidden until the host manually
+  // adds and ▶s a song.
+  async function promoteInitialVideo(ctx: RendererContext, videoId: string): Promise<void> {
+    const meta = readWatchPagePlayerMeta(videoId);
+    try {
+      const item = (await ctx.ipc.invoke('queue.add', {
+        videoId,
+        videoTitle: meta.title,
+        channelName: meta.channelName,
+        videoDuration: meta.duration,
+      })) as QueueItem;
+      await ctx.ipc.invoke('queue.setCurrent', { itemId: item.id });
+    } catch (e) {
+      // Session is already created — failure here just means no auto-promote.
+      // User can still add manually afterward.
+      console.warn('[session-room] initial video promote failed', e);
     }
   }
 
@@ -328,10 +354,14 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
         onClose={() => setCreateOpen(false)}
         defaultDisplayName={defaultName()}
         onSubmit={async (a) => {
+          const initialVideoId = getCurrentVideoId();
           await ctx.ipc.invoke('create', {
             displayName: a.displayName,
-            initialVideoId: getCurrentVideoId(),
+            initialVideoId,
           });
+          if (initialVideoId) {
+            await promoteInitialVideo(ctx, initialVideoId);
+          }
         }}
       />
       <JoinDialog
