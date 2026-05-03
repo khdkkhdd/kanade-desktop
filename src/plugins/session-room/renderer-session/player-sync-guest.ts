@@ -49,15 +49,36 @@ export function setupGuestPlayerSync(ctx: RendererContext, isHost: () => boolean
       dbg(`apply skip: video mismatch (mine=${myVideoId}, host=${event.videoId})`);
       return;
     }
+
+    const wasPlaying = !videoEl.paused && !videoEl.ended;
+    const stateChanged = wasPlaying !== event.isPlaying;
+
     if (event.isPlaying) {
       const target = expectedHostPosition(event, Date.now());
-      videoEl.currentTime = target;
-      void videoEl.play().catch((e) => dbg(`play() rejected: ${String(e)}`));
-      dbg(`apply play target=${target}`);
+      const drift = videoEl.currentTime - target;
+      // Apply seek only on real transitions (play↔pause toggle, track change)
+      // or when drift is large enough to be noticeable. Small drifts on the
+      // host's natural 'playing' / unrelated events would otherwise jitter
+      // playback every time. The 30s DRIFT_CHECK heartbeat catches anything
+      // we let slide here.
+      if (stateChanged || Math.abs(drift) > DRIFT_CORRECT_THRESHOLD_S) {
+        videoEl.currentTime = target;
+        dbg(`apply play target=${target} drift=${drift.toFixed(2)} (${stateChanged ? 'state-changed' : 'drift>thresh'})`);
+      } else {
+        dbg(`apply play noop drift=${drift.toFixed(2)} within threshold`);
+      }
+      if (!wasPlaying) {
+        void videoEl.play().catch((e) => dbg(`play() rejected: ${String(e)}`));
+      }
     } else {
-      videoEl.currentTime = event.position;
-      videoEl.pause();
-      dbg(`apply pause at ${event.position}`);
+      const drift = videoEl.currentTime - event.position;
+      if (stateChanged || Math.abs(drift) > DRIFT_CORRECT_THRESHOLD_S) {
+        videoEl.currentTime = event.position;
+        dbg(`apply pause at ${event.position} drift=${drift.toFixed(2)}`);
+      } else {
+        dbg(`apply pause noop drift=${drift.toFixed(2)} within threshold`);
+      }
+      if (wasPlaying) videoEl.pause();
     }
   };
 
