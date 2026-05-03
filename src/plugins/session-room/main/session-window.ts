@@ -53,7 +53,17 @@ export function createSessionWindow(
   win.webContents.on('will-navigate', (event, url) => {
     if (urlsMatchAsSync(url, currentSyncedUrl)) return;
     event.preventDefault();
-    routeToBrowse(url);
+    try {
+      const u = new URL(url);
+      if (isYouTubeHost(u.hostname)) {
+        routeToBrowse(url);
+      } else if (u.protocol === 'http:' || u.protocol === 'https:') {
+        void shell.openExternal(url);
+      }
+      // else: drop silently (file:, javascript:, etc.)
+    } catch {
+      // malformed URL — drop
+    }
   });
 
   win.webContents.setWindowOpenHandler(({ url }) => {

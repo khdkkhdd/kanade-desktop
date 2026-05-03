@@ -15,4 +15,10 @@ describe('shouldInterceptClick', () => {
   it('does not intercept current synced URL', () => {
     expect(shouldInterceptClick('https://www.youtube.com/watch?v=abc', 'abc')).toBe(false);
   });
+  it('does not intercept youtube lookalike domains', () => {
+    expect(shouldInterceptClick('https://evilyoutube.com/watch?v=abc')).toBe(false);
+  });
+  it('intercepts youtu.be shortener links', () => {
+    expect(shouldInterceptClick('https://youtu.be/abc123')).toBe(true);
+  });
 });

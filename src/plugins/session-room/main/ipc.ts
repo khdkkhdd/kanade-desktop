@@ -33,6 +33,7 @@ export function setupIpc(deps: IpcDeps): void {
 
   ctx.ipc.handle('leave', async () => {
     await controller.leaveSession();
+    pushState();
     return {};
   });
 

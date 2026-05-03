@@ -68,9 +68,9 @@ export class RoomController {
   }
 
   async leaveSession(): Promise<void> {
+    this.deps.store.reset();
     await this.deps.realtime.disconnect();
     this.deps.closeSessionWindow();
-    this.deps.store.reset();
   }
 
   private fallbackName(memberKey: MemberKey): string {

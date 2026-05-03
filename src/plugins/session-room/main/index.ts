@@ -170,6 +170,7 @@ export async function setupSessionRoomMain(ctx: BackendContext): Promise<void> {
     console.log(`[session-room] realtime status: ${status}`);
     if (status === 'DISCONNECTED') {
       previousMemberKeys = new Set();
+      broadcastState();
     }
   });
 

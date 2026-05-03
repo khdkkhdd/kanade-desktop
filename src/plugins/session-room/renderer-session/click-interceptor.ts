@@ -1,7 +1,9 @@
+import { isYouTubeHost } from '../shared/is-youtube-host.js';
+
 export function shouldInterceptClick(href: string, currentVideoId?: string): boolean {
   let url: URL;
   try { url = new URL(href); } catch { return false; }
-  if (!url.hostname.endsWith('youtube.com')) return false;
+  if (!isYouTubeHost(url.hostname)) return false;
   if (currentVideoId && url.pathname === '/watch' && url.searchParams.get('v') === currentVideoId) return false;
   return true;
 }
