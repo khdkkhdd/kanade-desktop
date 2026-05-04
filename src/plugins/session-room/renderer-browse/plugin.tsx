@@ -83,7 +83,7 @@ const STYLE = `
   position: absolute;
   top: 4px;
   left: 4px;
-  z-index: 100;
+  z-index: 2147483647;
   padding: 4px 10px 4px 6px;
   background: rgba(0,0,0,0.85);
   color: #fff;
