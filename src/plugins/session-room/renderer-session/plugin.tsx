@@ -512,6 +512,7 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
 
   // R4: window blur closes PEEK immediately (PINNED stays).
   window.addEventListener('blur', () => panel.windowBlur());
+  // no cleanup — renderer lifetime
 
   // Cmd+Shift+P (mac) / Ctrl+Shift+P (Win/Linux) toggles pin.
   // CLOSED → PINNED, PEEK → PINNED (promote), PINNED → CLOSED.
