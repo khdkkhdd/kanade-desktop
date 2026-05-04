@@ -72,19 +72,21 @@ describe('findCardHosts', () => {
     return els.map((e) => e.tagName.toLowerCase());
   }
 
-  it('returns the nearest custom-element ancestor when sole card-level host', () => {
-    // Homepage rich-grid: yt-lockup-view-model is display:contents so it's
-    // skipped; ytd-rich-item-renderer is the per-card box. Climb stops there
-    // because its parent is ytd-rich-grid-row (custom — list container).
+  it('stops at ytd-rich-item-renderer when siblings of same tag exist (homepage)', () => {
+    // Homepage rich-grid: yt-lockup-view-model is display:contents so skipped.
+    // ytd-rich-item-renderer is one of many siblings in its row, so it's the
+    // card-level boundary. Climbing past would leak hover across cards.
     const doc = makeDoc(`
       <ytd-rich-grid-row>
-        <ytd-rich-item-renderer>
+        <ytd-rich-item-renderer id="target">
           <yt-lockup-view-model style="display: contents">
             <div class="parent">
               <a href="/watch?v=X"><img></a>
             </div>
           </yt-lockup-view-model>
         </ytd-rich-item-renderer>
+        <ytd-rich-item-renderer><div></div></ytd-rich-item-renderer>
+        <ytd-rich-item-renderer><div></div></ytd-rich-item-renderer>
       </ytd-rich-grid-row>
     `);
     const a = doc.querySelector('a') as HTMLAnchorElement;
@@ -93,20 +95,24 @@ describe('findCardHosts', () => {
       .toEqual(['ytd-rich-item-renderer']);
   });
 
-  it('returns inner + outer when card has nested custom-element wrappers', () => {
-    // Search lockup: ytd-video-renderer (outer) > #dismissible (div) >
-    // ytd-thumbnail (inner) > a. Both inner and outer are card-level hosts;
-    // marking only inner leaves text-area hover dead.
+  it('returns inner + outer through non-custom slot, stopping at sibling list (search)', () => {
+    // Real YouTube search wraps cards inside Polymer slot divs, which are
+    // non-custom intermediates between ytd-video-renderer and the section
+    // list. The sibling-tag rule stops correctly even through these slots.
     const doc = makeDoc(`
       <ytd-item-section-renderer>
-        <ytd-video-renderer>
-          <div id="dismissible">
-            <ytd-thumbnail>
-              <a href="/watch?v=X"><img></a>
-            </ytd-thumbnail>
-            <div class="text-wrapper">title here</div>
-          </div>
-        </ytd-video-renderer>
+        <div id="contents">
+          <ytd-video-renderer>
+            <div id="dismissible">
+              <ytd-thumbnail>
+                <a href="/watch?v=X"><img></a>
+              </ytd-thumbnail>
+              <div class="text-wrapper">title here</div>
+            </div>
+          </ytd-video-renderer>
+          <ytd-video-renderer><div></div></ytd-video-renderer>
+          <ytd-video-renderer><div></div></ytd-video-renderer>
+        </div>
       </ytd-item-section-renderer>
     `);
     const a = doc.querySelector('a') as HTMLAnchorElement;
@@ -115,18 +121,43 @@ describe('findCardHosts', () => {
       .toEqual(['ytd-thumbnail', 'ytd-video-renderer']);
   });
 
-  it('returns yt-lockup-view-model when it has a real layout box and no further custom ancestor', () => {
+  it('returns yt-lockup-view-model alone when its siblings are also yt-lockup (sidebar)', () => {
+    // Related-videos sidebar: each yt-lockup-view-model is its own card,
+    // and it has same-tag siblings, so it stops there.
     const doc = makeDoc(`
-      <yt-lockup-view-model>
-        <div class="parent">
-          <a href="/watch?v=X"><img></a>
-        </div>
-      </yt-lockup-view-model>
+      <ytd-watch-next-secondary-results-renderer>
+        <yt-lockup-view-model>
+          <div class="parent">
+            <a href="/watch?v=X"><img></a>
+          </div>
+        </yt-lockup-view-model>
+        <yt-lockup-view-model><div></div></yt-lockup-view-model>
+      </ytd-watch-next-secondary-results-renderer>
     `);
     const a = doc.querySelector('a') as HTMLAnchorElement;
     const parent = a.parentElement as Element;
     expect(names(findCardHosts(parent, doc.defaultView as Window)))
       .toEqual(['yt-lockup-view-model']);
+  });
+
+  it('continues climbing when current host has no sibling of same tag', () => {
+    // If a card-level element is alone in its parent (single result page,
+    // unusual but possible), the rule keeps climbing. This is acceptable
+    // degraded behavior — there are no other cards to leak hover into.
+    const doc = makeDoc(`
+      <ytd-item-section-renderer>
+        <ytd-video-renderer>
+          <ytd-thumbnail>
+            <a href="/watch?v=X"><img></a>
+          </ytd-thumbnail>
+        </ytd-video-renderer>
+      </ytd-item-section-renderer>
+    `);
+    const a = doc.querySelector('a') as HTMLAnchorElement;
+    const parent = a.parentElement as Element;
+    // No siblings anywhere — climbs all the way up.
+    expect(names(findCardHosts(parent, doc.defaultView as Window)))
+      .toEqual(['ytd-thumbnail', 'ytd-video-renderer', 'ytd-item-section-renderer']);
   });
 
   it('returns empty array + warns when no custom-element ancestor exists', () => {

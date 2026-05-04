@@ -49,10 +49,11 @@ export function isWrapperAnchor(a: HTMLAnchorElement): boolean {
  * - custom elements with `display: contents` (e.g., homepage's
  *   yt-lockup-view-model) — no box, so they're not visual targets; climb past
  *
- * Stop rule: after marking, stop when the next ancestor is itself a
- * custom-element. This means we've crossed from the card's internal scope
- * into a list/section container (e.g., ytd-rich-grid-row, ytd-item-section-
- * renderer); marking those would leak hover across cards.
+ * Stop rule: after marking, stop when the marked element has a sibling with
+ * the same tagName. That signals "this is one item in a list of cards" — the
+ * parent is a list container (ytd-rich-grid-row, ytd-section-list-renderer's
+ * div#contents slot, etc.), and marking past this point would leak hover
+ * across cards.
  *
  * Returns an empty array when no suitable ancestor exists; emits a warnOnce
  * signal so a silent layout regression is visible in the console.
@@ -64,7 +65,7 @@ export function findCardHosts(parent: Element, win: Window = window): Element[] 
     if (cur.tagName.includes('-') &&
         win.getComputedStyle(cur).display !== 'contents') {
       hosts.push(cur);
-      if (cur.parentElement?.tagName.includes('-')) break;
+      if (hasSiblingWithSameTag(cur)) break;
     }
     cur = cur.parentElement;
   }
@@ -75,4 +76,14 @@ export function findCardHosts(parent: Element, win: Window = window): Element[] 
     );
   }
   return hosts;
+}
+
+function hasSiblingWithSameTag(el: Element): boolean {
+  const parent = el.parentElement;
+  if (!parent) return false;
+  const tag = el.tagName;
+  for (const sib of parent.children) {
+    if (sib !== el && sib.tagName === tag) return true;
+  }
+  return false;
 }
