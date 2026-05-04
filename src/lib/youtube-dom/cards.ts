@@ -33,31 +33,46 @@ export function isWrapperAnchor(a: HTMLAnchorElement): boolean {
 }
 
 /**
- * Finds the nearest custom-element ancestor that has a real layout box —
- * the element our hover detector toggles `.kanade-card-host` on.
+ * Finds every custom-element ancestor with a real layout box that should be
+ * treated as a card-hover target — innermost (e.g., ytd-thumbnail) up to the
+ * outermost per-card container (e.g., ytd-video-renderer in search).
  *
- * Two ancestor types must be skipped:
- * - non-custom elements (plain divs etc.) — CSS class mark wouldn't survive
- *   YouTube's component re-renders
- * - custom elements with `display: contents` (e.g., the homepage's
- *   yt-lockup-view-model) — they have no box, so visual hover area would be
- *   wrong; climb past to a real-box ancestor like ytd-rich-item-renderer
+ * Why multiple hosts: card layouts often have a small inner element that
+ * wraps just the thumbnail and a larger outer element that wraps thumbnail +
+ * text. Marking only the inner means hovering the title text doesn't trigger
+ * the button (text is sibling of inner, not descendant). Marking BOTH lets
+ * the hover detector's closest('.kanade-card-host') find an appropriate
+ * host from any region of the card.
  *
- * Returns null when no suitable ancestor exists; emits a warnOnce signal so a
- * silent layout regression is at least visible in the console.
+ * Skipped:
+ * - non-custom elements (plain divs etc.) — passed through silently
+ * - custom elements with `display: contents` (e.g., homepage's
+ *   yt-lockup-view-model) — no box, so they're not visual targets; climb past
+ *
+ * Stop rule: after marking, stop when the next ancestor is itself a
+ * custom-element. This means we've crossed from the card's internal scope
+ * into a list/section container (e.g., ytd-rich-grid-row, ytd-item-section-
+ * renderer); marking those would leak hover across cards.
+ *
+ * Returns an empty array when no suitable ancestor exists; emits a warnOnce
+ * signal so a silent layout regression is visible in the console.
  */
-export function findCardHost(parent: Element, win: Window = window): Element | null {
-  let host: Element | null = parent;
-  while (host && host !== host.ownerDocument.body) {
-    if (host.tagName.includes('-') &&
-        win.getComputedStyle(host).display !== 'contents') {
-      return host;
+export function findCardHosts(parent: Element, win: Window = window): Element[] {
+  const hosts: Element[] = [];
+  let cur: Element | null = parent;
+  while (cur && cur !== cur.ownerDocument.body) {
+    if (cur.tagName.includes('-') &&
+        win.getComputedStyle(cur).display !== 'contents') {
+      hosts.push(cur);
+      if (cur.parentElement?.tagName.includes('-')) break;
     }
-    host = host.parentElement;
+    cur = cur.parentElement;
   }
-  warnOnce(
-    'findCardHost',
-    'No custom-element ancestor found for a video card — lockup structure may have changed',
-  );
-  return null;
+  if (hosts.length === 0) {
+    warnOnce(
+      'findCardHosts',
+      'No custom-element ancestor found for a video card — lockup structure may have changed',
+    );
+  }
+  return hosts;
 }

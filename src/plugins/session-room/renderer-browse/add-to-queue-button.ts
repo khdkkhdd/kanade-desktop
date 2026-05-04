@@ -5,7 +5,7 @@ import {
   YT_SELECTORS,
   isThumbnailAnchor,
   isWrapperAnchor,
-  findCardHost,
+  findCardHosts,
   extractVideoIdFromHref,
   getCurrentVideoId,
   getCurrentVideoDuration,
@@ -27,13 +27,13 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
     const parent = a.parentElement;
     if (!parent) return;
 
-    // Always mark the host so hover-anywhere-on-card works, even for wrapper
-    // anchors that won't receive the button. In nested-anchor layouts (mix
-    // sidebar) the outer wrapper marks the larger card box; the inner
-    // thumbnail anchor marks the smaller thumbnail box. CSS hover gate
-    // matches buttons inside any .kanade-card-host.kanade-hover ancestor.
-    const host = findCardHost(parent);
-    host?.classList.add('kanade-card-host');
+    // Mark every card-level host (inner thumbnail wrapper + outer card
+    // container) so hover-anywhere-on-card works. In layouts like search
+    // (ytd-video-renderer > ytd-thumbnail), the outer covers the text-area
+    // hover region; the inner gives a tighter visual signal when the cursor
+    // is over the thumbnail itself. CSS hover gate matches buttons inside
+    // any .kanade-card-host.kanade-hover ancestor.
+    findCardHosts(parent).forEach((h) => h.classList.add('kanade-card-host'));
 
     // Skip button injection on wrapper anchors that contain another anchor —
     // the inner anchor will inject. Without this skip, the button is

@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { isThumbnailAnchor, isWrapperAnchor, findCardHost } from './cards.js';
+import { isThumbnailAnchor, isWrapperAnchor, findCardHosts } from './cards.js';
 import { _resetWarnedForTesting } from './_warn.js';
 
 function makeDoc(html: string): Document {
@@ -63,42 +63,59 @@ describe('isWrapperAnchor', () => {
   });
 });
 
-describe('findCardHost', () => {
+describe('findCardHosts', () => {
   beforeEach(() => {
     _resetWarnedForTesting();
   });
 
-  it('returns the nearest custom-element ancestor with a real layout box', () => {
+  function names(els: Element[]): string[] {
+    return els.map((e) => e.tagName.toLowerCase());
+  }
+
+  it('returns the nearest custom-element ancestor when sole card-level host', () => {
+    // Homepage rich-grid: yt-lockup-view-model is display:contents so it's
+    // skipped; ytd-rich-item-renderer is the per-card box. Climb stops there
+    // because its parent is ytd-rich-grid-row (custom — list container).
     const doc = makeDoc(`
-      <ytd-rich-item-renderer>
-        <div class="parent">
-          <a href="/watch?v=X"><img></a>
-        </div>
-      </ytd-rich-item-renderer>
+      <ytd-rich-grid-row>
+        <ytd-rich-item-renderer>
+          <yt-lockup-view-model style="display: contents">
+            <div class="parent">
+              <a href="/watch?v=X"><img></a>
+            </div>
+          </yt-lockup-view-model>
+        </ytd-rich-item-renderer>
+      </ytd-rich-grid-row>
     `);
     const a = doc.querySelector('a') as HTMLAnchorElement;
     const parent = a.parentElement as Element;
-    const host = findCardHost(parent, doc.defaultView as Window);
-    expect(host?.tagName.toLowerCase()).toBe('ytd-rich-item-renderer');
+    expect(names(findCardHosts(parent, doc.defaultView as Window)))
+      .toEqual(['ytd-rich-item-renderer']);
   });
 
-  it('skips display:contents custom elements and climbs to a real host', () => {
+  it('returns inner + outer when card has nested custom-element wrappers', () => {
+    // Search lockup: ytd-video-renderer (outer) > #dismissible (div) >
+    // ytd-thumbnail (inner) > a. Both inner and outer are card-level hosts;
+    // marking only inner leaves text-area hover dead.
     const doc = makeDoc(`
-      <ytd-rich-item-renderer>
-        <yt-lockup-view-model style="display: contents">
-          <div class="parent">
-            <a href="/watch?v=X"><img></a>
+      <ytd-item-section-renderer>
+        <ytd-video-renderer>
+          <div id="dismissible">
+            <ytd-thumbnail>
+              <a href="/watch?v=X"><img></a>
+            </ytd-thumbnail>
+            <div class="text-wrapper">title here</div>
           </div>
-        </yt-lockup-view-model>
-      </ytd-rich-item-renderer>
+        </ytd-video-renderer>
+      </ytd-item-section-renderer>
     `);
     const a = doc.querySelector('a') as HTMLAnchorElement;
     const parent = a.parentElement as Element;
-    const host = findCardHost(parent, doc.defaultView as Window);
-    expect(host?.tagName.toLowerCase()).toBe('ytd-rich-item-renderer');
+    expect(names(findCardHosts(parent, doc.defaultView as Window)))
+      .toEqual(['ytd-thumbnail', 'ytd-video-renderer']);
   });
 
-  it('marks a non-contents yt-lockup-view-model when no further ancestor is custom', () => {
+  it('returns yt-lockup-view-model when it has a real layout box and no further custom ancestor', () => {
     const doc = makeDoc(`
       <yt-lockup-view-model>
         <div class="parent">
@@ -108,11 +125,11 @@ describe('findCardHost', () => {
     `);
     const a = doc.querySelector('a') as HTMLAnchorElement;
     const parent = a.parentElement as Element;
-    const host = findCardHost(parent, doc.defaultView as Window);
-    expect(host?.tagName.toLowerCase()).toBe('yt-lockup-view-model');
+    expect(names(findCardHosts(parent, doc.defaultView as Window)))
+      .toEqual(['yt-lockup-view-model']);
   });
 
-  it('returns null when no custom-element ancestor exists', () => {
+  it('returns empty array + warns when no custom-element ancestor exists', () => {
     const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const doc = makeDoc(`
       <div class="parent">
@@ -121,8 +138,8 @@ describe('findCardHost', () => {
     `);
     const a = doc.querySelector('a') as HTMLAnchorElement;
     const parent = a.parentElement as Element;
-    const host = findCardHost(parent, doc.defaultView as Window);
-    expect(host).toBeNull();
+    const hosts = findCardHosts(parent, doc.defaultView as Window);
+    expect(hosts).toEqual([]);
     expect(spy).toHaveBeenCalledTimes(1);
     spy.mockRestore();
   });
