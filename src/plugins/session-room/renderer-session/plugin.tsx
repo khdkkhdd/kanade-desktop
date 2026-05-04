@@ -37,9 +37,10 @@ const STYLE = `
 }
 .kanade-session-panel.closed { transform: translateX(310px); }
 .kanade-toggle {
-  position: absolute;
-  left: -30px;
+  position: fixed;
+  right: 340px;
   top: 50%;
+  transform: translateY(-50%);
   width: 30px;
   height: 60px;
   background: #181818;
@@ -47,7 +48,10 @@ const STYLE = `
   border: none;
   border-radius: 6px 0 0 6px;
   cursor: pointer;
+  z-index: 9999;
+  transition: transform 0.2s ease;
 }
+.kanade-toggle.closed { transform: translateY(-50%) translateX(310px); }
 [data-theme="light"] .kanade-toggle {
   background: #ffffff;
   color: #0f0f0f;
@@ -200,6 +204,7 @@ const STYLE = `
   flex-direction: column;
   gap: 2px;
   max-width: 85%;
+  align-items: flex-start;
 }
 .kanade-chat-msg.mine {
   align-self: flex-end;

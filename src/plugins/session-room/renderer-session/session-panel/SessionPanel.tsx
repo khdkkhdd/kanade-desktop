@@ -26,9 +26,25 @@ interface PanelProps {
   onToggle: () => void;
 }
 
+// host's broadcastHostLoad uses webContents.loadURL on track change, which
+// re-mounts this component and wipes closure state. Persist lastSeenId in
+// sessionStorage so the chat-unread cursor survives navigation within the
+// same session window.
+const LAST_SEEN_KEY = 'kanade-session-room:last-seen-chat-id';
+function loadLastSeenId(): string | undefined {
+  try { return sessionStorage.getItem(LAST_SEEN_KEY) ?? undefined; }
+  catch { return undefined; }
+}
+function saveLastSeenId(v: string | undefined): void {
+  try {
+    if (v === undefined) sessionStorage.removeItem(LAST_SEEN_KEY);
+    else sessionStorage.setItem(LAST_SEEN_KEY, v);
+  } catch { /* storage disabled — fall back to in-memory only */ }
+}
+
 export function SessionPanel(p: PanelProps) {
   const [tab, setTab] = createSignal<'queue' | 'chat'>('queue');
-  let lastSeenId: string | undefined = undefined;
+  let lastSeenId: string | undefined = loadLastSeenId();
   const [hasUnread, setHasUnread] = createSignal(false);
 
   createEffect(() => {
@@ -38,20 +54,24 @@ export function SessionPanel(p: PanelProps) {
     const messages = p.state().chatMessages;
     const currentTab = p.open() ? tab() : 'queue';
     const r = computeUnread({ lastSeenId, messages, currentTab });
-    lastSeenId = r.newLastSeenId;
+    if (r.newLastSeenId !== lastSeenId) {
+      lastSeenId = r.newLastSeenId;
+      saveLastSeenId(lastSeenId);
+    }
     setHasUnread(r.hasUnread);
   });
 
   const queueCount = () => p.state().queue.length;
 
   return (
-    <div class={`kanade-session-panel ${p.open() ? 'open' : 'closed'}`}>
-      <button class="kanade-toggle" onClick={p.onToggle}>
+    <>
+      <button class={`kanade-toggle ${p.open() ? '' : 'closed'}`} onClick={p.onToggle}>
         {p.open() ? '▶' : '◀'}
         <Show when={!p.open() && hasUnread()}>
           <span class="kanade-toggle-dot" />
         </Show>
       </button>
+      <div class={`kanade-session-panel ${p.open() ? 'open' : 'closed'}`}>
       <Show when={p.open()}>
         <div class="kanade-panel-header">
           <div class="kanade-panel-title">{p.state().hostName} Room</div>
@@ -96,6 +116,7 @@ export function SessionPanel(p: PanelProps) {
           </For>
         </div>
       </Show>
-    </div>
+      </div>
+    </>
   );
 }
