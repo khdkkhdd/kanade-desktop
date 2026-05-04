@@ -1,6 +1,6 @@
 // src/plugins/session-room/renderer-browse/plugin.tsx
 import { render } from 'solid-js/web';
-import { createSignal } from 'solid-js';
+import { createSignal, createEffect } from 'solid-js';
 import type { RendererContext } from '../../../types/plugins.js';
 import type { QueueItem } from '../shared/types.js';
 import { CreateDialog, JoinDialog } from './dialogs.jsx';
@@ -91,13 +91,28 @@ const STYLE = `
   border-radius: 999px;
   font-size: 11px;
   font-weight: 500;
-  display: inline-flex;
   align-items: center;
   gap: 4px;
   backdrop-filter: blur(8px);
   line-height: 1;
   cursor: pointer;
   font-family: 'Roboto', system-ui, sans-serif;
+  display: none;
+  pointer-events: none;
+}
+/* In a session: button is laid out and clickable, but starts at opacity:0.
+ * The .kanade-hover class is toggled by a JS mousemove listener (see
+ * add-to-queue-button.ts) — :hover would be unreliable across YouTube's
+ * lockup variants. Button's own :hover keeps it visible while clicking. */
+body[data-kanade-session="active"] .kanade-add-queue {
+  display: inline-flex;
+  opacity: 0;
+  pointer-events: auto;
+  transition: opacity 0.12s ease;
+}
+body[data-kanade-session="active"] .kanade-card-host.kanade-hover .kanade-add-queue,
+body[data-kanade-session="active"] .kanade-add-queue:hover {
+  opacity: 1;
 }
 .kanade-add-queue:hover {
   background: rgba(0,0,0,0.95);
@@ -336,7 +351,7 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
     (e) => console.warn('[session-room] getState failed', e),
   );
 
-  setupAddToQueueButtons(ctx, sessionActive);
+  setupAddToQueueButtons(ctx);
   setupMuteMutex(sessionActive); // stop ignored — renderer lifetime
 
   function getCurrentVideoId(): string | null {
@@ -344,7 +359,14 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
     return m ? m[1] : null;
   }
 
-  render(() => (
+  render(() => {
+    // Mirror sessionActive onto a body data attribute so add-to-queue CSS
+    // can hover-gate the +큐 button without a JS round-trip per card.
+    createEffect(() => {
+      if (sessionActive()) document.body.dataset.kanadeSession = 'active';
+      else delete document.body.dataset.kanadeSession;
+    });
+    return (
     <>
       <SessionBanner
         active={sessionActive()}
@@ -387,7 +409,8 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
         }}
       />
     </>
-  ), root);
+    );
+  }, root);
 
   console.log('[session-room] browse renderer started');
 }
