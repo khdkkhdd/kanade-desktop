@@ -1,30 +1,34 @@
 import type { RendererContext } from '../../../types/plugins.js';
 import { showToast } from '../renderer-shared/toast.jsx';
 import { fetchOembedMeta } from './youtube-meta.js';
+import {
+  YT_SELECTORS,
+  isThumbnailAnchor,
+  findCardHost,
+  extractVideoIdFromHref,
+  getCurrentVideoId,
+  getCurrentVideoDuration,
+} from '../../../lib/youtube-dom/index.js';
 
-const VIDEO_RE = /(?:youtube\.com\/(?:watch\?v=|shorts\/))([\w-]{11})/;
+export function setupAddToQueueButtons(ctx: RendererContext): () => void {
+  // Strategy: scan + MutationObserver to inject a button as a SIBLING of every
+  // video-card thumbnail anchor (so it lives outside the anchor's potential
+  // pointer-events:none scope). Visibility is driven by a `.kanade-hover`
+  // class that a mousemove listener toggles based on cursor position — CSS
+  // `:hover` propagation can't be trusted across YouTube's varied lockup
+  // layouts. Session gating happens via body[data-kanade-session="active"]
+  // (set in plugin.tsx).
 
-export function extractVideoIdFromCard(href: string): string | null {
-  const m = href.match(VIDEO_RE);
-  return m ? m[1] : null;
-}
-
-export function isYouTubeVideoLink(href: string): boolean {
-  return extractVideoIdFromCard(href) !== null;
-}
-
-export function setupAddToQueueButtons(ctx: RendererContext, sessionActive: () => boolean): () => void {
-  // Inject "+큐" button on hover over video card anchors.
-  // Use event delegation on document.body — survives YouTube SPA nav.
-
-  const handleHover = (e: Event) => {
-    if (!sessionActive()) return;
-    const target = e.target as HTMLElement | null;
-    const a = target?.closest('a[href]') as HTMLAnchorElement | null;
-    if (!a) return;
-    const videoId = extractVideoIdFromCard(a.href);
+  const tryInject = (a: HTMLAnchorElement): void => {
+    const videoId = extractVideoIdFromHref(a.href);
     if (!videoId) return;
-    if (a.querySelector('.kanade-add-queue')) return; // already injected
+    if (!isThumbnailAnchor(a)) return;
+    const parent = a.parentElement;
+    if (!parent) return;
+    if (parent.querySelector(':scope > .kanade-add-queue')) return;
+
+    const host = findCardHost(parent);
+    host?.classList.add('kanade-card-host');
 
     const btn = document.createElement('button');
     btn.className = 'kanade-add-queue';
@@ -46,10 +50,6 @@ export function setupAddToQueueButtons(ctx: RendererContext, sessionActive: () =
         });
         showToast('큐에 추가됨', 'info');
       } catch (e) {
-        // Electron IPC wraps main-side throws as
-        //   "Error invoking remote method '...': Error: <original>"
-        // so .startsWith on the original sentinel never matches. Use .includes
-        // and parse rate-limit's remainingMs out of whatever wrapper Electron uses.
         const msg = e instanceof Error ? e.message : String(e);
         const rateLimitMatch = msg.match(/rate-limit:(\d+)/);
         if (rateLimitMatch) {
@@ -65,18 +65,68 @@ export function setupAddToQueueButtons(ctx: RendererContext, sessionActive: () =
       }
     });
 
-    // Inject button — assume parent positions absolutely-friendly
-    const host =
-      (a.querySelector('ytd-thumbnail, #thumbnail') as HTMLElement | null) ?? a;
-    const computed = window.getComputedStyle(host);
-    if (computed.position === 'static') host.style.position = 'relative';
-    host.appendChild(btn);
+    if (window.getComputedStyle(parent).position === 'static') {
+      (parent as HTMLElement).style.position = 'relative';
+    }
+    parent.appendChild(btn);
   };
 
-  document.body.addEventListener('mouseover', handleHover, true);
+  const scan = (root: ParentNode): void => {
+    root.querySelectorAll<HTMLAnchorElement>(YT_SELECTORS.videoAnchor).forEach(tryInject);
+  };
+
+  scan(document);
+
+  const obs = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      for (const node of m.addedNodes) {
+        if (!(node instanceof Element)) continue;
+        if (node.matches?.(YT_SELECTORS.videoAnchor)) tryInject(node as HTMLAnchorElement);
+        scan(node);
+      }
+    }
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
+
+  // Belt-and-suspenders: some cards (observed in the watch-page related
+  // sidebar) escape both the initial scan and MutationObserver — the
+  // mechanism isn't clear, possibly a batch render that completes before
+  // our observer attaches. Periodic rescan with the cheap parent dedup
+  // catches any stragglers without injecting twice.
+  const periodicScan = window.setInterval(() => scan(document), 2000);
+
+  // JS hover detection. CSS :hover doesn't reliably propagate to the card
+  // wrapper across all YouTube lockup layouts (the homepage rich-grid variant
+  // has overlay structure that swallows ancestor :hover from a thumbnail-only
+  // hover). elementsFromPoint includes pointer-events:none layers, so we
+  // always find the card-host under the cursor regardless of YouTube CSS.
+  let raf = 0;
+  let hoveredCard: Element | null = null;
+  const setHover = (next: Element | null): void => {
+    if (next === hoveredCard) return;
+    hoveredCard?.classList.remove('kanade-hover');
+    hoveredCard = next;
+    hoveredCard?.classList.add('kanade-hover');
+  };
+  const onMove = (e: MouseEvent): void => {
+    cancelAnimationFrame(raf);
+    const x = e.clientX, y = e.clientY;
+    raf = requestAnimationFrame(() => {
+      let found: Element | null = null;
+      for (const el of document.elementsFromPoint(x, y)) {
+        if (!(el instanceof HTMLElement)) continue;
+        const card = el.closest('.kanade-card-host');
+        if (card) { found = card; break; }
+      }
+      setHover(found);
+    });
+  };
+  document.addEventListener('mousemove', onMove, { passive: true });
 
   return () => {
-    document.body.removeEventListener('mouseover', handleHover, true);
+    obs.disconnect();
+    window.clearInterval(periodicScan);
+    document.removeEventListener('mousemove', onMove);
   };
 }
 
@@ -94,12 +144,7 @@ async function fetchVideoMeta(
   // media metadata loads. If we're hovering a sidebar card for video Y while
   // watching X, there's no local source for Y's duration — leave 0 and let
   // the panel hide the tail.
-  const m = location.href.match(/[?&]v=([\w-]{11})/);
-  const isCurrent = !!m && m[1] === videoId;
-  const videoEl = isCurrent ? (document.querySelector('video') as HTMLVideoElement | null) : null;
-  const duration = videoEl && Number.isFinite(videoEl.duration) && videoEl.duration > 0
-    ? Math.floor(videoEl.duration)
-    : 0;
+  const duration = getCurrentVideoId() === videoId ? getCurrentVideoDuration() : 0;
 
   if (oembed) {
     return { title: oembed.title, channelName: oembed.channelName, duration };
