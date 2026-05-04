@@ -57,6 +57,7 @@ export function QueueTab(p: QueueTabProps) {
                 <div class="kanade-queue-meta">{joinMeta([
                   item.channelName,
                   item.videoDuration > 0 ? fmt(item.videoDuration) : null,
+                  item.addedBy.displayName ? `by ${item.addedBy.displayName}` : null,
                 ])}</div>
               </div>
               <Show when={p.isHost}>
