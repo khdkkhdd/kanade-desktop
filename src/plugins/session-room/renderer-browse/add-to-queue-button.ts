@@ -125,10 +125,11 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
   //
   // Performance: querySelectorAll + per-host rect check runs once per rAF
   // (capped at ~60fps). Even with 100 hosts that's well under 1ms per frame.
-  // Debug toggle: window.__kanadeHoverDebug = true to log every hover state
-  // change with timestamp + reason. Off by default; cheap branch when off.
+  // Debug toggle via DOM attribute (works across Electron world boundaries —
+  // window-level flags don't cross main/isolated worlds, but document does).
+  // Enable: document.documentElement.dataset.kanadeHoverDebug = '1'
   const dbg = (msg: string, extra?: object): void => {
-    if (!(window as { __kanadeHoverDebug?: boolean }).__kanadeHoverDebug) return;
+    if (!document.documentElement.dataset.kanadeHoverDebug) return;
     const t = performance.now().toFixed(1);
     console.log(`[kanade-hover ${t}] ${msg}`, extra ?? '');
   };
@@ -183,9 +184,7 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
         }
       }
     }
-    if ((window as { __kanadeHoverDebug?: boolean }).__kanadeHoverDebug) {
-      dbg('tick', { x: cursorX, y: cursorY, hostsScanned, foundTag: found?.tagName ?? 'null' });
-    }
+    dbg('tick', { x: cursorX, y: cursorY, hostsScanned, foundTag: found?.tagName ?? 'null' });
     setHover(found, 'tick');
   };
   const onMove = (e: MouseEvent): void => {
