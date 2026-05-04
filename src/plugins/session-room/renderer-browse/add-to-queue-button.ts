@@ -120,11 +120,32 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
   // always find the card-host under the cursor regardless of YouTube CSS.
   let raf = 0;
   let hoveredCard: HTMLElement | null = null;
+  let unhoverTimer = 0;
   const setHover = (next: HTMLElement | null): void => {
-    if (next === hoveredCard) return;
+    if (next === hoveredCard) {
+      if (unhoverTimer) { window.clearTimeout(unhoverTimer); unhoverTimer = 0; }
+      return;
+    }
+    if (next === null) {
+      // Debounce un-hover. Some YouTube hover lifecycles (e.g., search
+      // ytd-thumbnail's use-hovered-property triggers a hover preview that
+      // briefly changes the elementsFromPoint stack) cause a transient frame
+      // where closest('[data-kanade-host]') returns null even though the
+      // cursor is still over the card. Without this delay the button blinks
+      // off ~100ms after appearing.
+      if (!unhoverTimer) {
+        unhoverTimer = window.setTimeout(() => {
+          if (hoveredCard) delete hoveredCard.dataset.kanadeHovered;
+          hoveredCard = null;
+          unhoverTimer = 0;
+        }, 150);
+      }
+      return;
+    }
+    if (unhoverTimer) { window.clearTimeout(unhoverTimer); unhoverTimer = 0; }
     if (hoveredCard) delete hoveredCard.dataset.kanadeHovered;
     hoveredCard = next;
-    if (hoveredCard) hoveredCard.dataset.kanadeHovered = '';
+    hoveredCard.dataset.kanadeHovered = '';
   };
   const onMove = (e: MouseEvent): void => {
     cancelAnimationFrame(raf);
@@ -145,6 +166,7 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
     obs.disconnect();
     window.clearInterval(periodicScan);
     document.removeEventListener('mousemove', onMove);
+    if (unhoverTimer) window.clearTimeout(unhoverTimer);
   };
 }
 
