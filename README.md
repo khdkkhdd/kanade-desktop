@@ -28,17 +28,18 @@ covers, and the artists behind them — layered on top of the video you're watch
 > [!NOTE]
 > ### About this repository
 >
-> This is the open-source **client** for a personal project I run. The relation
-> overlay — the feature that makes the app interesting — talks to a **private
-> catalog server** that I curate and maintain myself.
+> This is the open-source **client** for a personal project I run. The
+> **relation overlay** — the feature that makes the app interesting — talks
+> to a **private catalog server** that I curate and maintain myself.
 >
-> Without access to that server, the app runs as a plain YouTube viewer —
-> with Discord Rich Presence on top, if that's useful to you. If you'd like
-> access to the catalog, see [Request access](#request-access) below.
+> The other built-ins (**listening sessions**, **Discord Rich Presence**, the
+> plain YouTube viewer) work without the catalog server. If you'd like
+> catalog access, see [Request access](#request-access) below.
 
 ## Contents
 
-- [What you'll see](#what-youll-see)
+- [Relation overlay](#relation-overlay)
+- [Listening sessions](#listening-sessions)
 - [Download](#download)
 - [Request access](#request-access)
 - [Languages](#languages)
@@ -46,7 +47,7 @@ covers, and the artists behind them — layered on top of the video you're watch
 - [Credits](#credits)
 - [License](#license)
 
-## What you'll see
+## Relation overlay
 
 The catalog focuses on **J-pop, Vocaloid, utaite, and V-tuber** music. When the
 current video maps to a song in the catalog, a panel appears under the video
@@ -61,6 +62,24 @@ with:
 The overlay only renders when the catalog has data for the current video.
 Outside the catalog, it stays hidden and the app behaves like a regular browser
 window.
+
+## Listening sessions
+
+Watch together with friends. One person hosts, the rest join with a 6-character
+code — playback (play / pause / seek / track changes) is mirrored to every
+guest in real time, with a shared queue and a side-panel chat.
+
+- **Host or join** from the Session menu — share the code, others paste it in
+- **Shared queue** — add the current `/watch` video, drop YouTube cards into
+  the queue with the floating <kbd>+ Queue</kbd> button, or browse and add
+  while the host plays. Permission modes (host-only / playlist / all) gate
+  who can add what.
+- **Auto-handoff** — if the host disconnects, another member is promoted so
+  the session keeps going.
+- **Chat** lives next to the queue in the session panel.
+
+Sessions run over Supabase Realtime. No catalog server needed — anyone with a
+build can host or join.
 
 ## Download
 
