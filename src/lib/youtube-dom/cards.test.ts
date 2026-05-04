@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { isThumbnailAnchor, findCardHost } from './cards.js';
+import { isThumbnailAnchor, isWrapperAnchor, findCardHost } from './cards.js';
 import { _resetWarnedForTesting } from './_warn.js';
 
 function makeDoc(html: string): Document {
@@ -34,36 +34,32 @@ describe('isThumbnailAnchor', () => {
     const a = doc.querySelector('a') as HTMLAnchorElement;
     expect(isThumbnailAnchor(a)).toBe(false);
   });
-  it('false when anchor wraps a nested inner anchor (card-wide wrapper)', () => {
-    // Mix sidebar (ytd-playlist-panel-video-renderer) wraps the whole card
-    // in #wc-endpoint, with #thumbnail nested inside. The outer is a wrapper,
-    // not a thumbnail-specific target — injecting on it duplicates the button.
-    // Note: HTML parser disallows <a><a></a></a>, but YouTube builds these
-    // programmatically. We do the same to faithfully reproduce the bug.
+});
+
+describe('isWrapperAnchor', () => {
+  it('true when anchor contains a nested anchor (card-wide wrapper)', () => {
+    // Mix sidebar (ytd-playlist-panel-video-renderer) builds programmatically
+    // a #wc-endpoint outer wrapping a #thumbnail inner. HTML parser disallows
+    // <a><a></a></a>, so we build the fixture via DOM API.
     const doc = makeDoc('');
     const outer = doc.createElement('a');
-    outer.id = 'wc-endpoint';
     outer.href = '/watch?v=X';
     const inner = doc.createElement('a');
-    inner.id = 'thumbnail';
     inner.href = '/watch?v=X';
-    const img = doc.createElement('yt-image');
-    inner.appendChild(img);
+    inner.appendChild(doc.createElement('yt-image'));
     outer.appendChild(inner);
     doc.body.appendChild(outer);
-    expect(isThumbnailAnchor(outer)).toBe(false);
+    expect(isWrapperAnchor(outer)).toBe(true);
   });
-  it('true for the inner anchor of a nested wrapper', () => {
-    const doc = makeDoc('');
-    const outer = doc.createElement('a');
-    outer.href = '/watch?v=X';
-    const inner = doc.createElement('a');
-    inner.href = '/watch?v=X';
-    const img = doc.createElement('yt-image');
-    inner.appendChild(img);
-    outer.appendChild(inner);
-    doc.body.appendChild(outer);
-    expect(isThumbnailAnchor(inner)).toBe(true);
+  it('false for an anchor without nested anchors', () => {
+    const doc = makeDoc('<a href="/watch?v=X"><img></a>');
+    const a = doc.querySelector('a') as HTMLAnchorElement;
+    expect(isWrapperAnchor(a)).toBe(false);
+  });
+  it('false for an empty anchor', () => {
+    const doc = makeDoc('<a href="/watch?v=X"></a>');
+    const a = doc.querySelector('a') as HTMLAnchorElement;
+    expect(isWrapperAnchor(a)).toBe(false);
   });
 });
 

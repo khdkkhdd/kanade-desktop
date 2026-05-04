@@ -4,6 +4,7 @@ import { fetchOembedMeta } from './youtube-meta.js';
 import {
   YT_SELECTORS,
   isThumbnailAnchor,
+  isWrapperAnchor,
   findCardHost,
   extractVideoIdFromHref,
   getCurrentVideoId,
@@ -25,10 +26,20 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
     if (!isThumbnailAnchor(a)) return;
     const parent = a.parentElement;
     if (!parent) return;
-    if (parent.querySelector(':scope > .kanade-add-queue')) return;
 
+    // Always mark the host so hover-anywhere-on-card works, even for wrapper
+    // anchors that won't receive the button. In nested-anchor layouts (mix
+    // sidebar) the outer wrapper marks the larger card box; the inner
+    // thumbnail anchor marks the smaller thumbnail box. CSS hover gate
+    // matches buttons inside any .kanade-card-host.kanade-hover ancestor.
     const host = findCardHost(parent);
     host?.classList.add('kanade-card-host');
+
+    // Skip button injection on wrapper anchors that contain another anchor —
+    // the inner anchor will inject. Without this skip, the button is
+    // duplicated in nested-anchor layouts (e.g., mix sidebar).
+    if (isWrapperAnchor(a)) return;
+    if (parent.querySelector(':scope > .kanade-add-queue')) return;
 
     const btn = document.createElement('button');
     btn.className = 'kanade-add-queue';
