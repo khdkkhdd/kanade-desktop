@@ -113,14 +113,20 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
   // catches any stragglers without injecting twice.
   const periodicScan = window.setInterval(() => scan(document), 2000);
 
-  // JS hover detection via delegated mouseover/mouseout (capture phase).
-  // We tried mousemove + elementsFromPoint first, but YouTube's hover preview
-  // lifecycle (search ytd-thumbnail[use-hovered-property]) made some frames
-  // return a stack whose closest() couldn't reach the marked host — so the
-  // hover attribute kept getting cleared. Native mouseover bubbles through
-  // the actual DOM hierarchy of the event target, so closest() reliably
-  // finds an ancestor host. Capture phase guards against any YouTube
-  // listener that calls stopPropagation on inner elements.
+  // JS hover detection via cursor-position vs marked-host bounding rect.
+  //
+  // We've tried elementsFromPoint+closest and mouseover/mouseout delegation
+  // before; both failed for search ytd-thumbnail[use-hovered-property] where
+  // YouTube's hover preview lifecycle messes with DOM topology under the
+  // cursor (portaling overlay elements, firing mouseout despite the cursor
+  // not visually leaving). Pure rect-based detection sidesteps all DOM
+  // topology issues — cursor.x,y inside host.getBoundingClientRect() is the
+  // ground truth of whether the user is "hovering" the card visually.
+  //
+  // Performance: querySelectorAll + per-host rect check runs once per rAF
+  // (capped at ~60fps). Even with 100 hosts that's well under 1ms per frame.
+  let raf = 0;
+  let cursorX = -1, cursorY = -1;
   let hoveredCard: HTMLElement | null = null;
   let unhoverTimer = 0;
   const setHover = (next: HTMLElement | null): void => {
@@ -129,10 +135,6 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
       return;
     }
     if (next === null) {
-      // Debounce un-hover. Even with mouseover/mouseout, intermittent DOM
-      // mutations during hover preview activation can fire a brief mouseout
-      // before the cursor actually leaves. 150ms grace lets the next
-      // mouseover restore the state without a visible blink.
       if (!unhoverTimer) {
         unhoverTimer = window.setTimeout(() => {
           if (hoveredCard) delete hoveredCard.dataset.kanadeHovered;
@@ -147,30 +149,34 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
     hoveredCard = next;
     hoveredCard.dataset.kanadeHovered = '';
   };
-  const onOver = (e: MouseEvent): void => {
-    const target = e.target;
-    if (!(target instanceof Element)) return;
-    const card = target.closest<HTMLElement>('[data-kanade-host]');
-    if (card) setHover(card);
+  const tick = (): void => {
+    let found: HTMLElement | null = null;
+    if (cursorX >= 0) {
+      for (const host of document.querySelectorAll<HTMLElement>('[data-kanade-host]')) {
+        const r = host.getBoundingClientRect();
+        if (r.width === 0) continue;
+        if (cursorX >= r.left && cursorX < r.right &&
+            cursorY >= r.top && cursorY < r.bottom) {
+          found = host;
+          break;
+        }
+      }
+    }
+    setHover(found);
   };
-  const onOut = (e: MouseEvent): void => {
-    const target = e.target;
-    if (!(target instanceof Element)) return;
-    const card = target.closest<HTMLElement>('[data-kanade-host]');
-    if (!card) return;
-    const related = e.relatedTarget;
-    // If cursor is moving to another descendant of the same card, stay hovered.
-    if (related instanceof Element && card.contains(related)) return;
-    setHover(null);
+  const onMove = (e: MouseEvent): void => {
+    cursorX = e.clientX;
+    cursorY = e.clientY;
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(tick);
   };
-  document.addEventListener('mouseover', onOver, { capture: true });
-  document.addEventListener('mouseout', onOut, { capture: true });
+  document.addEventListener('mousemove', onMove, { passive: true });
 
   return () => {
     obs.disconnect();
     window.clearInterval(periodicScan);
-    document.removeEventListener('mouseover', onOver, { capture: true });
-    document.removeEventListener('mouseout', onOut, { capture: true });
+    document.removeEventListener('mousemove', onMove);
+    cancelAnimationFrame(raf);
     if (unhoverTimer) window.clearTimeout(unhoverTimer);
   };
 }
