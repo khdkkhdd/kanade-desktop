@@ -1,6 +1,7 @@
 import type { RendererContext } from '../../../types/plugins.js';
 import { showToast } from '../renderer-shared/toast.jsx';
 import { fetchOembedMeta } from './youtube-meta.js';
+import { t } from '../../../i18n/index.js';
 import {
   YT_SELECTORS,
   isThumbnailAnchor,
@@ -25,7 +26,11 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
   const ico = document.createElement('span');
   ico.className = 'kanade-add-queue-ico';
   ico.textContent = '+';
-  fab.append(ico, ' 큐');
+  // Label is set once at mount; reads current locale at the moment the
+  // injection runs. Locale switches mid-session don't restyle the FAB until
+  // the next page navigation re-mounts the overlay, matching the rest of the
+  // vanilla-DOM overlay plugins (relation-overlay panel, etc.).
+  fab.append(ico, ` ${t('session.fabLabel')}`);
   document.body.appendChild(fab);
 
   fab.addEventListener('click', async (ev) => {
@@ -41,18 +46,18 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
         channelName: meta.channelName,
         videoDuration: meta.duration,
       });
-      showToast('큐에 추가됨', 'info');
+      showToast(t('session.toastAddSuccess'), 'info');
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       const rateLimitMatch = msg.match(/rate-limit:(\d+)/);
       if (rateLimitMatch) {
         const remainingMs = parseInt(rateLimitMatch[1], 10) || 0;
         const seconds = Math.ceil(remainingMs / 1000);
-        showToast(`${seconds}초 후 다시 추가할 수 있습니다`, 'warn');
+        showToast(t('session.toastAddCooldown', { sec: String(seconds) }), 'warn');
       } else if (msg.includes('permission-denied:')) {
-        showToast('Host 만 추가 가능', 'warn');
+        showToast(t('session.toastAddPermissionDenied'), 'warn');
       } else {
-        showToast('큐 추가 실패', 'error');
+        showToast(t('session.toastAddFailed'), 'error');
         console.warn('[session-room] queue.add failed', e);
       }
     }

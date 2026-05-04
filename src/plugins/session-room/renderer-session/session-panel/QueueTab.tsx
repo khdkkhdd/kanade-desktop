@@ -1,5 +1,6 @@
 import { For, Show } from 'solid-js';
 import type { QueueItem, ItemId, PermissionMode, MemberKey } from '../../shared/types.js';
+import { t } from '../../../../i18n/index.js';
 
 interface QueueTabProps {
   queue: QueueItem[];
@@ -36,7 +37,7 @@ export function QueueTab(p: QueueTabProps) {
               <span class="kanade-play-arrow" />
             </div>
             <div class="kanade-current-info">
-              <div class="kanade-current-label">지금 재생</div>
+              <div class="kanade-current-label">{t('session.currentLabel')}</div>
               <div class="kanade-current-title">{c().videoTitle}</div>
               <div class="kanade-current-meta">{joinMeta([
                 c().channelName,
@@ -61,10 +62,10 @@ export function QueueTab(p: QueueTabProps) {
                 ])}</div>
               </div>
               <Show when={p.isHost}>
-                <button class="kanade-icon-btn" title="이 곡으로 점프" onClick={() => p.onSetCurrent(item.id)}>▶</button>
+                <button class="kanade-icon-btn" title={t('session.queueJumpTitle')} onClick={() => p.onSetCurrent(item.id)}>▶</button>
               </Show>
               <Show when={canRemove(item)}>
-                <button class="kanade-icon-btn" title="삭제" onClick={() => p.onRemove(item.id)}>×</button>
+                <button class="kanade-icon-btn" title={t('session.queueRemoveTitle')} onClick={() => p.onRemove(item.id)}>×</button>
               </Show>
             </div>
           )}
@@ -72,7 +73,7 @@ export function QueueTab(p: QueueTabProps) {
       </div>
       <Show when={p.isHost}>
         <div class="kanade-host-controls">
-          <button class="kanade-pill-btn" onClick={p.onClear}>큐 비우기</button>
+          <button class="kanade-pill-btn" onClick={p.onClear}>{t('session.queueClear')}</button>
           <select class="kanade-pill-select" value={p.permission} onChange={(e) => p.onPermissionChange(e.currentTarget.value as PermissionMode)}>
             <option value="host-only">host-only</option>
             <option value="playlist">playlist</option>

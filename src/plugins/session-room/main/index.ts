@@ -14,6 +14,7 @@ import { HandoffManager } from './handoff-manager.js';
 import type { RealtimeStatus } from './realtime-client.js';
 import { isYouTubeHost } from '../shared/is-youtube-host.js';
 import { unwrapYouTubeRedirect } from '../shared/youtube-redirect.js';
+import { t } from '../../../i18n/index.js';
 
 export interface SessionRoomOptions {
   onSessionActiveChange?: (active: boolean) => void;
@@ -156,7 +157,7 @@ export async function setupSessionRoomMain(ctx: BackendContext, options?: Sessio
     const code = store.get().room?.code;
     if (!code) return;
     clipboard.writeText(code);
-    broadcastToast({ text: '세션 코드 복사됨', kind: 'info' });
+    broadcastToast({ text: t('session.toastCodeCopied'), kind: 'info' });
   });
 
   const handoff = new HandoffManager({
@@ -295,10 +296,10 @@ export async function setupSessionRoomMain(ctx: BackendContext, options?: Sessio
     // Connection toasts — only when in a session
     if (store.get().room) {
       if (status === 'DISCONNECTED' && prevStatus === 'CONNECTED') {
-        broadcastToast({ text: '연결 끊김. 재연결 시도 중…', kind: 'warn' });
+        broadcastToast({ text: t('session.toastReconnecting'), kind: 'warn' });
       }
       if (status === 'CONNECTED' && prevStatus !== null && prevStatus !== 'CONNECTED') {
-        broadcastToast({ text: '연결 복구됨', kind: 'info' });
+        broadcastToast({ text: t('session.toastReconnected'), kind: 'info' });
       }
     }
     prevStatus = status;

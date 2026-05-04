@@ -10,6 +10,7 @@ import { setupMuteMutex } from './mute-mutex.js';
 import { fetchOembedMeta } from './youtube-meta.js';
 import { mountToastContainer, showToast, type ToastKind } from '../renderer-shared/toast.jsx';
 import { detectYouTubeTheme, subscribeYouTubeTheme } from '../shared/theme-detect.js';
+import { t } from '../../../i18n/index.js';
 
 const STYLE = `
 .kanade-banner {
@@ -232,7 +233,7 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
   async function addCurrentVideoToQueue(ctx: RendererContext): Promise<void> {
     const videoId = getCurrentVideoId();
     if (!videoId) {
-      showToast('영상 정보를 찾을 수 없습니다', 'warn');
+      showToast(t('session.toastVideoMetaNotFound'), 'warn');
       return;
     }
     const meta = await readWatchPagePlayerMeta(videoId);
@@ -244,17 +245,17 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
         channelName: meta.channelName,
         videoDuration: meta.duration,
       });
-      showToast('큐에 추가됨', 'info');
+      showToast(t('session.toastAddSuccess'), 'info');
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       const rateLimitMatch = msg.match(/rate-limit:(\d+)/);
       if (rateLimitMatch) {
         const remainingMs = parseInt(rateLimitMatch[1], 10) || 0;
-        showToast(`${Math.ceil(remainingMs / 1000)}초 후 다시 추가할 수 있습니다`, 'warn');
+        showToast(t('session.toastAddCooldown', { sec: String(Math.ceil(remainingMs / 1000)) }), 'warn');
       } else if (msg.includes('permission-denied:')) {
-        showToast('Host 만 추가 가능', 'warn');
+        showToast(t('session.toastAddPermissionDenied'), 'warn');
       } else {
-        showToast('큐 추가 실패', 'error');
+        showToast(t('session.toastAddFailed'), 'error');
         console.warn('[session-room] queue.add (current) failed', e);
       }
     }
@@ -291,14 +292,14 @@ export async function setupBrowseRenderer(ctx: RendererContext): Promise<void> {
       const newHost = (s.members ?? []).find((m) => m.isHost);
       // Host changed: both exist and memberKey differs
       if (prevHost && newHost && prevHost.memberKey !== newHost.memberKey) {
-        showToast(`Host 가 ${newHost.displayName} 로 변경되었습니다`, 'info');
+        showToast(t('session.toastHostChanged', { name: newHost.displayName }), 'info');
       }
       // Session closed: previous room was non-null, new room is null.
       // Skip if the user themselves clicked Leave — only externally-induced
       // session ends should trigger the toast.
       if (prevState.room && !s.room) {
         if (!selfLeaving) {
-          showToast('세션이 종료되었습니다', 'warn');
+          showToast(t('session.toastSessionClosed'), 'warn');
         }
         selfLeaving = false;
       }

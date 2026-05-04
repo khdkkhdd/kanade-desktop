@@ -1,4 +1,5 @@
 import { Show } from 'solid-js';
+import { t } from '../../../i18n/index.js';
 
 interface AdBannerProps {
   hostInAd: boolean;
@@ -8,7 +9,7 @@ interface AdBannerProps {
 export function AdBanner(props: AdBannerProps) {
   return (
     <Show when={props.hostInAd && !props.iAmInAd}>
-      <div class="kanade-ad-banner">▶ 호스트 광고 중...</div>
+      <div class="kanade-ad-banner">{t('session.adBannerHostAdInProgress')}</div>
     </Show>
   );
 }

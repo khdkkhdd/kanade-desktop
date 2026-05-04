@@ -1,7 +1,8 @@
 import { app, BrowserWindow, ipcMain, Menu, session, shell } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { store, getPresenceConfig } from './config/store.js';
+import { store, getPresenceConfig, getLocaleSetting } from './config/store.js';
+import { setLocale, normalizeLocale, t } from './i18n/index.js';
 
 // Self-defined __dirname for ESM main bundle. electron-vite normally injects a
 // CommonJS shim, but bundling @supabase/supabase-js causes the shim to be
@@ -174,19 +175,28 @@ function openSettingsWindow(parent: BrowserWindow): void {
   settingsWin.on('closed', () => { settingsWin = null; });
 }
 
-function refreshSessionMenu(active: boolean): void {
+// Tracked at module scope so a locale-driven menu rebuild can restore the
+// correct enabled flags without waiting for the next session-active transition.
+let sessionActive = false;
+
+function applySessionMenuEnabled(): void {
   const menu = Menu.getApplicationMenu();
   if (!menu) return;
   // Enable session-active items only when in a session
   for (const id of ['session-copy-code', 'session-show', 'session-leave', 'session-add-current'] as const) {
     const item = menu.getMenuItemById(id);
-    if (item) item.enabled = active;
+    if (item) item.enabled = sessionActive;
   }
   // Disable new/join when in a session so the user can't destructively double-join
   for (const id of ['session-create', 'session-join'] as const) {
     const item = menu.getMenuItemById(id);
-    if (item) item.enabled = !active;
+    if (item) item.enabled = !sessionActive;
   }
+}
+
+function refreshSessionMenu(active: boolean): void {
+  sessionActive = active;
+  applySessionMenuEnabled();
 }
 
 function installAppMenu(getMainWin: () => BrowserWindow | null): void {
@@ -218,11 +228,12 @@ function installAppMenu(getMainWin: () => BrowserWindow | null): void {
     { role: 'editMenu' },
     { role: 'viewMenu' },
     {
-      label: 'Session',
+      label: t('session.menuTitle'),
       submenu: [
         {
           id: 'session-create',
-          label: '새 세션 시작...',
+          label: t('session.start'),
+          enabled: !sessionActive,
           accelerator: process.platform === 'darwin' ? 'Cmd+Shift+S' : 'Ctrl+Shift+S',
           click: () => {
             const main = getMainWin();
@@ -231,7 +242,8 @@ function installAppMenu(getMainWin: () => BrowserWindow | null): void {
         },
         {
           id: 'session-join',
-          label: '세션 참여...',
+          label: t('session.join'),
+          enabled: !sessionActive,
           accelerator: process.platform === 'darwin' ? 'Cmd+Shift+J' : 'Ctrl+Shift+J',
           click: () => {
             const main = getMainWin();
@@ -241,8 +253,8 @@ function installAppMenu(getMainWin: () => BrowserWindow | null): void {
         { type: 'separator' },
         {
           id: 'session-copy-code',
-          label: '세션 코드 복사',
-          enabled: false,
+          label: t('session.copyCode'),
+          enabled: sessionActive,
           click: () => {
             // Trigger plugin's main-side handler directly. Renderer-side
             // navigator.clipboard.writeText fails when the document loses
@@ -253,8 +265,8 @@ function installAppMenu(getMainWin: () => BrowserWindow | null): void {
         },
         {
           id: 'session-show',
-          label: '세션 창 보기',
-          enabled: false,
+          label: t('session.showSession'),
+          enabled: sessionActive,
           click: () => {
             const main = getMainWin();
             main?.webContents.send('plugin:session-room:show-session-window');
@@ -262,8 +274,8 @@ function installAppMenu(getMainWin: () => BrowserWindow | null): void {
         },
         {
           id: 'session-add-current',
-          label: '세션에 현재 영상 추가',
-          enabled: false,
+          label: t('session.addCurrent'),
+          enabled: sessionActive,
           accelerator: process.platform === 'darwin' ? 'Cmd+Shift+A' : 'Ctrl+Shift+A',
           click: () => {
             const main = getMainWin();
@@ -272,8 +284,8 @@ function installAppMenu(getMainWin: () => BrowserWindow | null): void {
         },
         {
           id: 'session-leave',
-          label: '세션 나가기',
-          enabled: false,
+          label: t('session.leave'),
+          enabled: sessionActive,
           accelerator: process.platform === 'darwin' ? 'Cmd+Shift+L' : 'Ctrl+Shift+L',
           click: () => {
             const main = getMainWin();
@@ -309,6 +321,10 @@ function installAppMenu(getMainWin: () => BrowserWindow | null): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+// Persistent reference so settings:save can rebuild the app menu (which uses
+// localized labels) without threading the window through every callback.
+let mainWin: BrowserWindow | null = null;
+
 function setupSettingsIPC(): void {
   ipcMain.handle('settings:get', () => {
     const k = store.get('kanade');
@@ -328,6 +344,12 @@ function setupSettingsIPC(): void {
     session: { displayName: string };
   }) => {
     store.set('kanade', v);
+    // Sync the main-process i18n signal — renderers update via the
+    // 'i18n:locale-changed' channel below, but main has its own V8 context
+    // and would otherwise keep stale labels in any newly-built UI.
+    setLocale(v.locale ?? normalizeLocale(app.getLocale()));
+    // Rebuild the app menu so the Session submenu picks up the new locale.
+    installAppMenu(() => mainWin);
     for (const w of BrowserWindow.getAllWindows()) {
       w.webContents.send('settings:changed', v);
       w.webContents.send('i18n:locale-changed', v.locale);
@@ -345,17 +367,20 @@ function setupSettingsIPC(): void {
 // App lifecycle
 app.whenReady().then(() => {
   removeCSP();
+  // Initialize main-process i18n locale before the first installAppMenu so
+  // the Session submenu builds in the user's chosen language on cold start.
+  setLocale(getLocaleSetting() ?? normalizeLocale(app.getLocale()));
 
-  const win = createWindow();
-  setupIPC(win);
+  mainWin = createWindow();
+  setupIPC(mainWin);
   setupSettingsIPC();
-  installAppMenu(() => win);
-  setupAutoUpdater(() => win);
+  installAppMenu(() => mainWin);
+  setupAutoUpdater(() => mainWin);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      const newWin = createWindow();
-      setupIPC(newWin);
+      mainWin = createWindow();
+      setupIPC(mainWin);
     }
   });
 });

@@ -3,6 +3,7 @@ import type { ChatMessage, MemberKey } from '../../shared/types.js';
 import type { RendererContext } from '../../../../types/plugins.js';
 import { showToast } from '../../renderer-shared/toast.jsx';
 import { shouldShowFrom } from './chat-grouping.js';
+import { t } from '../../../../i18n/index.js';
 
 interface Props {
   ctx: RendererContext;
@@ -50,16 +51,16 @@ export function ChatTab(p: Props) {
   });
 
   const send = async (): Promise<void> => {
-    const t = draft().trim();
-    if (!t) return;
+    const text = draft().trim();
+    if (!text) return;
     setDraft('');
     setShowNewBadge(false);
     queueMicrotask(() => { if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight; });
     try {
-      await p.ctx.ipc.invoke('chat.send', { text: t });
+      await p.ctx.ipc.invoke('chat.send', { text });
     } catch (e) {
       console.warn('[session-room] chat.send failed', e);
-      showToast('메시지 전송 실패', 'error');
+      showToast(t('session.toastChatSendFailed'), 'error');
     }
   };
 
@@ -84,7 +85,7 @@ export function ChatTab(p: Props) {
         </For>
       </div>
       <Show when={showNewBadge()}>
-        <button class="kanade-chat-newbadge" onClick={scrollToBottom}>새 메시지 ↓</button>
+        <button class="kanade-chat-newbadge" onClick={scrollToBottom}>{t('session.chatNewBadge')}</button>
       </Show>
       <div class="kanade-chat-input">
         <textarea
@@ -100,7 +101,7 @@ export function ChatTab(p: Props) {
               void send();
             }
           }}
-          placeholder="메시지 입력... (Enter 전송, Shift+Enter 줄바꿈)"
+          placeholder={t('session.chatPlaceholder')}
         />
       </div>
     </div>

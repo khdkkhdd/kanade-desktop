@@ -5,6 +5,7 @@ import { QueueTab } from './QueueTab.jsx';
 import { ChatTab } from './ChatTab.jsx';
 import { computeUnread } from './unread-chat.js';
 import type { PanelMode } from './use-panel-mode.js';
+import { t } from '../../../../i18n/index.js';
 
 export interface PanelState {
   queue: QueueItem[];
@@ -95,18 +96,18 @@ export function SessionPanel(p: PanelProps) {
       >
       <Show when={isOpen()}>
         <div class="kanade-panel-header">
-          <div class="kanade-panel-title">{p.state().hostName} Room</div>
+          <div class="kanade-panel-title">{t('session.panelTitle', { name: p.state().hostName })}</div>
           <div class="kanade-panel-code-row">
             <code>{p.state().roomCode}</code>
-            <button class="kanade-copy-btn" onClick={() => { void navigator.clipboard.writeText(p.state().roomCode); }}>⧉ 복사</button>
+            <button class="kanade-copy-btn" onClick={() => { void navigator.clipboard.writeText(p.state().roomCode); }}>{t('session.panelCopy')}</button>
           </div>
         </div>
         <div class="kanade-panel-tabs">
           <button class={`kanade-tab ${tab() === 'queue' ? 'active' : ''}`} onClick={() => setTab('queue')}>
-            큐 ({queueCount()})
+            {t('session.tabsQueue')} ({queueCount()})
           </button>
           <button class={`kanade-tab ${tab() === 'chat' ? 'active' : ''}`} onClick={() => setTab('chat')}>
-            채팅<Show when={hasUnread()}><span class="kanade-tab-dot" /></Show>
+            {t('session.tabsChat')}<Show when={hasUnread()}><span class="kanade-tab-dot" /></Show>
           </button>
         </div>
         <Show when={tab() === 'queue'}>
@@ -128,7 +129,7 @@ export function SessionPanel(p: PanelProps) {
         </Show>
         <div class="kanade-presence">
           <Show when={p.state().isHostAbsent}>
-            <div class="kanade-handoff-warn">⚠️ Host 연결 끊김… 자동 승계 대기</div>
+            <div class="kanade-handoff-warn">⚠️ {t('session.panelHostAbsent')}</div>
           </Show>
           <For each={p.state().members}>
             {(m) => (

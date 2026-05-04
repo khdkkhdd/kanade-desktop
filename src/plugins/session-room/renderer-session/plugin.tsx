@@ -11,6 +11,7 @@ import { setupClickInterceptor } from './click-interceptor.js';
 import { disableAutoplay } from './autoplay-disable.js';
 import { mountToastContainer, showToast, type ToastKind } from '../renderer-shared/toast.jsx';
 import { detectYouTubeTheme, subscribeYouTubeTheme } from '../shared/theme-detect.js';
+import { t } from '../../../i18n/index.js';
 
 const STYLE = `
 .kanade-session-panel {
@@ -469,10 +470,10 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
       const prevHost = (prevRaw.members ?? []).find((m) => m.isHost);
       const newHost = (raw.members ?? []).find((m) => m.isHost);
       if (prevHost && newHost && prevHost.memberKey !== newHost.memberKey) {
-        showToast(`Host 가 ${newHost.displayName} 로 변경되었습니다`, 'info');
+        showToast(t('session.toastHostChanged', { name: newHost.displayName }), 'info');
       }
       if (prevRaw.room && !raw.room) {
-        showToast('세션이 종료되었습니다', 'warn');
+        showToast(t('session.toastSessionClosed'), 'warn');
       }
     }
     prevRaw = raw;
