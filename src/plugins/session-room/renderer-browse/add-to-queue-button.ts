@@ -11,22 +11,12 @@ import {
 } from '../../../lib/youtube-dom/index.js';
 
 export function setupAddToQueueButtons(ctx: RendererContext): () => void {
-  // Strategy: ONE floating button (FAB) appended to <body>. Each card gets a
-  // .kanade-card-host marker so we know its bounds; the FAB repositions to
-  // overlay whichever card the cursor is currently in.
-  //
-  // Why body-level vs per-card injection: search ytd-thumbnail
-  // [use-hovered-property] activates a hover preview that portals a <video>
-  // element above the thumbnail at body level. Per-card buttons are trapped
-  // in the thumbnail's local stacking context — even z-index:max-int can't
-  // escape, the VIDEO portal renders above. Lifting the button to body level
-  // puts it in the same stacking arena as the VIDEO portal so z-index works.
-  //
-  // Tradeoff: only one card can show the button at a time (single FAB), but
-  // that's already the UX (only one card is hovered at a time anyway).
-  //
-  // Session gating happens via body[data-kanade-session="active"] (set in
-  // plugin.tsx).
+  // One floating button at body level. Each marked card gets data-kanade-host
+  // so we know its bounds; the button repositions onto whichever card the
+  // cursor is in. Body level is required because YouTube's hover preview
+  // (search ytd-thumbnail[use-hovered-property]) portals a <video> above the
+  // card at body level — a per-card button trapped in the thumbnail's local
+  // stacking context loses to that portal regardless of z-index.
 
   let activeVideoId: string | null = null;
 
@@ -101,53 +91,31 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
   // rescan catches stragglers; idempotent host marking makes this cheap.
   const periodicScan = window.setInterval(() => scan(document), 2000);
 
-  // Hover detection: pure rect-based hit test against marked hosts.
-  // Repositions the FAB onto the hovered card's thumbnail box.
+  // Rect-based hover detection. The button targets the thumbnail anchor's
+  // parent (typically ytd-thumbnail) so it sits at the thumbnail's top-left
+  // even in horizontal layouts (mix sidebar) where the host is the whole row.
   let raf = 0;
   let cursorX = -1, cursorY = -1;
   let hoveredHost: HTMLElement | null = null;
-  let unhoverTimer = 0;
 
   const positionAt = (host: HTMLElement): void => {
-    // Find the hovered card's thumbnail anchor — its parent is typically the
-    // small thumbnail box (ytd-thumbnail). Use its rect for FAB position so
-    // the button sits at the thumbnail's top-left, not the whole card's
-    // top-left (matters for horizontal layouts like mix sidebar).
     const a = host.querySelector<HTMLAnchorElement>(YT_SELECTORS.videoAnchor);
-    const thumbBox = a?.parentElement;
-    const r = (thumbBox || host).getBoundingClientRect();
+    const r = (a?.parentElement || host).getBoundingClientRect();
     fab.style.top = `${r.top + 4}px`;
     fab.style.left = `${r.left + 4}px`;
     activeVideoId = a ? extractVideoIdFromHref(a.href) : null;
   };
 
-  const showFab = (host: HTMLElement): void => {
-    positionAt(host);
-    fab.classList.add('kanade-visible');
-  };
-  const hideFab = (): void => {
-    fab.classList.remove('kanade-visible');
-    activeVideoId = null;
-  };
-
   const setHover = (next: HTMLElement | null): void => {
-    if (next === hoveredHost) {
-      if (unhoverTimer) { window.clearTimeout(unhoverTimer); unhoverTimer = 0; }
-      return;
-    }
-    if (next === null) {
-      if (!unhoverTimer) {
-        unhoverTimer = window.setTimeout(() => {
-          hoveredHost = null;
-          hideFab();
-          unhoverTimer = 0;
-        }, 150);
-      }
-      return;
-    }
-    if (unhoverTimer) { window.clearTimeout(unhoverTimer); unhoverTimer = 0; }
+    if (next === hoveredHost) return;
     hoveredHost = next;
-    showFab(next);
+    if (next) {
+      positionAt(next);
+      fab.classList.add('kanade-visible');
+    } else {
+      fab.classList.remove('kanade-visible');
+      activeVideoId = null;
+    }
   };
 
   const tick = (): void => {
@@ -164,8 +132,8 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
       }
     }
     setHover(found);
-    // Re-position FAB on every tick so it tracks if the host moved (e.g.
-    // YouTube layout shift during hover preview activation).
+    // Same-host re-position keeps the FAB aligned if YouTube animates the
+    // thumbnail (e.g., scale on hover-preview activation).
     if (hoveredHost && found === hoveredHost) positionAt(hoveredHost);
   };
 
@@ -175,20 +143,19 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(tick);
   };
-  document.addEventListener('mousemove', onMove, { passive: true, capture: true });
+  document.addEventListener('mousemove', onMove, { passive: true });
 
-  // Reposition on scroll — viewport coords change, fixed-position FAB needs
-  // to follow the hovered card.
+  // FAB is position:fixed in viewport coords; reposition on scroll so it
+  // tracks the hovered card. capture catches inner-scroller scrolls too.
   const onScroll = (): void => { if (hoveredHost) positionAt(hoveredHost); };
   document.addEventListener('scroll', onScroll, { passive: true, capture: true });
 
   return () => {
     obs.disconnect();
     window.clearInterval(periodicScan);
-    document.removeEventListener('mousemove', onMove, { capture: true });
+    document.removeEventListener('mousemove', onMove);
     document.removeEventListener('scroll', onScroll, { capture: true });
     cancelAnimationFrame(raf);
-    if (unhoverTimer) window.clearTimeout(unhoverTimer);
     fab.remove();
   };
 }

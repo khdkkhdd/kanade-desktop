@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { isThumbnailAnchor, isWrapperAnchor, findCardHosts } from './cards.js';
+import { isThumbnailAnchor, findCardHosts } from './cards.js';
 import { _resetWarnedForTesting } from './_warn.js';
 
 function makeDoc(html: string): Document {
@@ -33,33 +33,6 @@ describe('isThumbnailAnchor', () => {
     const doc = makeDoc('<a href="/watch?v=X"></a>');
     const a = doc.querySelector('a') as HTMLAnchorElement;
     expect(isThumbnailAnchor(a)).toBe(false);
-  });
-});
-
-describe('isWrapperAnchor', () => {
-  it('true when anchor contains a nested anchor (card-wide wrapper)', () => {
-    // Mix sidebar (ytd-playlist-panel-video-renderer) builds programmatically
-    // a #wc-endpoint outer wrapping a #thumbnail inner. HTML parser disallows
-    // <a><a></a></a>, so we build the fixture via DOM API.
-    const doc = makeDoc('');
-    const outer = doc.createElement('a');
-    outer.href = '/watch?v=X';
-    const inner = doc.createElement('a');
-    inner.href = '/watch?v=X';
-    inner.appendChild(doc.createElement('yt-image'));
-    outer.appendChild(inner);
-    doc.body.appendChild(outer);
-    expect(isWrapperAnchor(outer)).toBe(true);
-  });
-  it('false for an anchor without nested anchors', () => {
-    const doc = makeDoc('<a href="/watch?v=X"><img></a>');
-    const a = doc.querySelector('a') as HTMLAnchorElement;
-    expect(isWrapperAnchor(a)).toBe(false);
-  });
-  it('false for an empty anchor', () => {
-    const doc = makeDoc('<a href="/watch?v=X"></a>');
-    const a = doc.querySelector('a') as HTMLAnchorElement;
-    expect(isWrapperAnchor(a)).toBe(false);
   });
 });
 

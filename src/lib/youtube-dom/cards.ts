@@ -3,33 +3,15 @@ import { warnOnce } from './_warn.js';
 
 /**
  * Distinguishes a thumbnail anchor from a title-only anchor — both share the
- * same /watch?v= href on a card, and we only inject UI on the thumbnail one
- * (otherwise text-only labels get a button overlaid on top, which looks bad).
+ * same /watch?v= href on a card, and callers typically want to act on the
+ * thumbnail anchor only.
  *
  * The check is "does this anchor contain a thumbnail-shaped child?" — the
  * multi-selector chain in YT_SELECTORS.thumbnailIndicator is intentional
  * fallback across lockup variants.
- *
- * Note: this returns true for both inner thumbnail anchors AND outer card-wide
- * wrapper anchors that happen to contain a thumbnail (e.g., the mix sidebar's
- * #wc-endpoint). Callers that need to skip wrappers should check
- * `isWrapperAnchor` separately.
  */
 export function isThumbnailAnchor(a: HTMLAnchorElement): boolean {
   return a.querySelector(YT_SELECTORS.thumbnailIndicator) !== null;
-}
-
-/**
- * True when this anchor wraps another anchor — typical of card-wide wrappers
- * like ytd-playlist-panel-video-renderer's #wc-endpoint, where the outer
- * anchor encloses an inner #thumbnail anchor. Both share the same href.
- *
- * Use case: an injector wants to mark the OUTER card box as the hover host
- * (so hover-anywhere-on-card works), but only attach the actual button to the
- * INNER thumbnail anchor — otherwise the button is duplicated.
- */
-export function isWrapperAnchor(a: HTMLAnchorElement): boolean {
-  return a.querySelector('a') !== null;
 }
 
 /**
