@@ -101,16 +101,18 @@ const STYLE = `
   pointer-events: none;
 }
 /* In a session: button is laid out and clickable, but starts at opacity:0.
- * The .kanade-hover class is toggled by a JS mousemove listener (see
- * add-to-queue-button.ts) — :hover would be unreliable across YouTube's
- * lockup variants. Button's own :hover keeps it visible while clicking. */
+ * The data-kanade-hovered attribute is toggled by a JS mousemove listener
+ * (see add-to-queue-button.ts) — :hover would be unreliable across YouTube's
+ * lockup variants. Data-attributes survive Polymer's reactive class rewrites
+ * on ytd-thumbnail[use-hovered-property] hosts. Button's own :hover keeps it
+ * visible while clicking. */
 body[data-kanade-session="active"] .kanade-add-queue {
   display: inline-flex;
   opacity: 0;
   pointer-events: auto;
   transition: opacity 0.12s ease;
 }
-body[data-kanade-session="active"] .kanade-card-host.kanade-hover .kanade-add-queue,
+body[data-kanade-session="active"] [data-kanade-host][data-kanade-hovered] .kanade-add-queue,
 body[data-kanade-session="active"] .kanade-add-queue:hover {
   opacity: 1;
 }

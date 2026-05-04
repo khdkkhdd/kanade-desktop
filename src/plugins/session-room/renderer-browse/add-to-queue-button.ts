@@ -31,9 +31,16 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
     // means the anchor isn't part of a recognized card (stray /watch link in
     // page chrome) — skip the entire injection to avoid orphan buttons in
     // the DOM.
+    //
+    // We use a data-* attribute (not className). Some YouTube ytd-* elements
+    // are managed by Polymer and have `use-hovered-property` that reactively
+    // re-applies the `class` attribute on hover state changes — that wipes
+    // any class we add via classList. data-* attributes survive Polymer
+    // reactivity (search ytd-thumbnail's hover preview was the case that
+    // surfaced this).
     const hosts = findCardHosts(parent);
     if (hosts.length === 0) return;
-    hosts.forEach((h) => h.classList.add('kanade-card-host'));
+    hosts.forEach((h) => { (h as HTMLElement).dataset.kanadeHost = ''; });
 
     // Skip button injection on wrapper anchors that contain another anchor —
     // the inner anchor will inject. Without this skip, the button is
@@ -112,21 +119,21 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
   // hover). elementsFromPoint includes pointer-events:none layers, so we
   // always find the card-host under the cursor regardless of YouTube CSS.
   let raf = 0;
-  let hoveredCard: Element | null = null;
-  const setHover = (next: Element | null): void => {
+  let hoveredCard: HTMLElement | null = null;
+  const setHover = (next: HTMLElement | null): void => {
     if (next === hoveredCard) return;
-    hoveredCard?.classList.remove('kanade-hover');
+    if (hoveredCard) delete hoveredCard.dataset.kanadeHovered;
     hoveredCard = next;
-    hoveredCard?.classList.add('kanade-hover');
+    if (hoveredCard) hoveredCard.dataset.kanadeHovered = '';
   };
   const onMove = (e: MouseEvent): void => {
     cancelAnimationFrame(raf);
     const x = e.clientX, y = e.clientY;
     raf = requestAnimationFrame(() => {
-      let found: Element | null = null;
+      let found: HTMLElement | null = null;
       for (const el of document.elementsFromPoint(x, y)) {
         if (!(el instanceof HTMLElement)) continue;
-        const card = el.closest('.kanade-card-host');
+        const card = el.closest<HTMLElement>('[data-kanade-host]');
         if (card) { found = card; break; }
       }
       setHover(found);
