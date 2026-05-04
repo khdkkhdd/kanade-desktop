@@ -79,10 +79,13 @@ const STYLE = `
   font-size: 13px;
   line-height: 1;
 }
+/* Single FAB at body level. Position is set inline by JS each tick, and
+ * visibility flips via .kanade-visible. Body-level placement escapes any
+ * per-card stacking contexts (search ytd-thumbnail's hover preview portals
+ * a <video> element above the card's local stacking; we need to compete at
+ * body level to win). */
 .kanade-add-queue {
-  position: absolute;
-  top: 4px;
-  left: 4px;
+  position: fixed;
   z-index: 2147483647;
   padding: 4px 10px 4px 6px;
   background: rgba(0,0,0,0.85);
@@ -100,22 +103,10 @@ const STYLE = `
   display: none;
   pointer-events: none;
 }
-/* In a session: button is laid out and clickable, but starts at opacity:0.
- * The data-kanade-hovered attribute is toggled by a JS mousemove listener
- * (see add-to-queue-button.ts) — :hover would be unreliable across YouTube's
- * lockup variants. Data-attributes survive Polymer's reactive class rewrites
- * on ytd-thumbnail[use-hovered-property] hosts. Button's own :hover keeps it
- * visible while clicking. */
-body[data-kanade-session="active"] .kanade-add-queue {
+body[data-kanade-session="active"] .kanade-add-queue.kanade-visible {
   display: inline-flex;
-  opacity: 0;
-  pointer-events: auto;
-  transition: opacity 0.12s ease;
-}
-body[data-kanade-session="active"] [data-kanade-host][data-kanade-hovered] .kanade-add-queue,
-body[data-kanade-session="active"] [data-kanade-host]:hover .kanade-add-queue,
-body[data-kanade-session="active"] .kanade-add-queue:hover {
   opacity: 1;
+  pointer-events: auto;
 }
 .kanade-add-queue:hover {
   background: rgba(0,0,0,0.95);
