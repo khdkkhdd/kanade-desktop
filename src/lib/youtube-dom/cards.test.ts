@@ -1,8 +1,8 @@
 /** @vitest-environment jsdom */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { isThumbnailAnchor } from './cards.js';
-import { findCardHost } from './cards.js';
+import { isThumbnailAnchor, findCardHost } from './cards.js';
+import { _resetWarnedForTesting } from './_warn.js';
 
 function makeDoc(html: string): Document {
   return new JSDOM(`<!DOCTYPE html><html><body>${html}</body></html>`).window.document;
@@ -37,6 +37,10 @@ describe('isThumbnailAnchor', () => {
 });
 
 describe('findCardHost', () => {
+  beforeEach(() => {
+    _resetWarnedForTesting();
+  });
+
   it('returns the nearest custom-element ancestor with a real layout box', () => {
     const doc = makeDoc(`
       <ytd-rich-item-renderer>
@@ -82,6 +86,7 @@ describe('findCardHost', () => {
   });
 
   it('returns null when no custom-element ancestor exists', () => {
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const doc = makeDoc(`
       <div class="parent">
         <a href="/watch?v=X"><img></a>
@@ -91,5 +96,7 @@ describe('findCardHost', () => {
     const parent = a.parentElement as Element;
     const host = findCardHost(parent, doc.defaultView as Window);
     expect(host).toBeNull();
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
   });
 });
