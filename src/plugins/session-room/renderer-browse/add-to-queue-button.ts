@@ -27,13 +27,13 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
     const parent = a.parentElement;
     if (!parent) return;
 
-    // Mark every card-level host (inner thumbnail wrapper + outer card
-    // container) so hover-anywhere-on-card works. In layouts like search
-    // (ytd-video-renderer > ytd-thumbnail), the outer covers the text-area
-    // hover region; the inner gives a tighter visual signal when the cursor
-    // is over the thumbnail itself. CSS hover gate matches buttons inside
-    // any .kanade-card-host.kanade-hover ancestor.
-    findCardHosts(parent).forEach((h) => h.classList.add('kanade-card-host'));
+    // Mark the per-card host so hover-anywhere-on-card works. Empty result
+    // means the anchor isn't part of a recognized card (stray /watch link in
+    // page chrome) — skip the entire injection to avoid orphan buttons in
+    // the DOM.
+    const hosts = findCardHosts(parent);
+    if (hosts.length === 0) return;
+    hosts.forEach((h) => h.classList.add('kanade-card-host'));
 
     // Skip button injection on wrapper anchors that contain another anchor —
     // the inner anchor will inject. Without this skip, the button is

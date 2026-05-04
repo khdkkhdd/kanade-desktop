@@ -72,21 +72,16 @@ describe('findCardHosts', () => {
     return els.map((e) => e.tagName.toLowerCase());
   }
 
-  it('stops at ytd-rich-item-renderer when siblings of same tag exist (homepage)', () => {
-    // Homepage rich-grid: yt-lockup-view-model is display:contents so skipped.
-    // ytd-rich-item-renderer is one of many siblings in its row, so it's the
-    // card-level boundary. Climbing past would leak hover across cards.
+  it('returns ytd-rich-item-renderer for homepage grid (skips display:contents lockup)', () => {
     const doc = makeDoc(`
       <ytd-rich-grid-row>
-        <ytd-rich-item-renderer id="target">
+        <ytd-rich-item-renderer>
           <yt-lockup-view-model style="display: contents">
             <div class="parent">
               <a href="/watch?v=X"><img></a>
             </div>
           </yt-lockup-view-model>
         </ytd-rich-item-renderer>
-        <ytd-rich-item-renderer><div></div></ytd-rich-item-renderer>
-        <ytd-rich-item-renderer><div></div></ytd-rich-item-renderer>
       </ytd-rich-grid-row>
     `);
     const a = doc.querySelector('a') as HTMLAnchorElement;
@@ -95,35 +90,35 @@ describe('findCardHosts', () => {
       .toEqual(['ytd-rich-item-renderer']);
   });
 
-  it('returns inner + outer through non-custom slot, stopping at sibling list (search)', () => {
-    // Real YouTube search wraps cards inside Polymer slot divs, which are
-    // non-custom intermediates between ytd-video-renderer and the section
-    // list. The sibling-tag rule stops correctly even through these slots.
+  it('returns ytd-video-renderer for search through Polymer slot divs', () => {
+    // Real search has div#contents Polymer slots between custom-element
+    // ancestors. Allowlist-based climb walks past all non-card customs
+    // (ytd-thumbnail, ytd-item-section-renderer, ytd-section-list-renderer)
+    // until it hits the known per-card tag.
     const doc = makeDoc(`
-      <ytd-item-section-renderer>
+      <ytd-section-list-renderer>
         <div id="contents">
-          <ytd-video-renderer>
-            <div id="dismissible">
-              <ytd-thumbnail>
-                <a href="/watch?v=X"><img></a>
-              </ytd-thumbnail>
-              <div class="text-wrapper">title here</div>
+          <ytd-item-section-renderer>
+            <div id="contents">
+              <ytd-video-renderer>
+                <div id="dismissible">
+                  <ytd-thumbnail>
+                    <a href="/watch?v=X"><img></a>
+                  </ytd-thumbnail>
+                </div>
+              </ytd-video-renderer>
             </div>
-          </ytd-video-renderer>
-          <ytd-video-renderer><div></div></ytd-video-renderer>
-          <ytd-video-renderer><div></div></ytd-video-renderer>
+          </ytd-item-section-renderer>
         </div>
-      </ytd-item-section-renderer>
+      </ytd-section-list-renderer>
     `);
     const a = doc.querySelector('a') as HTMLAnchorElement;
     const parent = a.parentElement as Element;
     expect(names(findCardHosts(parent, doc.defaultView as Window)))
-      .toEqual(['ytd-thumbnail', 'ytd-video-renderer']);
+      .toEqual(['ytd-video-renderer']);
   });
 
-  it('returns yt-lockup-view-model alone when its siblings are also yt-lockup (sidebar)', () => {
-    // Related-videos sidebar: each yt-lockup-view-model is its own card,
-    // and it has same-tag siblings, so it stops there.
+  it('returns yt-lockup-view-model when normal display (related sidebar)', () => {
     const doc = makeDoc(`
       <ytd-watch-next-secondary-results-renderer>
         <yt-lockup-view-model>
@@ -131,7 +126,6 @@ describe('findCardHosts', () => {
             <a href="/watch?v=X"><img></a>
           </div>
         </yt-lockup-view-model>
-        <yt-lockup-view-model><div></div></yt-lockup-view-model>
       </ytd-watch-next-secondary-results-renderer>
     `);
     const a = doc.querySelector('a') as HTMLAnchorElement;
@@ -140,32 +134,49 @@ describe('findCardHosts', () => {
       .toEqual(['yt-lockup-view-model']);
   });
 
-  it('continues climbing when current host has no sibling of same tag', () => {
-    // If a card-level element is alone in its parent (single result page,
-    // unusual but possible), the rule keeps climbing. This is acceptable
-    // degraded behavior — there are no other cards to leak hover into.
+  it('returns ytd-playlist-panel-video-renderer for mix sidebar (inner anchor)', () => {
     const doc = makeDoc(`
-      <ytd-item-section-renderer>
-        <ytd-video-renderer>
-          <ytd-thumbnail>
-            <a href="/watch?v=X"><img></a>
-          </ytd-thumbnail>
-        </ytd-video-renderer>
-      </ytd-item-section-renderer>
+      <ytd-playlist-panel-renderer>
+        <ytd-playlist-panel-video-renderer>
+          <a id="wc-endpoint" href="/watch?v=X">
+            <div>
+              <ytd-thumbnail>
+                <a id="thumb" href="/watch?v=X"><img></a>
+              </ytd-thumbnail>
+            </div>
+          </a>
+        </ytd-playlist-panel-video-renderer>
+      </ytd-playlist-panel-renderer>
+    `);
+    const inner = doc.querySelector('a#thumb') as HTMLAnchorElement;
+    expect(names(findCardHosts(inner.parentElement as Element, doc.defaultView as Window)))
+      .toEqual(['ytd-playlist-panel-video-renderer']);
+  });
+
+  it('returns ytm-shorts-lockup-view-model for shorts feed', () => {
+    const doc = makeDoc(`
+      <grid-shelf-view-model>
+        <ytm-shorts-lockup-view-model>
+          <a href="/shorts/X"><img></a>
+        </ytm-shorts-lockup-view-model>
+      </grid-shelf-view-model>
     `);
     const a = doc.querySelector('a') as HTMLAnchorElement;
     const parent = a.parentElement as Element;
-    // No siblings anywhere — climbs all the way up.
     expect(names(findCardHosts(parent, doc.defaultView as Window)))
-      .toEqual(['ytd-thumbnail', 'ytd-video-renderer', 'ytd-item-section-renderer']);
+      .toEqual(['ytm-shorts-lockup-view-model']);
   });
 
-  it('returns empty array + warns when no custom-element ancestor exists', () => {
+  it('returns empty array + warns for stray anchor not inside a known card', () => {
+    // Page-chrome /watch link with no card ancestor — should be ignored
+    // entirely so the climb doesn't leak into ytd-app or page-manager.
     const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const doc = makeDoc(`
-      <div class="parent">
-        <a href="/watch?v=X"><img></a>
-      </div>
+      <ytd-app>
+        <ytd-page-manager>
+          <div><a href="/watch?v=X"><img></a></div>
+        </ytd-page-manager>
+      </ytd-app>
     `);
     const a = doc.querySelector('a') as HTMLAnchorElement;
     const parent = a.parentElement as Element;

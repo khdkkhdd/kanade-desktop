@@ -33,57 +33,53 @@ export function isWrapperAnchor(a: HTMLAnchorElement): boolean {
 }
 
 /**
- * Finds every custom-element ancestor with a real layout box that should be
- * treated as a card-hover target — innermost (e.g., ytd-thumbnail) up to the
- * outermost per-card container (e.g., ytd-video-renderer in search).
+ * Tag names of YouTube's known per-card container elements. The hover-host
+ * climb stops here. Adding a new card type means appending to this set —
+ * that's the explicit YouTube-knowledge boundary the library centralizes.
  *
- * Why multiple hosts: card layouts often have a small inner element that
- * wraps just the thumbnail and a larger outer element that wraps thumbnail +
- * text. Marking only the inner means hovering the title text doesn't trigger
- * the button (text is sibling of inner, not descendant). Marking BOTH lets
- * the hover detector's closest('.kanade-card-host') find an appropriate
- * host from any region of the card.
+ * Heuristic-based stop rules (sibling counting, parent-is-custom, etc.) all
+ * failed in practice because YouTube's DOM has stray `/watch?v=` anchors at
+ * higher levels (page chrome, ghost templates) and Polymer slot div#contents
+ * intermediates between custom-element ancestors. An explicit allowlist is
+ * the only reliable boundary.
+ */
+const KNOWN_CARD_TAGS = new Set([
+  'YTD-RICH-ITEM-RENDERER',          // homepage rich-grid
+  'YT-LOCKUP-VIEW-MODEL',            // related sidebar, embedded lockups
+  'YTD-VIDEO-RENDERER',              // search, channel
+  'YTD-COMPACT-VIDEO-RENDERER',      // legacy sidebar
+  'YTD-PLAYLIST-PANEL-VIDEO-RENDERER', // mix sidebar
+  'YTM-SHORTS-LOCKUP-VIEW-MODEL',    // shorts in feed
+  'YTM-SHORTS-LOCKUP-VIEW-MODEL-V2', // shorts (new)
+]);
+
+/**
+ * Finds the per-card container element that should receive `.kanade-card-host`
+ * for hover detection. Climbs from `parent` to the nearest ancestor whose
+ * tagName is in `KNOWN_CARD_TAGS` and that has a real layout box (not
+ * display:contents).
  *
- * Skipped:
- * - non-custom elements (plain divs etc.) — passed through silently
- * - custom elements with `display: contents` (e.g., homepage's
- *   yt-lockup-view-model) — no box, so they're not visual targets; climb past
+ * Returns `[host]` (single-element array) on match, `[]` if no known card-tag
+ * ancestor exists. Empty result means the anchor is not part of a recognized
+ * card layout — typically a stray /watch?v= anchor in page chrome — and the
+ * caller should skip injection.
  *
- * Stop rule: after marking, stop when the marked element has a sibling with
- * the same tagName. That signals "this is one item in a list of cards" — the
- * parent is a list container (ytd-rich-grid-row, ytd-section-list-renderer's
- * div#contents slot, etc.), and marking past this point would leak hover
- * across cards.
- *
- * Returns an empty array when no suitable ancestor exists; emits a warnOnce
- * signal so a silent layout regression is visible in the console.
+ * The plural return type leaves room for future use (e.g., marking inner +
+ * outer hosts) without API churn, but currently always returns 0 or 1
+ * elements.
  */
 export function findCardHosts(parent: Element, win: Window = window): Element[] {
-  const hosts: Element[] = [];
   let cur: Element | null = parent;
   while (cur && cur !== cur.ownerDocument.body) {
-    if (cur.tagName.includes('-') &&
+    if (KNOWN_CARD_TAGS.has(cur.tagName) &&
         win.getComputedStyle(cur).display !== 'contents') {
-      hosts.push(cur);
-      if (hasSiblingWithSameTag(cur)) break;
+      return [cur];
     }
     cur = cur.parentElement;
   }
-  if (hosts.length === 0) {
-    warnOnce(
-      'findCardHosts',
-      'No custom-element ancestor found for a video card — lockup structure may have changed',
-    );
-  }
-  return hosts;
-}
-
-function hasSiblingWithSameTag(el: Element): boolean {
-  const parent = el.parentElement;
-  if (!parent) return false;
-  const tag = el.tagName;
-  for (const sib of parent.children) {
-    if (sib !== el && sib.tagName === tag) return true;
-  }
-  return false;
+  warnOnce(
+    'findCardHosts',
+    'No known card-tag ancestor found for a video anchor — likely a stray /watch link, or YouTube added a new lockup type. Update KNOWN_CARD_TAGS in cards.ts.',
+  );
+  return [];
 }
