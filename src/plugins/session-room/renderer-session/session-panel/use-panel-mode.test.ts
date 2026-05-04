@@ -43,6 +43,8 @@ describe('usePanelMode', () => {
     p.setPanelHovered(false);
     vi.advanceTimersByTime(100);
     p.setPanelHovered(true);
+    vi.advanceTimersByTime(201);   // past original deadline — cancelled timer must not fire
+    expect(p.mode()).toBe('peek');
     vi.advanceTimersByTime(1000);
     expect(p.mode()).toBe('peek');
   });
@@ -109,6 +111,17 @@ describe('usePanelMode', () => {
     const p = usePanelMode({ initial: 'closed' });
     p.setPanelHovered(true);
     p.windowBlur();
+    expect(p.mode()).toBe('closed');
+  });
+
+  it('windowBlur cancels pending leave timer', () => {
+    const p = usePanelMode({ initial: 'closed' });
+    p.setPanelHovered(true);
+    p.setPanelHovered(false);          // start leave timer
+    vi.advanceTimersByTime(50);
+    p.windowBlur();
+    expect(p.mode()).toBe('closed');
+    vi.advanceTimersByTime(1000);      // ensure stale timer doesn't fire later
     expect(p.mode()).toBe('closed');
   });
 

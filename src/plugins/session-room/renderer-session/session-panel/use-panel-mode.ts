@@ -1,4 +1,3 @@
-// src/plugins/session-room/renderer-session/session-panel/use-panel-mode.ts
 import { createSignal } from 'solid-js';
 
 export type PanelMode = 'closed' | 'peek' | 'pinned';
@@ -20,7 +19,8 @@ export interface PanelModeApi {
   togglePin: () => void;
   /** Window blur (alt-tab away). */
   windowBlur: () => void;
-  /** Test/cleanup helper — clears pending leave timer. */
+  /** Cleanup hook — clears pending leave timer. Call on teardown if you create
+   *  many short-lived instances (e.g. tests). Production renderers can ignore. */
   dispose: () => void;
 }
 
@@ -28,6 +28,8 @@ export function usePanelMode(opts: PanelModeOptions = {}): PanelModeApi {
   const leaveDelayMs = opts.leaveDelayMs ?? 200;
   const [mode, setMode] = createSignal<PanelMode>(opts.initial ?? 'pinned');
 
+  // Plain mutable state — only mode() is reactive. Setters call reevaluate()
+  // which transitions mode; consumers read mode() and never these directly.
   let toggleHovered = false;
   let panelHovered = false;
   let focusInside = false;
