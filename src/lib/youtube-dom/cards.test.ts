@@ -34,6 +34,37 @@ describe('isThumbnailAnchor', () => {
     const a = doc.querySelector('a') as HTMLAnchorElement;
     expect(isThumbnailAnchor(a)).toBe(false);
   });
+  it('false when anchor wraps a nested inner anchor (card-wide wrapper)', () => {
+    // Mix sidebar (ytd-playlist-panel-video-renderer) wraps the whole card
+    // in #wc-endpoint, with #thumbnail nested inside. The outer is a wrapper,
+    // not a thumbnail-specific target — injecting on it duplicates the button.
+    // Note: HTML parser disallows <a><a></a></a>, but YouTube builds these
+    // programmatically. We do the same to faithfully reproduce the bug.
+    const doc = makeDoc('');
+    const outer = doc.createElement('a');
+    outer.id = 'wc-endpoint';
+    outer.href = '/watch?v=X';
+    const inner = doc.createElement('a');
+    inner.id = 'thumbnail';
+    inner.href = '/watch?v=X';
+    const img = doc.createElement('yt-image');
+    inner.appendChild(img);
+    outer.appendChild(inner);
+    doc.body.appendChild(outer);
+    expect(isThumbnailAnchor(outer)).toBe(false);
+  });
+  it('true for the inner anchor of a nested wrapper', () => {
+    const doc = makeDoc('');
+    const outer = doc.createElement('a');
+    outer.href = '/watch?v=X';
+    const inner = doc.createElement('a');
+    inner.href = '/watch?v=X';
+    const img = doc.createElement('yt-image');
+    inner.appendChild(img);
+    outer.appendChild(inner);
+    doc.body.appendChild(outer);
+    expect(isThumbnailAnchor(inner)).toBe(true);
+  });
 });
 
 describe('findCardHost', () => {

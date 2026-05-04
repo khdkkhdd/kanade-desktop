@@ -6,11 +6,16 @@ import { warnOnce } from './_warn.js';
  * same /watch?v= href on a card, and we only inject UI on the thumbnail one
  * (otherwise text-only labels get a button overlaid on top, which looks bad).
  *
- * The check is "does this anchor contain a thumbnail-shaped child?" — the
- * multi-selector chain in YT_SELECTORS.thumbnailIndicator is intentional
- * fallback across lockup variants.
+ * Two checks:
+ * 1. Anchor must contain an image-bearing child (multi-selector fallback chain
+ *    across lockup variants).
+ * 2. Anchor must NOT contain another anchor — that signals a card-wide wrapper
+ *    (e.g., ytd-playlist-panel-video-renderer's #wc-endpoint, which encloses
+ *    the inner #thumbnail anchor). Injecting on a wrapper duplicates the
+ *    button.
  */
 export function isThumbnailAnchor(a: HTMLAnchorElement): boolean {
+  if (a.querySelector('a')) return false;
   return a.querySelector(YT_SELECTORS.thumbnailIndicator) !== null;
 }
 
