@@ -4,6 +4,7 @@ import type { QueueItem, ItemId, PermissionMode, MemberKey, Member, PlayerState,
 import { QueueTab } from './QueueTab.jsx';
 import { ChatTab } from './ChatTab.jsx';
 import { computeUnread } from './unread-chat.js';
+import type { PanelMode } from './use-panel-mode.js';
 
 export interface PanelState {
   queue: QueueItem[];
@@ -22,8 +23,11 @@ export interface PanelState {
 interface PanelProps {
   ctx: RendererContext;
   state: () => PanelState;
-  open: () => boolean;
+  mode: () => PanelMode;
   onToggle: () => void;
+  onToggleHover: (hovered: boolean) => void;
+  onPanelHover: (hovered: boolean) => void;
+  onFocusInside: (inside: boolean) => void;
 }
 
 // host's broadcastHostLoad uses webContents.loadURL on track change, which
@@ -52,7 +56,7 @@ export function SessionPanel(p: PanelProps) {
     // while closed always light up the toggle dot, even if the user
     // last left the panel on the chat tab.
     const messages = p.state().chatMessages;
-    const currentTab = p.open() ? tab() : 'queue';
+    const currentTab = p.mode() !== 'closed' ? tab() : 'queue';
     const r = computeUnread({ lastSeenId, messages, currentTab });
     if (r.newLastSeenId !== lastSeenId) {
       lastSeenId = r.newLastSeenId;
@@ -62,17 +66,34 @@ export function SessionPanel(p: PanelProps) {
   });
 
   const queueCount = () => p.state().queue.length;
+  const isOpen = () => p.mode() !== 'closed';
 
   return (
     <>
-      <button class={`kanade-toggle ${p.open() ? '' : 'closed'}`} onClick={p.onToggle}>
-        {p.open() ? '▶' : '◀'}
-        <Show when={!p.open() && hasUnread()}>
+      <button
+        class={`kanade-toggle ${isOpen() ? '' : 'closed'}`}
+        onClick={p.onToggle}
+        onMouseEnter={() => p.onToggleHover(true)}
+        onMouseLeave={() => p.onToggleHover(false)}
+      >
+        {isOpen() ? '▶' : '◀'}
+        <Show when={!isOpen() && hasUnread()}>
           <span class="kanade-toggle-dot" />
         </Show>
       </button>
-      <div class={`kanade-session-panel ${p.open() ? 'open' : 'closed'}`}>
-      <Show when={p.open()}>
+      <div
+        class={`kanade-session-panel ${isOpen() ? 'open' : 'closed'}`}
+        onMouseEnter={() => p.onPanelHover(true)}
+        onMouseLeave={() => p.onPanelHover(false)}
+        on:focusin={() => p.onFocusInside(true)}
+        on:focusout={(e: FocusEvent) => {
+          const next = e.relatedTarget as Node | null;
+          if (!(e.currentTarget as Element).contains(next)) {
+            p.onFocusInside(false);
+          }
+        }}
+      >
+      <Show when={isOpen()}>
         <div class="kanade-panel-header">
           <div class="kanade-panel-title">{p.state().hostName} Room</div>
           <div class="kanade-panel-code-row">

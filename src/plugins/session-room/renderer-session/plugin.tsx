@@ -2,6 +2,7 @@ import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
 import type { RendererContext } from '../../../types/plugins.js';
 import { SessionPanel, type PanelState } from './session-panel/SessionPanel.jsx';
+import { usePanelMode } from './session-panel/use-panel-mode.js';
 import { AdBanner } from './ad-banner.jsx';
 import { setupHostPlayerSync } from './player-sync-host.js';
 import { setupGuestPlayerSync } from './player-sync-guest.js';
@@ -506,18 +507,20 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
 
   const hostInAd = () => state().lastPlayerState?.isAd ?? false;
 
-  // Lift panel open state so Cmd+Shift+P keydown can toggle it from outside SessionPanel.
-  const [panelOpen, setPanelOpen] = createSignal(true);
+  // Panel open/peek/pinned state — see use-panel-mode.ts.
+  const panel = usePanelMode({ initial: 'pinned' });
 
-  // Gap D: Cmd+Shift+P (macOS) / Ctrl+Shift+P (Win/Linux) toggles the session panel.
-  // Bound here (session renderer) so it only fires when the session window is active,
-  // not from the browse window.
+  // R4: window blur closes PEEK immediately (PINNED stays).
+  window.addEventListener('blur', () => panel.windowBlur());
+
+  // Cmd+Shift+P (mac) / Ctrl+Shift+P (Win/Linux) toggles pin.
+  // CLOSED → PINNED, PEEK → PINNED (promote), PINNED → CLOSED.
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
   const onKeydown = (e: KeyboardEvent) => {
     const cmd = isMac ? e.metaKey : e.ctrlKey;
     if (cmd && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
       e.preventDefault();
-      setPanelOpen((v) => !v);
+      panel.togglePin();
     }
   };
   document.addEventListener('keydown', onKeydown, true);
@@ -529,7 +532,15 @@ export async function setupSessionRenderer(ctx: RendererContext): Promise<void> 
   render(
     () => (
       <>
-        <SessionPanel ctx={ctx} state={state} open={panelOpen} onToggle={() => setPanelOpen((v) => !v)} />
+        <SessionPanel
+          ctx={ctx}
+          state={state}
+          mode={panel.mode}
+          onToggle={panel.togglePin}
+          onToggleHover={panel.setToggleHovered}
+          onPanelHover={panel.setPanelHovered}
+          onFocusInside={panel.setFocusInside}
+        />
         <AdBanner hostInAd={hostInAd()} iAmInAd={iAmInAd()} />
       </>
     ),
