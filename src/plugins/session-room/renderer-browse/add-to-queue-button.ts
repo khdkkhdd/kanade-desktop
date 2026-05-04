@@ -125,18 +125,32 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
   //
   // Performance: querySelectorAll + per-host rect check runs once per rAF
   // (capped at ~60fps). Even with 100 hosts that's well under 1ms per frame.
+  // Debug toggle: window.__kanadeHoverDebug = true to log every hover state
+  // change with timestamp + reason. Off by default; cheap branch when off.
+  const dbg = (msg: string, extra?: object): void => {
+    if (!(window as { __kanadeHoverDebug?: boolean }).__kanadeHoverDebug) return;
+    const t = performance.now().toFixed(1);
+    console.log(`[kanade-hover ${t}] ${msg}`, extra ?? '');
+  };
+
   let raf = 0;
   let cursorX = -1, cursorY = -1;
   let hoveredCard: HTMLElement | null = null;
   let unhoverTimer = 0;
-  const setHover = (next: HTMLElement | null): void => {
+  const setHover = (next: HTMLElement | null, reason: string): void => {
     if (next === hoveredCard) {
-      if (unhoverTimer) { window.clearTimeout(unhoverTimer); unhoverTimer = 0; }
+      if (unhoverTimer) {
+        dbg('cancel unhover (same card)', { reason });
+        window.clearTimeout(unhoverTimer);
+        unhoverTimer = 0;
+      }
       return;
     }
     if (next === null) {
       if (!unhoverTimer) {
+        dbg('start 150ms unhover timer', { reason, hoveredTag: hoveredCard?.tagName });
         unhoverTimer = window.setTimeout(() => {
+          dbg('unhover timer fired — clearing', { hoveredTag: hoveredCard?.tagName });
           if (hoveredCard) delete hoveredCard.dataset.kanadeHovered;
           hoveredCard = null;
           unhoverTimer = 0;
@@ -144,15 +158,22 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
       }
       return;
     }
-    if (unhoverTimer) { window.clearTimeout(unhoverTimer); unhoverTimer = 0; }
+    if (unhoverTimer) {
+      dbg('cancel unhover (new card)', { reason });
+      window.clearTimeout(unhoverTimer);
+      unhoverTimer = 0;
+    }
+    dbg('setHover -> card', { reason, oldTag: hoveredCard?.tagName, newTag: next.tagName });
     if (hoveredCard) delete hoveredCard.dataset.kanadeHovered;
     hoveredCard = next;
     hoveredCard.dataset.kanadeHovered = '';
   };
   const tick = (): void => {
     let found: HTMLElement | null = null;
+    let hostsScanned = 0;
     if (cursorX >= 0) {
       for (const host of document.querySelectorAll<HTMLElement>('[data-kanade-host]')) {
+        hostsScanned++;
         const r = host.getBoundingClientRect();
         if (r.width === 0) continue;
         if (cursorX >= r.left && cursorX < r.right &&
@@ -162,7 +183,10 @@ export function setupAddToQueueButtons(ctx: RendererContext): () => void {
         }
       }
     }
-    setHover(found);
+    if ((window as { __kanadeHoverDebug?: boolean }).__kanadeHoverDebug) {
+      dbg('tick', { x: cursorX, y: cursorY, hostsScanned, foundTag: found?.tagName ?? 'null' });
+    }
+    setHover(found, 'tick');
   };
   const onMove = (e: MouseEvent): void => {
     cursorX = e.clientX;
