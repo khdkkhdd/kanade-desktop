@@ -113,6 +113,7 @@ body[data-kanade-session="active"] .kanade-add-queue {
   transition: opacity 0.12s ease;
 }
 body[data-kanade-session="active"] [data-kanade-host][data-kanade-hovered] .kanade-add-queue,
+body[data-kanade-session="active"] [data-kanade-host]:hover .kanade-add-queue,
 body[data-kanade-session="active"] .kanade-add-queue:hover {
   opacity: 1;
 }
