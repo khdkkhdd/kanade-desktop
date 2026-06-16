@@ -204,10 +204,14 @@ async function loadRelatedChips(
   })) as { data: ArtistRelation[] } | null;
 
   const relations = raw?.data ?? [];
-  for (const rel of relations) {
-    addSubChip({
+  for (const def of outgoingChipDefs(relations)) addSubChip(def);
+}
+
+export function outgoingChipDefs(relations: ArtistRelation[]): SubChipDef[] {
+  return relations
+    .filter((rel) => rel.direction === 'outgoing')
+    .map((rel) => ({
       artistPublicId: rel.artist.publicId,
       name: formatWithOriginal(rel.artist.name, rel.artist.originalName),
-    });
-  }
+    }));
 }
