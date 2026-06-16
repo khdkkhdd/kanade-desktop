@@ -11,6 +11,7 @@ import { setLocale, normalizeLocale, t } from './i18n/index.js';
 // in this entry resolve correctly.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { isSafeYouTubeUrl } from './lib/url-guard.js';
+import { registerNavigationIPC } from './main/navigation-ipc.js';
 import type { PresenceConfig, Locale } from './config/store.js';
 import { setupAutoUpdater } from './auto-updater.js';
 import { loadAllMainPlugins, unloadAllMainPlugins } from './loader/main.js';
@@ -131,20 +132,6 @@ function createWindow(): BrowserWindow {
   loadAllMainPlugins(plugins, win, ipcMain);
 
   return win;
-}
-
-function setupIPC(win: BrowserWindow): void {
-  // Navigation change from renderer. Only listen to the main window's
-  // webContents (other BrowserWindows like Settings can't poison lastUrl)
-  // and gate via isSafeYouTubeUrl: a YouTube /redirect?q=... wrapper that
-  // navigates the main window to nicovideo / etc. must NOT become the next
-  // boot URL.
-  ipcMain.on('navigation:changed', (event, data: { url: string; videoId: string | null }) => {
-    if (event.sender !== win.webContents) return;
-    if (isSafeYouTubeUrl(data.url)) {
-      store.set('lastUrl', data.url);
-    }
-  });
 }
 
 let settingsWin: BrowserWindow | null = null;
@@ -372,7 +359,7 @@ app.whenReady().then(() => {
   setLocale(getLocaleSetting() ?? normalizeLocale(app.getLocale()));
 
   mainWin = createWindow();
-  setupIPC(mainWin);
+  registerNavigationIPC(() => mainWin);
   setupSettingsIPC();
   installAppMenu(() => mainWin);
   setupAutoUpdater(() => mainWin);
@@ -380,7 +367,6 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       mainWin = createWindow();
-      setupIPC(mainWin);
     }
   });
 });
